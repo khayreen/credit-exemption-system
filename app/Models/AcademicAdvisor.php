@@ -10,6 +10,11 @@ class AcademicAdvisor extends Model
 {
     use HasFactory, HasUuids;
     protected $table = 'academic_advisors';
-    protected $fillable = ['user_id', 'staff_id', 'department', 'specialization'];
+    protected $fillable = ['user_id', 'staff_id', 'department', 'specialization', 'assigned_programs'];
+
+    protected $casts = [
+        'assigned_programs' => 'array',
+    ];
+
     public function user() { return $this->belongsTo(User::class); }
 }

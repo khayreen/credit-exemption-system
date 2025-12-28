@@ -17,6 +17,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | System Administrator Email
+    |--------------------------------------------------------------------------
+    |
+    | This email address is used for system-level notifications, such as
+    | HEA personnel registration requests that require admin approval.
+    |
+    */
+
+    'admin_email' => env('ADMIN_EMAIL', 'kaiarenne00@gmail.com'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |

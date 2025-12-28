@@ -8,10 +8,12 @@
     "require": {
         "php": "^8.2",
         "bacon/bacon-qr-code": "^3.0",
+        "barryvdh/laravel-dompdf": "^3.1",
         "google/cloud-vision": "^2.0",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
         "laravel/ui": "^4.6",
+        "openspout/openspout": "^4.28",
         "pragmarx/google2fa-laravel": "^2.3",
         "smalot/pdfparser": "^2.12",
         "symfony/dom-crawler": "^7.3"

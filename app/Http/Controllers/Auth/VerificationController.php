@@ -56,7 +56,7 @@ class VerificationController extends Controller
             event(new Verified($user));
         }
 
-        // Redirect to the login page and flash a 'verified' session variable.
-        return redirect($this->redirectPath())->with('verified', true);
+        // Do NOT auto-login - redirect to login page
+        return redirect($this->redirectPath())->with('success', 'Your email has been verified! Please login to continue.');
     }
 }

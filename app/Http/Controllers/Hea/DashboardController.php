@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\ExemptionApplication;
 use App\Models\AuditTrail;
 use App\Models\SystemSetting;
+use App\Models\EquivalencyList;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -21,17 +22,66 @@ class DashboardController extends Controller
             'total_applications' => \App\Models\ExemptionApplication::count(),
             'pending_applications' => \App\Models\ExemptionApplication::whereNotIn('status', ['Completed', 'Rejected by HEA'])->count(),
             'total_logs' => \App\Models\AuditTrail::count(),
+            'pending_endorsements' => EquivalencyList::pending()->count(),
+            'pending_internal' => EquivalencyList::pending()->where('category', 'internal')->count(),
+            'pending_external' => EquivalencyList::pending()->where('category', 'external')->count(),
+            'published_lists' => EquivalencyList::published()->count(),
         ];
-        return view('hea.dashboard', compact('stats'));
+
+        // Get recent pending submissions
+        $pendingLists = EquivalencyList::with(['creator'])
+            ->pending()
+            ->orderBy('submitted_at', 'asc')
+            ->take(5)
+            ->get();
+
+        return view('hea.dashboard', compact('stats', 'pendingLists'));
     }
 
     /**
      * Show the user management page.
      */
-    public function users()
+    public function users(Request $request)
     {
-        $users = User::orderBy('created_at', 'desc')->get();
-        return view('hea.users', compact('users'));
+        // Get filter parameters
+        $roleFilter = $request->get('role_filter', 'all');
+        $sortOrder = $request->get('sort_order', 'latest');
+
+        // Build query with eager loading of role relationships
+        $query = User::with([
+            'academicAdvisor',
+            'programCoordinator',
+            'resourcePerson',
+            'externalLecturer'
+        ]);
+
+        // Apply role filter
+        if ($roleFilter !== 'all') {
+            $query->where('role', $roleFilter);
+        }
+
+        // Apply sort order
+        if ($sortOrder === 'oldest') {
+            $query->orderBy('created_at', 'asc');
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
+
+        $users = $query->get();
+
+        // For external lecturers, get their submission data
+        foreach ($users as $user) {
+            if ($user->role === 'external_lecturer' && $user->externalLecturer) {
+                // Get all submissions by this external lecturer
+                $submissions = \App\Models\ExternalLecturerSubmission::whereHas('request', function($q) use ($user) {
+                    $q->where('external_lecturer_email', $user->externalLecturer->email);
+                })->with('request')->get();
+
+                $user->external_submissions = $submissions;
+            }
+        }
+
+        return view('hea.users', compact('users', 'roleFilter', 'sortOrder'));
     }
 
     /**

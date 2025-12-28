@@ -350,17 +350,50 @@
             </div>
 
             <!-- Alert Messages -->
+            @if (session('success'))
+                <div class="alert alert-success d-flex align-items-center" role="alert">
+                    <i class="fas fa-check-circle me-2"></i>
+                    {{ session('success') }}
+                </div>
+            @endif
+
             @if (session('verified'))
                 <div class="alert alert-success d-flex align-items-center" role="alert">
                     <i class="fas fa-check-circle me-2"></i>
                     {{ __('Your email address has been successfully verified! You may now log in.') }}
                 </div>
             @endif
-            
+
             @if (session('status'))
                 <div class="alert alert-info d-flex align-items-center" role="alert">
                     <i class="fas fa-info-circle me-2"></i>
                     {{ session('status') }}
+                </div>
+            @endif
+
+            @if (session('warning'))
+                <div class="alert" style="background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e;" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {{ session('warning') }}
+                </div>
+            @endif
+
+            @if (session('error'))
+                <div class="alert alert-danger d-flex align-items-center" role="alert">
+                    <i class="fas fa-times-circle me-2"></i>
+                    {{ session('error') }}
+                </div>
+            @endif
+
+            @if ($errors->any())
+                <div class="alert alert-danger" role="alert">
+                    <i class="fas fa-times-circle me-2"></i>
+                    <strong>{{ __('Whoops!') }}</strong> {{ __('There were some problems with your input.') }}
+                    <ul class="mb-0 mt-2">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
                 </div>
             @endif
 

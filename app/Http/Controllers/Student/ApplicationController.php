@@ -23,6 +23,7 @@ use \Google\Cloud\Vision\V1\Feature;
 use \Google\Cloud\Vision\V1\AnnotateImageRequest;
 use \Google\Cloud\Vision\V1\BatchAnnotateImagesRequest;
 use Smalot\PdfParser\Parser as PdfParser;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ApplicationController extends Controller
 {
@@ -32,14 +33,91 @@ class ApplicationController extends Controller
     public function dashboard()
     {
         $student = Auth::user()->student;
-        // This is placeholder data for the stats cards.
-        // We will need to adjust this once we decide how to store OCR results.
+
+        if (!$student) {
+            // If no student record exists, redirect to profile completion
+            return redirect()->route('profile.show')
+                           ->with('warning', 'Please complete your student profile to access the dashboard.');
+        }
+
+        // Get all applications for the student
+        $applications = ExemptionApplication::where('student_id', $student->id)
+                                           ->with('applicationSubjects')
+                                           ->orderBy('created_at', 'desc')
+                                           ->get();
+
+        // Calculate detailed statistics
         $stats = [
-            'total' => 0,
-            'pending' => 0,
-            'completed' => 0,
+            'total' => $applications->count(),
+            'pending' => $applications->whereIn('status', ['pending', 'under_review', 'Pending Academic Advisor'])->count(),
+            'rejected' => $applications->where('status', 'rejected')->count(),
+            'in_progress' => $applications->whereIn('status', ['under_review', 'Pending Academic Advisor', 'Pending Resource Person'])->count(),
         ];
-        return view('student.dashboard', compact('stats'));
+
+        // Calculate course-level statistics
+        $totalCourses = 0;
+        $exemptedCourses = 0;
+        $pendingCourses = 0;
+        $rejectedCourses = 0;
+
+        foreach ($applications as $application) {
+            $subjects = $application->applicationSubjects;
+            $totalCourses += $subjects->count();
+            $exemptedCourses += $subjects->whereIn('status', ['exempted', 'Approved'])->count();
+            $pendingCourses += $subjects->whereIn('status', ['pending', 'under_review', 'Pending Resource Person'])->count();
+            $rejectedCourses += $subjects->where('status', 'Rejected')->count();
+        }
+
+        $courseStats = [
+            'total' => $totalCourses,
+            'exempted' => $exemptedCourses,
+            'pending' => $pendingCourses,
+            'rejected' => $rejectedCourses,
+            'exemption_rate' => $totalCourses > 0 ? round(($exemptedCourses / $totalCourses) * 100) : 0,
+        ];
+
+        // Get recent applications (last 5)
+        $recentApplications = $applications->take(5);
+
+        // Get latest application for quick status display
+        $latestApplication = $applications->first();
+
+        // Profile completion check
+        $profileCompletion = $this->calculateProfileCompletion($student);
+
+        return view('student.dashboard', compact(
+            'stats',
+            'courseStats',
+            'recentApplications',
+            'latestApplication',
+            'profileCompletion',
+            'student'
+        ));
+    }
+
+    /**
+     * Calculate student profile completion percentage
+     */
+    private function calculateProfileCompletion($student)
+    {
+        $fields = [
+            'matric_no', 'program_name', 'program_code', 'ic_number',
+            'campus', 'intake_semester', 'home_address', 'faculty_id', 'mode_of_study'
+        ];
+
+        $completed = 0;
+        foreach ($fields as $field) {
+            if (!empty($student->$field)) {
+                $completed++;
+            }
+        }
+
+        return [
+            'percentage' => round(($completed / count($fields)) * 100),
+            'completed' => $completed,
+            'total' => count($fields),
+            'is_complete' => $completed === count($fields)
+        ];
     }
 
     /**
@@ -109,7 +187,7 @@ class ApplicationController extends Controller
     public function store(Request $request)
     {
         try {
-            // Validate input data based on institution type
+            // Validate input data based on institution type and entry method
             $validationRules = [
                 'full_name' => 'required|string|max:100',
                 'student_id' => 'required|string|max:50',
@@ -123,7 +201,7 @@ class ApplicationController extends Controller
                 'student_group' => 'required|string|max:20',
                 'current_semester' => 'required|integer|min:1|max:20',
                 'institution_type' => 'required|in:uitm,non_uitm',
-                'transcript_file' => 'required|file|mimes:pdf|max:5120',
+                'entry_method' => 'required|in:ocr,manual',
             ];
 
             // Add conditional validation rules based on institution type
@@ -136,23 +214,35 @@ class ApplicationController extends Controller
             } else {
                 $validationRules['previous_institution'] = 'required|string';
                 $validationRules['previous_program'] = 'required|string';
+                $validationRules['previous_program_code'] = 'nullable|string|max:10';
                 // Make sure we ignore the UiTM fields when non-UiTM is selected
                 $validationRules['previous_uitm_campus'] = 'nullable';
                 $validationRules['previous_uitm_program'] = 'nullable';
             }
 
+            // Add conditional validation rules based on entry method
+            if ($request->entry_method === 'ocr') {
+                $validationRules['transcript_file'] = 'required|file|mimes:pdf|max:5120';
+                $validationRules['manual_courses'] = 'nullable';
+            } else {
+                $validationRules['transcript_file'] = 'nullable';
+                $validationRules['manual_courses'] = 'required|json';
+            }
+
             $request->validate($validationRules);
 
             $student = Auth::user()->student;
-            
+
             // --- Determine previous institution and program based on type ---
             if ($request->institution_type === 'uitm') {
                 // Campus names already include "UiTM " prefix, so use them directly
                 $previousInstitution = $request->previous_uitm_campus;
                 $previousProgram = $request->previous_uitm_program;
+                $previousProgramCode = null; // UiTM students don't need to enter code manually
             } else {
                 $previousInstitution = $request->previous_institution;
                 $previousProgram = $request->previous_program;
+                $previousProgramCode = $request->previous_program_code;
             }
             
             // Start database transaction for data consistency
@@ -164,6 +254,7 @@ class ApplicationController extends Controller
                     'student_id' => $student->id,
                     'previous_institution' => $previousInstitution,
                     'previous_program' => $previousProgram,
+                    'previous_program_code' => $previousProgramCode,
                     'status' => 'Submitted',
                     // Student snapshot at time of application (from form input)
                     'student_name' => $request->full_name,
@@ -178,12 +269,52 @@ class ApplicationController extends Controller
                     'current_semester' => $request->current_semester
                 ]);
 
-                // --- Handle File Upload ---
-                if (!$request->hasFile('transcript_file')) {
-                    throw new \Exception('Transcript file is required but not provided.');
-                }
+                // --- Handle Transcript Submission Based on Entry Method ---
+                if ($request->entry_method === 'manual') {
+                    // --- MANUAL ENTRY WORKFLOW ---
+                    Log::info('Processing manual course entry', [
+                        'application_id' => $application->id,
+                        'user_id' => Auth::id()
+                    ]);
 
-                $transcriptFile = $request->file('transcript_file');
+                    $manualCoursesData = json_decode($request->manual_courses, true);
+
+                    if (empty($manualCoursesData)) {
+                        throw new \Exception('No manual courses provided. Please add at least one course.');
+                    }
+
+                    $coursesProcessed = 0;
+                    foreach ($manualCoursesData as $courseData) {
+                        // Process each manually entered course with institution-aware matching
+                        $this->processManualCourse(
+                            $application->id,
+                            $courseData,
+                            $request->program_code ?? 'CDCS251',
+                            $previousInstitution,
+                            $request->institution_type
+                        );
+                        $coursesProcessed++;
+                    }
+
+                    Log::info('Manual courses processed successfully', [
+                        'application_id' => $application->id,
+                        'courses_count' => $coursesProcessed
+                    ]);
+
+                    DB::commit();
+
+                    return redirect()
+                        ->route('student.application.status')
+                        ->with('success', "Application submitted successfully! {$coursesProcessed} courses processed via manual entry.");
+
+                } else {
+                    // --- OCR UPLOAD WORKFLOW ---
+                    // --- Handle File Upload ---
+                    if (!$request->hasFile('transcript_file')) {
+                        throw new \Exception('Transcript file is required but not provided.');
+                    }
+
+                    $transcriptFile = $request->file('transcript_file');
                 
                 if (!$transcriptFile->isValid()) {
                     throw new \Exception('Uploaded file is corrupted or invalid.');
@@ -414,19 +545,20 @@ class ApplicationController extends Controller
                     // Continue processing if steganography check fails
                 }
 
-                // --- Update Student Information ---
-                $student->update([
-                    'program_name' => $request->program_name,
-                    'campus' => $request->campus,
-                    'home_address' => $request->home_address,
-                    'faculty_id' => $request->faculty_id,
-                    'intake_semester' => $request->current_semester
-                ]);
+                    // --- Update Student Information ---
+                    $student->update([
+                        'program_name' => $request->program_name,
+                        'campus' => $request->campus,
+                        'home_address' => $request->home_address,
+                        'faculty_id' => $request->faculty_id,
+                        'intake_semester' => $request->current_semester
+                    ]);
 
-                DB::commit();
-                
-                return redirect()->route('student.application.status')
-                    ->with('success', 'Application submitted successfully! Your transcript has been processed and courses have been analyzed.');
+                    DB::commit();
+
+                    return redirect()->route('student.application.status')
+                        ->with('success', 'Application submitted successfully! Your transcript has been processed and courses have been analyzed.');
+                } // End of OCR workflow else block
                     
             } catch (\Exception $e) {
                 DB::rollBack();
@@ -480,8 +612,11 @@ class ApplicationController extends Controller
                 ];
             }
 
-            // Query for combined equivalencies
+            // Query for combined equivalencies - ONLY from PUBLISHED lists
             $combinedEquivalencies = CourseEquivalency::where('program_code', $application->current_program_code)
+                ->whereHas('equivalencyList', function($query) {
+                    $query->whereNotNull('published_at'); // Only published lists
+                })
                 ->where(function($query) {
                     $query->where('diploma_course_code', 'LIKE', '%/%')
                           ->orWhere('diploma_course_code', 'LIKE', '%+%');
@@ -763,9 +898,12 @@ class ApplicationController extends Controller
                         // No equivalency object for co-curriculum
                         $equivalency = null;
                     } else {
-                        // Regular course processing - CRITICAL FIX: Program-specific equivalency query
+                        // Regular course processing - CRITICAL: Match ONLY against PUBLISHED lists
                         $equivalency = CourseEquivalency::where('diploma_course_code', $courseCode)
                                                       ->where('program_code', $programCode)
+                                                      ->whereHas('equivalencyList', function($query) {
+                                                          $query->whereNotNull('published_at'); // Only published lists
+                                                      })
                                                       ->first();
 
                         // Initialize variables for the three criteria
@@ -863,8 +1001,11 @@ class ApplicationController extends Controller
                     ];
                 }
 
-                // Query for combined equivalencies (those with "/" or "+" in diploma_course_code)
+                // Query for combined equivalencies - ONLY from PUBLISHED lists
                 $combinedEquivalencies = CourseEquivalency::where('program_code', $programCode)
+                    ->whereHas('equivalencyList', function($query) {
+                        $query->whereNotNull('published_at'); // Only published lists
+                    })
                     ->where(function($query) {
                         $query->where('diploma_course_code', 'LIKE', '%/%')
                               ->orWhere('diploma_course_code', 'LIKE', '%+%');
@@ -894,6 +1035,7 @@ class ApplicationController extends Controller
                     $lowestGrade = 'A+';
                     $combinedCourseNames = [];
                     $matchedCourses = []; // Track which courses actually matched
+                    $individualGrades = []; // Track individual grades for each matched course
 
                     foreach ($parsedGroups as $group) {
                         // For each group (connected by "+"), check if at least one course from the "/" alternatives is present
@@ -906,6 +1048,7 @@ class ApplicationController extends Controller
                                 $courseGrade = $transcriptCourses[$alternativeCode]['grade'];
                                 $matchedCourses[] = $alternativeCode;
                                 $combinedCourseNames[] = $transcriptCourses[$alternativeCode]['name'];
+                                $individualGrades[$alternativeCode] = $courseGrade; // Store individual grade for each course
 
                                 // Check if grade is acceptable
                                 if (!$this->isGradeAcceptable($courseGrade)) {
@@ -986,6 +1129,7 @@ class ApplicationController extends Controller
                                         'match_percentage' => $combinedEq->match_percentage,
                                         'degree_course_name' => $combinedEq->degree_course_name,
                                         'required_courses' => $matchedCourses,
+                                        'individual_grades' => $individualGrades, // Store individual grades for each course
                                         'combination_type' => 'multi_course',
                                         'original_combined_code' => $combinedEq->diploma_course_code
                                     ])
@@ -1179,7 +1323,7 @@ class ApplicationController extends Controller
     {
         $student = Auth::user()->student;
         $applications = ExemptionApplication::where('student_id', $student->id)
-                                                      ->with(['transcript', 'applicationSubjects'])
+                                                      ->with(['transcript', 'applicationSubjects', 'reviewer'])
                                                       ->orderBy('created_at', 'desc')
                                                       ->get();
         
@@ -1289,10 +1433,387 @@ class ApplicationController extends Controller
     }
 
     /**
+     * AJAX endpoint to check course equivalency for manual entry
+     * Supports institution-aware matching for non-UiTM students
+     */
+    public function checkEquivalency(Request $request)
+    {
+        $validated = $request->validate([
+            'course_code' => 'required|string|max:10',
+            'program_code' => 'required|string|max:10',
+            'institution' => 'nullable|string|max:255',
+            'institution_type' => 'nullable|string|in:uitm,non_uitm'
+        ]);
+
+        $courseCode = strtoupper(trim($validated['course_code']));
+        $programCode = trim($validated['program_code']);
+        $institution = $validated['institution'] ?? null;
+        $institutionType = $validated['institution_type'] ?? 'uitm';
+
+        // Use institution-aware matching for non-UiTM students
+        if ($institutionType === 'non_uitm' && $institution) {
+            $equivalency = $this->findEquivalencyForNonUiTM($courseCode, $programCode, $institution);
+        } else {
+            // Standard UiTM matching - ONLY from PUBLISHED lists
+            $equivalency = CourseEquivalency::where('diploma_course_code', $courseCode)
+                                          ->where('program_code', $programCode)
+                                          ->whereHas('equivalencyList', function($query) {
+                                              $query->whereNotNull('published_at'); // Only published lists
+                                          })
+                                          ->first();
+        }
+
+        if ($equivalency) {
+            return response()->json([
+                'found' => true,
+                'degree_course_code' => $equivalency->degree_course_code,
+                'degree_course_name' => $equivalency->degree_course_name,
+                'match_percentage' => $equivalency->match_percentage,
+                'diploma_credit_hour' => $equivalency->diploma_credit_hour,
+                'diploma_institution' => $equivalency->diploma_institution,
+                'message' => $institutionType === 'non_uitm'
+                    ? "Found in {$equivalency->diploma_institution} equivalency database"
+                    : null
+            ]);
+        }
+
+        return response()->json([
+            'found' => false,
+            'degree_course_code' => null,
+            'degree_course_name' => null,
+            'match_percentage' => 0,
+            'diploma_credit_hour' => null,
+            'message' => $institutionType === 'non_uitm' && $institution
+                ? "Not found in {$institution} equivalency database - requires manual review"
+                : null
+        ]);
+    }
+
+    /**
+     * Find equivalency for non-UiTM students with institution-aware matching
+     */
+    private function findEquivalencyForNonUiTM($courseCode, $programCode, $institution)
+    {
+        // Try exact institution match first - ONLY from PUBLISHED lists
+        $equivalency = CourseEquivalency::where('diploma_course_code', $courseCode)
+            ->where('program_code', $programCode)
+            ->where('diploma_institution', $institution)
+            ->whereHas('equivalencyList', function($query) {
+                $query->whereNotNull('published_at'); // Only published lists
+            })
+            ->first();
+
+        if ($equivalency) {
+            return $equivalency;
+        }
+
+        // Try partial institution match using keyword extraction - ONLY from PUBLISHED lists
+        $institutionKeyword = $this->extractInstitutionKeyword($institution);
+
+        if ($institutionKeyword) {
+            $equivalency = CourseEquivalency::where('diploma_course_code', $courseCode)
+                ->where('program_code', $programCode)
+                ->where('diploma_institution', 'LIKE', "%{$institutionKeyword}%")
+                ->whereHas('equivalencyList', function($query) {
+                    $query->whereNotNull('published_at'); // Only published lists
+                })
+                ->first();
+
+            if ($equivalency) {
+                return $equivalency;
+            }
+        }
+
+        // Fallback: Try matching without institution - ONLY from PUBLISHED lists
+        return CourseEquivalency::where('diploma_course_code', $courseCode)
+            ->where('program_code', $programCode)
+            ->whereHas('equivalencyList', function($query) {
+                $query->whereNotNull('published_at'); // Only published lists
+            })
+            ->first();
+    }
+
+    /**
+     * Extract key identifier from institution name for fuzzy matching
+     */
+    private function extractInstitutionKeyword($institution)
+    {
+        // Common institution type keywords
+        $keywords = [
+            'Politeknik' => 'Politeknik',
+            'Polytechnic' => 'Politeknik',
+            'UTM' => 'UTM',
+            'Universiti Teknologi Malaysia' => 'UTM',
+            'UiTM' => 'UiTM',
+            'Universiti Teknologi MARA' => 'UiTM',
+            'MMU' => 'MMU',
+            'Multimedia University' => 'MMU',
+            'GMI' => 'GMI',
+            'German Malaysia Institute' => 'GMI',
+            'UPSI' => 'UPSI',
+            'Kolej' => 'Kolej',
+            'College' => 'Kolej',
+            'KPTM' => 'KPTM',
+            'IPT' => 'IPT',
+        ];
+
+        foreach ($keywords as $pattern => $keyword) {
+            if (stripos($institution, $pattern) !== false) {
+                return $keyword;
+            }
+        }
+
+        // Return first word if no keyword match (e.g., "Politeknik Kuala Lumpur" -> "Politeknik")
+        $words = explode(' ', $institution);
+        return $words[0] ?? null;
+    }
+
+    /**
+     * Process a manually entered course and create ApplicationSubject record
+     * Supports institution-aware matching for non-UiTM students
+     */
+    private function processManualCourse($applicationId, $courseData, $programCode, $institution = null, $institutionType = 'uitm')
+    {
+        $courseCode = strtoupper(trim($courseData['code']));
+        $courseName = trim($courseData['name']);
+        $grade = $courseData['grade'];
+        $gradeGPA = $courseData['gradeGPA'];
+        $creditHours = $courseData['creditHours'];
+
+        // Look up equivalency with institution-aware matching - ONLY from PUBLISHED lists
+        if ($institutionType === 'non_uitm' && $institution) {
+            $equivalency = $this->findEquivalencyForNonUiTM($courseCode, $programCode, $institution);
+        } else {
+            $equivalency = CourseEquivalency::where('diploma_course_code', $courseCode)
+                                          ->where('program_code', $programCode)
+                                          ->whereHas('equivalencyList', function($query) {
+                                              $query->whereNotNull('published_at'); // Only published lists
+                                          })
+                                          ->first();
+        }
+
+        // Apply three-criteria validation
+        $courseFound = $equivalency ? true : false;
+        $gradeAcceptable = $this->isGradeAcceptable($grade);
+        $matchPercentageOK = $equivalency && $equivalency->match_percentage > 80;
+
+        // Determine status and exemption reason
+        if (!$courseFound) {
+            $status = 'not_found';
+            $exemptionReason = "Course not found in {$programCode} equivalency database";
+        } elseif (!$gradeAcceptable) {
+            $status = 'not_eligible_grade';
+            $exemptionReason = "Grade {$grade} is below minimum requirement (C required)";
+        } elseif (!$matchPercentageOK) {
+            $status = 'not_eligible_match';
+            $exemptionReason = "Match percentage {$equivalency->match_percentage}% is below 80% threshold";
+        } else {
+            $status = 'exempted';
+            $exemptionReason = "All criteria met: Course found, grade {$grade} ≥ C, match {$equivalency->match_percentage}% > 80%";
+        }
+
+        // Prepare notes JSON
+        $notes = [];
+        if ($equivalency) {
+            $notes = [
+                'equivalent_course' => $equivalency->degree_course_code,
+                'match_percentage' => $equivalency->match_percentage,
+                'degree_course_name' => $equivalency->degree_course_name
+            ];
+        }
+
+        // Create ApplicationSubject record
+        ApplicationSubject::create([
+            'exemption_application_id' => $applicationId,
+            'course_code' => $courseCode,
+            'course_name' => $courseName,
+            'grade' => $gradeGPA,
+            'credit_hour' => $creditHours,
+            'status' => $status,
+            'extraction_method' => 'manual',
+            'ocr_confidence_score' => null, // Not applicable for manual entry
+            'needs_verification' => !($courseFound && $gradeAcceptable && $matchPercentageOK),
+            'exemption_reason' => $exemptionReason,
+            'notes' => !empty($notes) ? json_encode($notes) : null
+        ]);
+
+        Log::info('Manual course processed', [
+            'application_id' => $applicationId,
+            'course_code' => $courseCode,
+            'status' => $status
+        ]);
+    }
+
+    /**
      * Basic LSB Steganography Detection (Proof of Concept)
      */
     private function hasHiddenData($pdfPath)
     {
         return false; // For now, always assume the file is clean.
+    }
+
+    /**
+     * View Course Validation PDF
+     */
+    public function viewCourseValidation(ExemptionApplication $application)
+    {
+        try {
+            // Verify ownership - critical security check
+            if ($application->student_id !== Auth::user()->student->id) {
+                Log::warning('Unauthorized course validation access attempt', [
+                    'application_id' => $application->id,
+                    'application_student_id' => $application->student_id,
+                    'requesting_student_id' => Auth::user()->student->id ?? null
+                ]);
+                abort(403, 'Unauthorized access to course validation');
+            }
+
+            // Check if application has been reviewed
+            if ($application->status !== 'Reviewed by Academic Advisor') {
+                return back()->with('error', 'Course validation is only available after academic advisor review.');
+            }
+
+            $pdfData = $this->prepareCourseValidationData($application);
+
+            $pdf = Pdf::loadView('student.application.validation-pdf', $pdfData);
+            $pdf->setPaper('a4', 'portrait');
+
+            return $pdf->stream('course-validation-' . $application->matric_no . '.pdf');
+
+        } catch (\Exception $e) {
+            Log::error('Error viewing course validation', [
+                'error' => $e->getMessage(),
+                'application_id' => $application->id ?? null
+            ]);
+            return back()->with('error', 'Error generating course validation PDF.');
+        }
+    }
+
+    /**
+     * Download Course Validation PDF
+     */
+    public function downloadCourseValidation(ExemptionApplication $application)
+    {
+        try {
+            // Verify ownership - critical security check
+            if ($application->student_id !== Auth::user()->student->id) {
+                Log::warning('Unauthorized course validation download attempt', [
+                    'application_id' => $application->id,
+                    'application_student_id' => $application->student_id,
+                    'requesting_student_id' => Auth::user()->student->id ?? null
+                ]);
+                abort(403, 'Unauthorized access to course validation');
+            }
+
+            // Check if application has been reviewed
+            if ($application->status !== 'Reviewed by Academic Advisor') {
+                return back()->with('error', 'Course validation is only available after academic advisor review.');
+            }
+
+            $pdfData = $this->prepareCourseValidationData($application);
+
+            $pdf = Pdf::loadView('student.application.validation-pdf', $pdfData);
+            $pdf->setPaper('a4', 'portrait');
+
+            return $pdf->download('course-validation-' . $application->matric_no . '.pdf');
+
+        } catch (\Exception $e) {
+            Log::error('Error downloading course validation', [
+                'error' => $e->getMessage(),
+                'application_id' => $application->id ?? null
+            ]);
+            return back()->with('error', 'Error downloading course validation PDF.');
+        }
+    }
+
+    /**
+     * Prepare data for Course Validation PDF
+     */
+    private function prepareCourseValidationData(ExemptionApplication $application)
+    {
+        // Load reviewer relationship if not already loaded
+        $application->load('reviewer');
+
+        $student = $application->student;
+        $subjects = $application->applicationSubjects;
+
+        // Get exempted/approved subjects only
+        $exemptedSubjects = $subjects->filter(function($subject) {
+            return $subject->status === 'exempted' || $subject->status === 'Approved';
+        });
+
+        // Calculate statistics
+        $totalCourses = $subjects->count();
+
+        // Define correct credit hours for degree courses
+        $degreeCreditHours = [
+            'CSC402' => 3,
+            'CSC413' => 3,
+            'CSC429' => 3,
+            'CSC435' => 3,
+            'CSC404' => 3,
+            'ICT450' => 3,
+            'STA416' => 3,
+            'ITT400' => 3,
+            'MAT406' => 3,
+            'MAT421' => 3,
+            'CSC574' => 3,
+        ];
+
+        // Count unique degree courses (excluding co-curricular HXX courses)
+        $academicDegreeCourses = [];
+        $totalCredits = 0;
+
+        foreach ($exemptedSubjects as $subject) {
+            $notes = $subject->notes ? json_decode($subject->notes, true) : null;
+            $equivalentCourse = $notes['equivalent_course'] ?? null;
+
+            // Skip co-curricular courses (starting with HXX)
+            if ($equivalentCourse && (str_starts_with($equivalentCourse, 'HXX') || $equivalentCourse === 'HXXXXX')) {
+                continue;
+            }
+
+            // Use correct credit hour from mapping, fallback to 3 if not found
+            $creditHour = $degreeCreditHours[$equivalentCourse] ?? 3;
+
+            if ($equivalentCourse && !in_array($equivalentCourse, $academicDegreeCourses)) {
+                $academicDegreeCourses[] = $equivalentCourse;
+                $totalCredits += $creditHour;
+            }
+        }
+
+        $exemptedCount = count($academicDegreeCourses);
+        $notExemptedCount = $totalCourses - $exemptedSubjects->count();
+
+        // Determine current session
+        $currentMonth = date('n');
+        if ($currentMonth >= 9 || $currentMonth <= 2) {
+            $session = '1 ' . date('Y') . '/' . (date('Y') + 1);
+        } else {
+            $session = '2 ' . (date('Y') - 1) . '/' . date('Y');
+        }
+
+        // Determine process status text
+        $processStatus = 'Course Registration Validated';
+        if ($application->status === 'Reviewed by Academic Advisor') {
+            $processStatus = '4C - Course Registration Validated';
+        }
+
+        // Status text for courses
+        $statusText = 'B';
+
+        return [
+            'application' => $application,
+            'student' => $student,
+            'exemptedSubjects' => $exemptedSubjects,
+            'totalCourses' => $totalCourses,
+            'exemptedCount' => $exemptedCount,
+            'notExemptedCount' => $notExemptedCount,
+            'totalCredits' => $totalCredits,
+            'session' => $session,
+            'processStatus' => $processStatus,
+            'statusText' => $statusText,
+            'advisor' => $application->reviewer, // Academic Advisor who reviewed the application
+        ];
     }
 }

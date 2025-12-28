@@ -67,6 +67,26 @@ class SubmissionController extends Controller
             $fileName = Str::uuid() . '.pdf';
             $filePath = $file->storeAs('syllabi/external_submissions', $fileName);
 
+            // Create or update User and ExternalLecturer records
+            $user = \App\Models\User::firstOrCreate(
+                ['email' => $externalRequest->external_lecturer_email],
+                [
+                    'name' => $request->external_lecturer_name,
+                    'role' => 'external_lecturer',
+                    'password' => bcrypt(Str::random(32)), // Random password (they use token access)
+                ]
+            );
+
+            // Create or update ExternalLecturer profile
+            \App\Models\ExternalLecturer::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'name' => $request->external_lecturer_name,
+                    'email' => $externalRequest->external_lecturer_email,
+                    'institution_name' => $request->institution_name,
+                ]
+            );
+
             // Create submission record
             $submission = ExternalLecturerSubmission::create([
                 'external_lecturer_request_id' => $externalRequest->id,

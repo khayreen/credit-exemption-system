@@ -32,7 +32,7 @@
 
                     <!-- Degree Program Selection -->
                     <div class="row mb-4">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label for="degree_program_select" class="form-label">
                                 <strong>Select Degree Program</strong>
                             </label>
@@ -45,7 +45,23 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-6 d-flex align-items-end">
+                        <div class="col-md-4">
+                            <label for="institution_filter" class="form-label">
+                                <strong>Filter by Institution</strong>
+                            </label>
+                            <select id="institution_filter" class="form-select">
+                                <option value="">All Institutions</option>
+                                <option value="Politeknik">Politeknik</option>
+                                <option value="UTM">UTM</option>
+                                <option value="UiTM">UiTM</option>
+                                <option value="MMU">MMU</option>
+                                <option value="GMI">GMI</option>
+                                <option value="UPSI">UPSI</option>
+                                <option value="Kolej">Kolej</option>
+                            </select>
+                            <small class="text-muted">Filter equivalencies by diploma institution</small>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
                             <button type="button" id="load_equivalencies_btn" class="btn btn-primary me-2" disabled>
                                 <i class="fas fa-download"></i> Load Equivalencies
                             </button>
@@ -68,15 +84,17 @@
                             <table class="table table-bordered table-striped" id="equivalencies_table">
                                 <thead class="table-dark">
                                     <tr>
-                                        <th width="4%">#</th>
-                                        <th width="12%">Diploma Course Code</th>
-                                        <th width="20%">Diploma Course Name</th>
-                                        <th width="8%">Diploma Credit Hours</th>
-                                        <th width="12%">Degree Course Code</th>
-                                        <th width="20%">Degree Course Name</th>
-                                        <th width="8%">Degree Credit Hours</th>
-                                        <th width="8%">Equivalency %</th>
-                                        <th width="8%">Actions</th>
+                                        <th width="3%">#</th>
+                                        <th width="10%">Diploma Course Code</th>
+                                        <th width="15%">Diploma Course Name</th>
+                                        <th width="12%">Institution</th>
+                                        <th width="6%">Dip. Credits</th>
+                                        <th width="10%">Degree Course Code</th>
+                                        <th width="15%">Degree Course Name</th>
+                                        <th width="6%">Deg. Credits</th>
+                                        <th width="8%">Match %</th>
+                                        <th width="8%">Source</th>
+                                        <th width="7%">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="equivalencies_body">
@@ -271,27 +289,38 @@ $(document).ready(function() {
     $('#load_equivalencies_btn').click(function() {
         const programCode = $('#degree_program_select').val();
         const programName = $('#degree_program_select option:selected').data('name');
-        
+        const institutionFilter = $('#institution_filter').val();
+
         if (!programCode) return;
 
         currentProgramCode = programCode;
         $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Loading...');
 
+        // Build query parameters with institution filter
+        const params = { program_code: programCode };
+        if (institutionFilter) {
+            params.institution = institutionFilter;
+        }
+
         // Load degree courses and existing equivalencies
         $.when(
             $.get(routes.getDegreeCourses, { program_code: programCode }),
-            $.get(routes.getExistingEquivalencies, { program_code: programCode })
+            $.get(routes.getExistingEquivalencies, params)
         )
         .done(function(coursesResponse, equivalenciesResponse) {
             degreeCourses = coursesResponse[0];
             const equivalencies = equivalenciesResponse[0];
-            
+
             $('#selected_program_code').val(programCode);
-            $('#program_display_name').text(programCode + ' - ' + programName);
-            
+            let displayText = programCode + ' - ' + programName;
+            if (institutionFilter) {
+                displayText += ' (Filtered: ' + institutionFilter + ')';
+            }
+            $('#program_display_name').text(displayText);
+
             // Populate existing equivalencies table
             populateEquivalenciesTable(equivalencies);
-            
+
             // Show sections
             $('#equivalencies_section').show();
         })
@@ -301,6 +330,13 @@ $(document).ready(function() {
         .always(function() {
             $('#load_equivalencies_btn').prop('disabled', false).html('<i class="fas fa-download"></i> Load Equivalencies');
         });
+    });
+
+    // Re-load when institution filter changes
+    $('#institution_filter').change(function() {
+        if ($('#degree_program_select').val()) {
+            $('#load_equivalencies_btn').click();
+        }
     });
 
     // Show new equivalency form
@@ -330,7 +366,7 @@ $(document).ready(function() {
         if (equivalencies.length === 0) {
             tbody.append(`
                 <tr>
-                    <td colspan="9" class="text-center text-muted">
+                    <td colspan="11" class="text-center text-muted">
                         No existing equivalencies found for this program.
                     </td>
                 </tr>
@@ -340,29 +376,39 @@ $(document).ready(function() {
 
         equivalencies.forEach(function(equiv, index) {
             const degreeCourse = equiv.degree_course || {};
+            // Get source badge
+            let sourceBadge = '<span class="badge bg-secondary">Manual</span>';
+            if (equiv.source === 'imported') {
+                sourceBadge = '<span class="badge bg-info">Imported</span>';
+            } else if (equiv.source === 'seeded') {
+                sourceBadge = '<span class="badge bg-success">Seeded</span>';
+            }
+
             const row = $(`
                 <tr>
                     <td class="text-center"><strong>${index + 1}</strong></td>
                     <td><strong>${equiv.diploma_course_code}</strong></td>
                     <td>${equiv.diploma_course_name}</td>
+                    <td><small>${equiv.diploma_institution || 'N/A'}</small></td>
                     <td class="text-center">${equiv.diploma_credit_hour}</td>
                     <td><strong>${equiv.degree_course_code}</strong></td>
                     <td>${equiv.degree_course_name || 'N/A'}</td>
                     <td class="text-center">${equiv.degree_credit_hour || 'N/A'}</td>
                     <td class="text-center"><span class="badge bg-primary">${equiv.match_percentage}%</span></td>
+                    <td class="text-center">${sourceBadge}</td>
                     <td class="text-center">
-                        <button type="button" class="btn btn-sm btn-warning edit-equivalency" 
+                        <button type="button" class="btn btn-sm btn-warning edit-equivalency"
                                 data-id="${equiv.id}">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button type="button" class="btn btn-sm btn-danger delete-equivalency" 
+                        <button type="button" class="btn btn-sm btn-danger delete-equivalency"
                                 data-id="${equiv.id}">
                             <i class="fas fa-trash"></i>
                         </button>
                     </td>
                 </tr>
             `);
-            
+
             // Store the equivalency data directly on the button element
             row.find('.edit-equivalency').data('equiv', equiv);
             tbody.append(row);

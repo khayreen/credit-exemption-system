@@ -4,18 +4,22 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Register - UiTM Credit Exemption System</title>
-    
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
+
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
+
+    <!-- Select2 -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+
     <style>
         :root {
             --uitm-primary: #1e3a8a;
@@ -23,18 +27,17 @@
             --uitm-accent: #f59e0b;
             --uitm-dark: #1f2937;
             --uitm-light: #f8fafc;
-            --uitm-red: #dc2626;
         }
-        
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), 
+            background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)),
                         url('https://malaysiabangkit.com/wp-content/uploads/2024/11/UITM-pelajar.jpg');
             background-size: cover;
             background-position: center;
@@ -43,9 +46,9 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px 0;
+            padding: 2rem 0;
         }
-        
+
         .register-container {
             position: relative;
             z-index: 2;
@@ -53,7 +56,7 @@
             max-width: 500px;
             padding: 1rem;
         }
-        
+
         .register-card {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(20px);
@@ -63,17 +66,17 @@
             padding: 3rem;
             transition: all 0.3s ease;
         }
-        
+
         .register-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 40px 80px rgba(0, 0, 0, 0.15);
         }
-        
+
         .logo-section {
             text-align: center;
             margin-bottom: 2rem;
         }
-        
+
         .logo {
             width: 80px;
             height: 80px;
@@ -88,46 +91,52 @@
             box-shadow: 0 16px 32px rgba(30, 58, 138, 0.3);
             margin-bottom: 1rem;
         }
-        
+
         .register-title {
             color: var(--uitm-dark);
             font-size: 1.75rem;
             font-weight: 700;
             margin-bottom: 0.5rem;
         }
-        
+
         .register-subtitle {
             color: var(--uitm-secondary);
             font-size: 1rem;
             font-weight: 500;
             margin-bottom: 1.5rem;
         }
-        
-        .form-floating {
-            margin-bottom: 1.5rem;
+
+        .form-label {
+            color: var(--uitm-dark);
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
         }
-        
-        .form-floating > .form-control,
-        .form-floating > .form-select {
+
+        .form-control, .form-select {
             border: 2px solid #e5e7eb;
             border-radius: 12px;
-            padding: 1rem 1rem;
-            height: auto;
+            padding: 0.75rem 1rem;
             font-size: 1rem;
             transition: all 0.3s ease;
         }
-        
-        .form-floating > .form-control:focus,
-        .form-floating > .form-select:focus {
+
+        .form-control:focus, .form-select:focus {
             border-color: var(--uitm-secondary);
             box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.15);
         }
-        
-        .form-floating > label {
-            color: #6b7280;
-            font-weight: 500;
+
+        .form-control.is-invalid, .form-select.is-invalid {
+            border-color: #dc2626;
         }
-        
+
+        .invalid-feedback {
+            color: #dc2626;
+            font-weight: 500;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
         .btn-register {
             background: linear-gradient(135deg, var(--uitm-primary), var(--uitm-secondary));
             color: white;
@@ -139,20 +148,15 @@
             width: 100%;
             transition: all 0.3s ease;
             box-shadow: 0 8px 24px rgba(30, 58, 138, 0.3);
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
         }
-        
+
         .btn-register:hover {
             color: white;
             transform: translateY(-1px);
             box-shadow: 0 12px 32px rgba(30, 58, 138, 0.4);
         }
-        
-        .btn-register:focus {
-            color: white;
-            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
-        }
-        
+
         .back-home {
             position: absolute;
             top: 2rem;
@@ -170,73 +174,117 @@
             border-radius: 8px;
             backdrop-filter: blur(10px);
         }
-        
+
         .back-home:hover {
             color: white;
             background: rgba(255, 255, 255, 0.2);
             transform: translateX(-2px);
         }
-        
-        .alert {
-            border-radius: 12px;
-            border: none;
-            margin-bottom: 1.5rem;
-            padding: 1rem;
-            font-weight: 500;
-        }
-        
-        .alert-success {
-            background: linear-gradient(135deg, #d1fae5, #a7f3d0);
-            color: #065f46;
-        }
-        
-        .alert-info {
-            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
-            color: #1e40af;
-        }
-        
-        .alert-danger {
-            background: linear-gradient(135deg, #fee2e2, #fecaca);
-            color: #991b1b;
-        }
-        
+
         .login-link {
             text-align: center;
             margin-top: 1.5rem;
             padding-top: 1.5rem;
             border-top: 1px solid #e5e7eb;
         }
-        
+
         .login-link a {
             color: var(--uitm-secondary);
             text-decoration: none;
             font-weight: 600;
             transition: all 0.3s ease;
         }
-        
+
         .login-link a:hover {
             color: var(--uitm-primary);
             text-decoration: underline;
         }
-        
-        .invalid-feedback {
-            color: #dc2626;
-            font-weight: 500;
+
+        .form-text {
             font-size: 0.875rem;
-            margin-top: 0.5rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
         }
-        
-        .form-control.is-invalid,
-        .form-select.is-invalid {
-            border-color: #dc2626;
+
+        .conditional-fields {
+            background: rgba(59, 130, 246, 0.05);
+            border: 2px solid rgba(59, 130, 246, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 1rem;
         }
-        
+
+        .conditional-fields h6 {
+            color: var(--uitm-primary);
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .alert {
+            border-radius: 12px;
+            border: none;
+            margin-top: 1rem;
+            padding: 1rem;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .floating-elements {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .floating-circle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .floating-circle:nth-child(1) {
+            width: 60px;
+            height: 60px;
+            top: 15%;
+            left: 15%;
+            animation-delay: 0s;
+        }
+
+        .floating-circle:nth-child(2) {
+            width: 100px;
+            height: 100px;
+            top: 70%;
+            right: 10%;
+            animation-delay: 2s;
+        }
+
+        .floating-circle:nth-child(3) {
+            width: 40px;
+            height: 40px;
+            bottom: 25%;
+            left: 25%;
+            animation-delay: 4s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-15px);
+            }
+        }
+
         @media (max-width: 576px) {
             .register-card {
                 padding: 2rem;
                 margin: 1rem;
             }
-            
+
             .back-home {
                 position: relative;
                 top: auto;
@@ -248,10 +296,17 @@
     </style>
 </head>
 <body>
+    <!-- Floating Background Elements -->
+    <div class="floating-elements">
+        <div class="floating-circle"></div>
+        <div class="floating-circle"></div>
+        <div class="floating-circle"></div>
+    </div>
+
     <!-- Back to Home -->
-    <a href="{{ url('/') }}" class="back-home d-none d-sm-flex">
+    <a href="{{ route('login') }}" class="back-home d-none d-sm-flex">
         <i class="fas fa-arrow-left"></i>
-        Back to Home
+        Back to Login
     </a>
 
     <!-- Register Container -->
@@ -263,144 +318,163 @@
                     <i class="fas fa-university"></i>
                 </div>
                 <h1 class="register-title">Create Account</h1>
-                <p class="register-subtitle">Join UiTM Credit Exemption System</p>
+                <p class="register-subtitle">Register for UiTM CES account</p>
             </div>
 
             <!-- Registration Form -->
-            <form method="POST" action="{{ route('register') }}">
+            <form method="POST" action="{{ route('register') }}" id="registerForm">
                 @csrf
 
-                <!-- Name Field -->
-                <div class="form-floating">
-                    <input id="name" type="text" class="form-control @error('name') is-invalid @enderror" 
-                           name="name" value="{{ old('name') }}" required autocomplete="name" autofocus
+                <!-- Name -->
+                <div class="mb-3">
+                    <label for="name" class="form-label">Full Name *</label>
+                    <input type="text" class="form-control @error('name') is-invalid @enderror"
+                           id="name" name="name" value="{{ old('name') }}" required autofocus
                            placeholder="Enter your full name">
-                    <label for="name">
-                        <i class="fas fa-user me-2"></i>{{ __('Name') }}
-                    </label>
                     @error('name')
-                        <div class="invalid-feedback">
-                            <strong>{{ $message }}</strong>
-                        </div>
+                        <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
                 </div>
 
-                <!-- Email Field -->
-                <div class="form-floating">
-                    <input id="email" type="email" class="form-control @error('email') is-invalid @enderror" 
-                           name="email" value="{{ old('email') }}" required autocomplete="email"
+                <!-- Email -->
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email Address *</label>
+                    <input type="email" class="form-control @error('email') is-invalid @enderror"
+                           id="email" name="email" value="{{ old('email') }}" required
                            placeholder="Enter your email address">
-                    <label for="email">
-                        <i class="fas fa-envelope me-2"></i>{{ __('Email Address') }}
-                    </label>
                     @error('email')
-                        <div class="invalid-feedback">
-                            <strong>{{ $message }}</strong>
-                        </div>
+                        <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
                 </div>
 
-                <!-- Phone Number Field -->
-                <div class="form-floating">
-                    <input id="phone_number" type="text" class="form-control @error('phone_number') is-invalid @enderror" 
-                           name="phone_number" value="{{ old('phone_number') }}" required
-                           placeholder="Enter your phone number">
-                    <label for="phone_number">
-                        <i class="fas fa-phone me-2"></i>{{ __('Phone Number') }}
-                    </label>
-                    @error('phone_number')
-                        <div class="invalid-feedback">
-                            <strong>{{ $message }}</strong>
-                        </div>
+                <!-- Password -->
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password *</label>
+                    <input type="password" class="form-control @error('password') is-invalid @enderror"
+                           id="password" name="password" required
+                           placeholder="Enter your password">
+                    <small class="form-text">Minimum 8 characters</small>
+                    @error('password')
+                        <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
+                </div>
+
+                <!-- Confirm Password -->
+                <div class="mb-3">
+                    <label for="password_confirmation" class="form-label">Confirm Password *</label>
+                    <input type="password" class="form-control"
+                           id="password_confirmation" name="password_confirmation" required
+                           placeholder="Confirm your password">
                 </div>
 
                 <!-- Role Selection -->
-                <div class="form-floating">
-                    <select id="role" class="form-select @error('role') is-invalid @enderror" name="role" required>
-                        <option value="" disabled selected>-- Select a Role --</option>
-                        <option value="student" {{ old('role') == 'student' ? 'selected' : '' }}>Student</option>
-                        <option value="academic_advisor" {{ old('role') == 'academic_advisor' ? 'selected' : '' }}>Academic Advisor</option>
-                        <option value="coordinator" {{ old('role') == 'coordinator' ? 'selected' : '' }}>Coordinator</option>
-                        <option value="resource_person" {{ old('role') == 'resource_person' ? 'selected' : '' }}>Resource Person</option>
-                        <option value="hea_personnel" {{ old('role') == 'hea_personnel' ? 'selected' : '' }}>HEA Personnel</option>
-                        <option value="external_lecturer" {{ old('role') == 'external_lecturer' ? 'selected' : '' }}>External Lecturer</option>
+                <div class="mb-3">
+                    <label for="requested_role" class="form-label">I am registering as: *</label>
+                    <select class="form-select @error('requested_role') is-invalid @enderror"
+                            id="requested_role" name="requested_role" required>
+                        <option value="">Select Role</option>
+                        <option value="student" {{ old('requested_role') == 'student' ? 'selected' : '' }}>
+                            Student
+                        </option>
+                        <option value="academic_advisor" {{ old('requested_role') == 'academic_advisor' ? 'selected' : '' }}>
+                            Academic Advisor
+                        </option>
+                        <option value="coordinator" {{ old('requested_role') == 'coordinator' ? 'selected' : '' }}>
+                            Program Coordinator
+                        </option>
+                        <option value="resource_person" {{ old('requested_role') == 'resource_person' ? 'selected' : '' }}>
+                            Resource Person
+                        </option>
+                        <option value="hea" {{ old('requested_role') == 'hea' ? 'selected' : '' }}>
+                            HEA Personnel
+                        </option>
                     </select>
-                    <label for="role">
-                        <i class="fas fa-user-tag me-2"></i>{{ __('Register as') }}
-                    </label>
-                    @error('role')
-                        <div class="invalid-feedback">
-                            <strong>{{ $message }}</strong>
-                        </div>
+                    @error('requested_role')
+                        <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
+                    <small class="form-text">
+                        <strong>Note:</strong> External lecturers will receive secure access links directly from resource persons.
+                    </small>
                 </div>
 
-                <!-- Resource Person Program Selection (shown only when resource_person is selected) -->
-                <div id="program-selection" style="display: none;" class="mb-4">
-                    <label class="form-label fw-bold text-dark">
-                        <i class="fas fa-graduation-cap me-2"></i>Assigned Program Codes
-                    </label>
-                    <div class="card border-2" style="border-color: #e5e7eb; border-radius: 12px; padding: 1.5rem;">
-                        <p class="text-muted small mb-3">Select the program code(s) you will be assigned to manage:</p>
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" name="assigned_programs[]" value="CDCS251" id="program_cdcs251"
-                                   {{ is_array(old('assigned_programs')) && in_array('CDCS251', old('assigned_programs')) ? 'checked' : '' }}>
-                            <label class="form-check-label" for="program_cdcs251">
-                                <strong>CDCS251</strong> - Computer Science Program
-                            </label>
+                <!-- Student Fields -->
+                <div id="student-fields" style="display: none;">
+                    <div class="conditional-fields">
+                        <h6><i class="fas fa-user-graduate me-2"></i>Student Information</h6>
+
+                        <div class="mb-3">
+                            <label for="matric_no" class="form-label">Matric Number *</label>
+                            <input type="text" class="form-control" id="matric_no" name="matric_no"
+                                   value="{{ old('matric_no') }}" placeholder="Enter your matric number">
                         </div>
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" name="assigned_programs[]" value="CDCS255" id="program_cdcs255"
-                                   {{ is_array(old('assigned_programs')) && in_array('CDCS255', old('assigned_programs')) ? 'checked' : '' }}>
-                            <label class="form-check-label" for="program_cdcs255">
-                                <strong>CDCS255</strong> - Software Engineering Program
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="assigned_programs[]" value="CDCS266" id="program_cdcs266"
-                                   {{ is_array(old('assigned_programs')) && in_array('CDCS266', old('assigned_programs')) ? 'checked' : '' }}>
-                            <label class="form-check-label" for="program_cdcs266">
-                                <strong>CDCS266</strong> - Data Science Program
-                            </label>
+
+                        <div class="mb-0">
+                            <label for="program_id" class="form-label">Current Degree Program *</label>
+                            <select class="form-select" id="program_id" name="program_id">
+                                <option value="">Select Degree Program</option>
+                                @foreach($degreePrograms as $program)
+                                    <option value="{{ $program->id }}">{{ $program->code }} - {{ $program->name }}</option>
+                                @endforeach
+                            </select>
                         </div>
                     </div>
-                    @error('assigned_programs')
-                        <div class="text-danger small mt-2">
-                            <strong>{{ $message }}</strong>
+                </div>
+
+                <!-- Staff Fields -->
+                <div id="staff-fields" style="display: none;">
+                    <div class="conditional-fields">
+                        <h6><i class="fas fa-chalkboard-teacher me-2"></i>Staff Information</h6>
+
+                        <div class="mb-3">
+                            <label for="faculty_id" class="form-label">Faculty *</label>
+                            <select class="form-select" id="faculty_id" name="faculty_id">
+                                <option value="">Select Faculty</option>
+                                @foreach($faculties as $faculty)
+                                    <option value="{{ $faculty->id }}">{{ $faculty->name }}</option>
+                                @endforeach
+                            </select>
                         </div>
-                    @enderror
-                </div>
 
-                <!-- Password Field -->
-                <div class="form-floating">
-                    <input id="password" type="password" class="form-control @error('password') is-invalid @enderror" 
-                           name="password" required autocomplete="new-password"
-                           placeholder="Enter your password">
-                    <label for="password">
-                        <i class="fas fa-lock me-2"></i>{{ __('Password') }}
-                    </label>
-                    @error('password')
-                        <div class="invalid-feedback">
-                            <strong>{{ $message }}</strong>
+                        <div class="mb-3">
+                            <label for="campus_id" class="form-label">Campus *</label>
+                            <select class="form-select" id="campus_id" name="campus_id">
+                                <option value="">Select Campus</option>
+                                @foreach($campuses as $campus)
+                                    <option value="{{ $campus->id }}">{{ $campus->name }}</option>
+                                @endforeach
+                            </select>
                         </div>
-                    @enderror
+
+                        <div class="mb-0">
+                            <label for="requested_programs" class="form-label">
+                                Programs You Want to Manage *
+                            </label>
+                            <select class="form-select" id="requested_programs" name="requested_programs[]" multiple>
+                                @foreach($allPrograms as $program)
+                                    <option value="{{ $program->code }}">{{ $program->code }} - {{ $program->name }}</option>
+                                @endforeach
+                            </select>
+                            <small class="form-text">
+                                Search and select programs. HEA will review your request.
+                            </small>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Confirm Password Field -->
-                <div class="form-floating">
-                    <input id="password-confirm" type="password" class="form-control" 
-                           name="password_confirmation" required autocomplete="new-password"
-                           placeholder="Confirm your password">
-                    <label for="password-confirm">
-                        <i class="fas fa-lock me-2"></i>{{ __('Confirm Password') }}
-                    </label>
+                <!-- HEA Note -->
+                <div id="hea-note" style="display: none;">
+                    <div class="alert" style="background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e;">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>HEA Personnel Registration</strong><br>
+                        Your registration will be reviewed by the system administrator.
+                        You will receive an email once your request is processed.
+                    </div>
                 </div>
 
-                <!-- Register Button -->
-                <button type="submit" class="btn btn-register">
+                <!-- Submit Button -->
+                <button type="submit" class="btn btn-register mt-3">
                     <i class="fas fa-user-plus me-2"></i>
-                    {{ __('Create Account') }}
+                    Register
                 </button>
             </form>
 
@@ -408,44 +482,84 @@
             <div class="login-link">
                 <span class="text-muted">Already have an account?</span>
                 <a href="{{ route('login') }}">
-                    <i class="fas fa-sign-in-alt me-1"></i>Sign In
+                    <i class="fas fa-sign-in-alt me-1"></i>Login
                 </a>
             </div>
 
-            <!-- Back to Home for Mobile -->
+            <!-- Back to Login for Mobile -->
             <div class="text-center mt-3 d-sm-none">
-                <a href="{{ url('/') }}" class="back-home">
+                <a href="{{ route('login') }}" class="back-home">
                     <i class="fas fa-arrow-left"></i>
-                    Back to Home
+                    Back to Login
                 </a>
             </div>
         </div>
     </div>
 
+    <!-- jQuery (required for Select2) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
-    <!-- Show/Hide Program Selection based on Role -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const roleSelect = document.getElementById('role');
-            const programSelection = document.getElementById('program-selection');
+    document.addEventListener('DOMContentLoaded', function() {
+        const roleSelect = document.getElementById('requested_role');
+        const studentFields = document.getElementById('student-fields');
+        const staffFields = document.getElementById('staff-fields');
+        const heaNote = document.getElementById('hea-note');
 
-            // Function to toggle program selection visibility
-            function toggleProgramSelection() {
-                if (roleSelect.value === 'resource_person') {
-                    programSelection.style.display = 'block';
-                } else {
-                    programSelection.style.display = 'none';
-                }
-            }
-
-            // Check on page load (for old values after validation error)
-            toggleProgramSelection();
-
-            // Check when role changes
-            roleSelect.addEventListener('change', toggleProgramSelection);
+        // Initialize Select2 for programs
+        $('#requested_programs').select2({
+            placeholder: 'Search and select programs...',
+            allowClear: true,
+            width: '100%',
+            theme: 'bootstrap-5'
         });
+
+        // Role change handler
+        roleSelect.addEventListener('change', function() {
+            const role = this.value;
+
+            // Hide all conditional fields
+            studentFields.style.display = 'none';
+            staffFields.style.display = 'none';
+            heaNote.style.display = 'none';
+
+            // Disable all conditional fields
+            document.querySelectorAll('#student-fields input, #student-fields select').forEach(el => {
+                el.disabled = true;
+                el.required = false;
+            });
+            document.querySelectorAll('#staff-fields input, #staff-fields select').forEach(el => {
+                el.disabled = true;
+                el.required = false;
+            });
+
+            // Show relevant fields based on role
+            if (role === 'student') {
+                studentFields.style.display = 'block';
+                document.querySelectorAll('#student-fields input, #student-fields select').forEach(el => {
+                    el.disabled = false;
+                    if (el.id !== 'program_id') el.required = true;
+                });
+            } else if (['academic_advisor', 'coordinator', 'resource_person'].includes(role)) {
+                staffFields.style.display = 'block';
+                document.querySelectorAll('#staff-fields input, #staff-fields select').forEach(el => {
+                    el.disabled = false;
+                    el.required = true;
+                });
+            } else if (role === 'hea') {
+                heaNote.style.display = 'block';
+            }
+        });
+
+        // Trigger on page load if old value exists
+        if (roleSelect.value) {
+            roleSelect.dispatchEvent(new Event('change'));
+        }
+    });
     </script>
 </body>
 </html>

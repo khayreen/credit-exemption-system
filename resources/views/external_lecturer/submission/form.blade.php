@@ -56,16 +56,37 @@
                         <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Submission Request Details</h5>
                     </div>
                     <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p><strong>Requested Course:</strong> {{ $applicationSubject->course_code }} - {{ $applicationSubject->course_name }}</p>
-                                <p><strong>Credit Hours:</strong> {{ $applicationSubject->credit_hour }}</p>
+                        @if($requestType === 'application_subject')
+                            {{-- ApplicationSubject Request --}}
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Requested Course:</strong> {{ $applicationSubject->course_code }} - {{ $applicationSubject->course_name }}</p>
+                                    <p><strong>Credit Hours:</strong> {{ $applicationSubject->credit_hour }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Student Program:</strong> {{ $exemptionApplication->current_program_code ?? 'N/A' }}</p>
+                                    <p><strong>Request Date:</strong> {{ $request->created_at->format('M d, Y') }}</p>
+                                </div>
                             </div>
-                            <div class="col-md-6">
-                                <p><strong>Student Program:</strong> {{ $exemptionApplication->current_program_code ?? 'N/A' }}</p>
-                                <p><strong>Request Date:</strong> {{ $request->created_at->format('M d, Y') }}</p>
+                        @else
+                            {{-- CourseEquivalencyRequest --}}
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Requested Course:</strong> {{ $equivalencyRequest->diploma_course_code }} - {{ $equivalencyRequest->diploma_course_name }}</p>
+                                    <p><strong>Credit Hours:</strong> {{ $equivalencyRequest->diploma_credit_hours }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Student:</strong> {{ $equivalencyRequest->student->user->name }}</p>
+                                    <p><strong>Current Program:</strong> {{ $equivalencyRequest->current_program_code }}</p>
+                                    <p><strong>Request Date:</strong> {{ $request->created_at->format('M d, Y') }}</p>
+                                </div>
                             </div>
-                        </div>
+                            <div class="alert alert-warning">
+                                <strong><i class="fas fa-exclamation-triangle me-2"></i>Important:</strong>
+                                This is an official course equivalency verification request. Please submit the complete and authentic course syllabus for <strong>{{ $equivalencyRequest->diploma_course_code }}</strong> from your institution.
+                            </div>
+                        @endif
+
                         @if($request->request_notes)
                             <div class="alert alert-info">
                                 <strong>Additional Notes from Resource Person:</strong><br>
@@ -112,9 +133,9 @@
                                 <div class="col-md-4">
                                     <div class="mb-3">
                                         <label for="course_code" class="form-label">Course Code <span class="text-danger">*</span></label>
-                                        <input type="text" name="course_code" id="course_code" 
-                                               class="form-control @error('course_code') is-invalid @enderror" 
-                                               value="{{ old('course_code', $applicationSubject->course_code) }}" required>
+                                        <input type="text" name="course_code" id="course_code"
+                                               class="form-control @error('course_code') is-invalid @enderror"
+                                               value="{{ old('course_code', $requestType === 'application_subject' ? $applicationSubject->course_code : $equivalencyRequest->diploma_course_code) }}" required>
                                         @error('course_code')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
@@ -123,9 +144,9 @@
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="course_name" class="form-label">Course Name <span class="text-danger">*</span></label>
-                                        <input type="text" name="course_name" id="course_name" 
-                                               class="form-control @error('course_name') is-invalid @enderror" 
-                                               value="{{ old('course_name', $applicationSubject->course_name) }}" required>
+                                        <input type="text" name="course_name" id="course_name"
+                                               class="form-control @error('course_name') is-invalid @enderror"
+                                               value="{{ old('course_name', $requestType === 'application_subject' ? $applicationSubject->course_name : $equivalencyRequest->diploma_course_name) }}" required>
                                         @error('course_name')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
@@ -134,10 +155,10 @@
                                 <div class="col-md-2">
                                     <div class="mb-3">
                                         <label for="credit_hours" class="form-label">Credit Hours <span class="text-danger">*</span></label>
-                                        <input type="number" name="credit_hours" id="credit_hours" 
-                                               class="form-control @error('credit_hours') is-invalid @enderror" 
-                                               value="{{ old('credit_hours', $applicationSubject->credit_hour) }}" 
-                                               min="1" max="10" required>
+                                        <input type="number" name="credit_hours" id="credit_hours"
+                                               class="form-control @error('credit_hours') is-invalid @enderror"
+                                               value="{{ old('credit_hours', (int)($requestType === 'application_subject' ? $applicationSubject->credit_hour : $equivalencyRequest->diploma_credit_hours)) }}"
+                                               min="1" max="10" step="1" required>
                                         @error('credit_hours')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror

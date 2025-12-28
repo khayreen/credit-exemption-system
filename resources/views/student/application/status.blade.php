@@ -35,15 +35,20 @@
                                 </div>
                                 <div class="col-md-6 text-md-end">
                                     @if($app->status === 'Reviewed by Academic Advisor')
-                                        <span class="badge bg-success text-white fs-6">
+                                        <span class="btn btn-sm bg-success text-white ms-2" style="font-size: 0.875rem; cursor: default;">
                                             <i class="fas fa-check-circle"></i> Ready for Course Registration
                                         </span>
                                     @else
-                                        <span class="badge bg-info text-dark fs-6">{{ $app->status }}</span>
+                                        <span class="btn btn-sm bg-info text-dark ms-2" style="font-size: 0.875rem; cursor: default;">{{ $app->status }}</span>
                                     @endif
                                     @if($app->transcript)
-                                        <a href="{{ route('student.application.transcript', $app) }}" target="_blank" class="btn btn-sm btn-outline-secondary ms-2">
+                                        <a href="{{ route('student.application.transcript', $app) }}" target="_blank" class="btn btn-sm btn-secondary ms-2" style="font-size: 0.875rem;">
                                             <i class="fas fa-file-pdf"></i> View Transcript
+                                        </a>
+                                    @endif
+                                    @if($app->status === 'Reviewed by Academic Advisor')
+                                        <a href="{{ route('student.application.validation', $app) }}" target="_blank" class="btn btn-sm btn-primary ms-2" style="font-size: 0.875rem;">
+                                            <i class="fas fa-file-alt"></i> View Course Validation
                                         </a>
                                     @endif
                                 </div>
@@ -62,7 +67,10 @@
                                 <div class="col-md-6">
                                     <h6>Previous Education</h6>
                                     <p class="mb-1"><strong>Institution:</strong> {{ $app->previous_institution }}</p>
-                                    <p class="mb-0"><strong>Program:</strong> {{ $app->previous_program }}</p>
+                                    <p class="mb-1"><strong>Program:</strong> {{ $app->previous_program }}</p>
+                                    @if($app->status === 'Reviewed by Academic Advisor' && $app->reviewer)
+                                        <p class="mb-0"><strong>Reviewed By:</strong> {{ $app->reviewer->name }}</p>
+                                    @endif
                                 </div>
                             </div>
 
@@ -169,53 +177,67 @@
                                             <tr>
                                                 <th>Course Code</th>
                                                 <th>Course Name</th>
-                                                <th>Grade</th>
+                                                <th class="text-center">Grade</th>
                                                 <th>Equivalent Course</th>
                                                 <th>OCR Analysis</th>
                                                 <th>Workflow Status</th>
                                             </tr>
                                         </thead>
                                         <tbody>
+                                            @php
+                                                // Define GPA conversion function once before the loop
+                                                $convertGPAToLetterGrade = function($gpa) {
+                                                    $gpa = floatval($gpa);
+                                                    if ($gpa >= 4.00) return 'A';
+                                                    if ($gpa >= 3.67) return 'A-';
+                                                    if ($gpa >= 3.33) return 'B+';
+                                                    if ($gpa >= 3.00) return 'B';
+                                                    if ($gpa >= 2.67) return 'B-';
+                                                    if ($gpa >= 2.33) return 'C+';
+                                                    if ($gpa >= 2.00) return 'C';
+                                                    if ($gpa >= 1.67) return 'C-';
+                                                    if ($gpa >= 1.33) return 'D+';
+                                                    if ($gpa >= 1.00) return 'D';
+                                                    return 'F';
+                                                };
+                                            @endphp
                                             @foreach($app->applicationSubjects->sortBy('course_code') as $subject)
                                             <tr>
                                                 <td><code>{{ $subject->course_code }}</code></td>
                                                 <td>{{ $subject->course_name }}</td>
-                                                <td>
-                                                    <span class="badge 
+                                                <td class="text-center">
+                                                    @php
+                                                        // Check if course code contains combined courses
+                                                        $courseCode = $subject->course_code;
+                                                        $hasMultipleCourses = strpos($courseCode, '&') !== false || strpos($courseCode, '+') !== false;
+
+                                                        $grades = [];
+                                                        if ($hasMultipleCourses) {
+                                                            // Extract individual course codes
+                                                            $individualCodes = preg_split('/[\s&+]+/', $courseCode);
+                                                            $individualCodes = array_filter(array_map('trim', $individualCodes));
+
+                                                            // Look up each course's grade
+                                                            foreach ($individualCodes as $code) {
+                                                                $courseSubject = $app->applicationSubjects->firstWhere('course_code', $code);
+                                                                if ($courseSubject && $courseSubject->grade !== null) {
+                                                                    $grades[] = $convertGPAToLetterGrade($courseSubject->grade);
+                                                                }
+                                                            }
+                                                        } else {
+                                                            // Single course
+                                                            if ($subject->grade !== null) {
+                                                                $grades[] = $convertGPAToLetterGrade($subject->grade);
+                                                            }
+                                                        }
+
+                                                        $displayGrade = !empty($grades) ? implode(' & ', $grades) : 'N/A';
+                                                    @endphp
+                                                    <span class="badge
                                                         @if(in_array($subject->status, ['exempted'])) bg-success
                                                         @elseif($subject->status === 'not_eligible_grade') bg-danger
                                                         @else bg-secondary
                                                         @endif">
-                                                        @php
-                                                            // Convert GPA to letter grade using ranges
-                                                            $displayGrade = 'N/A';
-                                                            if ($subject->grade !== null) {
-                                                                $gpa = floatval($subject->grade);
-                                                                if ($gpa >= 4.00) {
-                                                                    $displayGrade = 'A';
-                                                                } elseif ($gpa >= 3.67) {
-                                                                    $displayGrade = 'A-';
-                                                                } elseif ($gpa >= 3.33) {
-                                                                    $displayGrade = 'B+';
-                                                                } elseif ($gpa >= 3.00) {
-                                                                    $displayGrade = 'B';
-                                                                } elseif ($gpa >= 2.67) {
-                                                                    $displayGrade = 'B-';
-                                                                } elseif ($gpa >= 2.33) {
-                                                                    $displayGrade = 'C+';
-                                                                } elseif ($gpa >= 2.00) {
-                                                                    $displayGrade = 'C';
-                                                                } elseif ($gpa >= 1.67) {
-                                                                    $displayGrade = 'C-';
-                                                                } elseif ($gpa >= 1.33) {
-                                                                    $displayGrade = 'D+';
-                                                                } elseif ($gpa >= 1.00) {
-                                                                    $displayGrade = 'D';
-                                                                } else {
-                                                                    $displayGrade = 'F';
-                                                                }
-                                                            }
-                                                        @endphp
                                                         {{ $displayGrade }}
                                                     </span>
                                                 </td>

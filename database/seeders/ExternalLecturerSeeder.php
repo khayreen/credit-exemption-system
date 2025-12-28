@@ -24,6 +24,7 @@ class ExternalLecturerSeeder extends Seeder
             'email_verified_at' => now(),
             'password' => Hash::make('password123'),
             'role' => 'external_lecturer',
+            'current_role' => 'external_lecturer',
         ]);
 
         // Create external lecturer profile
@@ -45,6 +46,7 @@ class ExternalLecturerSeeder extends Seeder
             'email_verified_at' => now(),
             'password' => Hash::make('password123'),
             'role' => 'external_lecturer',
+            'current_role' => 'external_lecturer',
         ]);
 
         ExternalLecturer::create([

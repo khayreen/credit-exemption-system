@@ -37,6 +37,7 @@
             position: fixed;
             height: 100%;
             z-index: 999;
+            overflow-y: auto;
         }
         #sidebar.active {
             margin-left: -260px;
@@ -116,6 +117,7 @@
         .stat-card .stat-icon.icon-green { background-color: #e6f9f1; color: #198754; }
         .stat-card .stat-icon.icon-orange { background-color: #fff4e6; color: #fd7e14; }
         .stat-card .stat-icon.icon-red { background-color: #fdeeee; color: #dc3545; }
+        .stat-card .stat-icon.icon-purple { background-color: #f3e8ff; color: #6f42c1; }
         
         /* Enhanced University Professional Styling */
         body {
@@ -344,18 +346,43 @@
             #sidebar {
                 transform: translateX(-100%);
             }
-            
+
             #sidebar.active {
                 transform: translateX(0);
             }
-            
+
             #content {
                 margin-left: 0;
             }
-            
+
             .top-navbar {
                 padding: 10px 15px;
             }
+        }
+
+        /* Fix for giant pagination arrows */
+        .pagination {
+            margin-bottom: 0;
+        }
+
+        .pagination .page-link {
+            font-size: 0.875rem;
+            padding: 0.375rem 0.75rem;
+            line-height: 1.5;
+        }
+
+        .pagination .page-link svg {
+            width: 1em;
+            height: 1em;
+            vertical-align: middle;
+        }
+
+        /* Ensure pagination icons don't inherit FontAwesome sizing */
+        .pagination .page-link i,
+        .pagination .page-link .fa,
+        .pagination .page-link .fas,
+        .pagination .page-link .far {
+            font-size: 1rem !important;
         }
     </style>
 </head>

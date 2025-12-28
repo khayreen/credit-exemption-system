@@ -6,15 +6,22 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Student;
 use App\Models\AcademicAdvisor;
-use App\Models\Coordinator;
+use App\Models\ProgramCoordinator;
 use App\Models\ResourcePerson;
 use App\Models\HeaPersonnel;
 use App\Models\ExternalLecturer;
+use App\Models\Faculty;
+use App\Models\Campus;
+use App\Models\Program;
+use App\Mail\UserRegistrationConfirmationMail;
+use App\Mail\HeaRegistrationNotificationMail;
 use Illuminate\Foundation\Auth\RegistersUsers;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
-use Illuminate\Auth\Events\Registered;
+use Illuminate\Support\Str;
 
 class RegisterController extends Controller
 {
@@ -28,142 +35,368 @@ class RegisterController extends Controller
     }
 
     /**
-     * Get the redirect path based on user role
+     * Show the registration form
      */
-    protected function redirectTo()
+    public function showRegistrationForm()
     {
-        $user = auth()->user();
-        
-        if ($user) {
-            switch ($user->role) {
-                case 'student':
-                    return '/student/dashboard';
-                case 'academic_advisor':
-                    return '/academic-advisor/dashboard';
-                case 'coordinator':
-                    return '/coordinator/dashboard';
-                case 'resource_person':
-                    return '/resource-person/dashboard';
-                case 'external_lecturer':
-                    return '/external-lecturer/dashboard';
-                case 'hea_personnel':
-                    return '/hea/dashboard';
-            }
-        }
-        
-        return '/home';
+        $faculties = Faculty::orderBy('name')->get();
+        $campuses = Campus::orderBy('name')->get();
+
+        // Get only the 5 supported bachelor's degree programs
+        $supportedProgramCodes = ['CDCS230', 'CDCS251', 'CDCS253', 'CDCS255', 'CDCS266'];
+        $degreePrograms = Program::whereIn('code', $supportedProgramCodes)
+            ->orderBy('code')
+            ->get();
+
+        // Get all programs for staff program assignment (AA/PC/RP)
+        $allPrograms = Program::orderBy('code')->get();
+
+        return view('auth.register', compact('faculties', 'campuses', 'degreePrograms', 'allPrograms'));
     }
 
-    protected function validator(array $data)
-    {
-        $rules = [
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'phone_number' => ['required', 'string', 'max:20'],
-            'role' => ['required', 'string', 'in:student,academic_advisor,coordinator,resource_person,hea_personnel,external_lecturer'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-        ];
-
-        // Add validation for assigned_programs when role is resource_person
-        if (isset($data['role']) && $data['role'] === 'resource_person') {
-            $rules['assigned_programs'] = ['required', 'array', 'min:1'];
-            $rules['assigned_programs.*'] = ['string', 'in:CDCS251,CDCS255,CDCS266'];
-        }
-
-        return Validator::make($data, $rules);
-    }
-
-    protected function create(array $data)
-    {
-        $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'phone_number' => $data['phone_number'],
-            'role' => $data['role'],
-            'password' => Hash::make($data['password']),
-        ]);
-
-        // FIX: Make all placeholder values unique by appending the current time
-        $timestamp = time();
-
-        switch ($data['role']) {
-            case 'student':
-                Student::create([
-                    'user_id' => $user->id,
-                    'matric_no' => 'TEMP-' . $timestamp,
-                    'program_name' => 'Not Set',
-                    'ic_number' => '000000-00-' . $timestamp, // Made unique
-                    'campus' => 'Not Set',
-                    'intake_semester' => 'Not Set',
-                ]);
-                break;
-            case 'academic_advisor':
-                AcademicAdvisor::create([
-                    'user_id' => $user->id,
-                    'staff_id' => 'TEMP-AA-' . $timestamp, // Made unique
-                    'department' => 'Not Set',
-                ]);
-                break;
-            case 'coordinator':
-                Coordinator::create([
-                    'user_id' => $user->id,
-                    'staff_id' => 'TEMP-C-' . $timestamp, // Made unique
-                    'department' => 'Not Set',
-                ]);
-                break;
-            case 'resource_person':
-                ResourcePerson::create([
-                    'user_id' => $user->id,
-                    'staff_id' => 'TEMP-RP-' . $timestamp, // Made unique
-                    'department' => 'Not Set',
-                    'expertise_area' => 'Not Set',
-                    'assigned_programs' => $data['assigned_programs'] ?? [],
-                ]);
-                break;
-            case 'hea_personnel':
-                HeaPersonnel::create([
-                    'user_id' => $user->id,
-                    'staff_id' => 'TEMP-HEA-' . $timestamp, // Made unique
-                    'unit' => 'Not Set',
-                ]);
-                break;
-            case 'external_lecturer':
-                ExternalLecturer::create([
-                    'user_id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'institution_name' => 'Not Set',
-                    'phone_number' => $user->phone_number,
-                ]);
-                break;
-        }
-
-        return $user;
-    }
-    
+    /**
+     * Handle registration request
+     */
     public function register(Request $request)
     {
-        $this->validator($request->all())->validate();
+        // Define supported program codes
+        $supportedProgramCodes = ['CDCS230', 'CDCS251', 'CDCS253', 'CDCS255', 'CDCS266'];
 
-        $user = $this->create($request->all());
+        // Get IDs of supported programs for validation
+        $supportedProgramIds = Program::whereIn('code', $supportedProgramCodes)->pluck('id')->toArray();
 
-        // Send email verification - this is required for multi-factor authentication
-        try {
-            event(new Registered($user));
-            \Illuminate\Support\Facades\Log::info('Verification email sent successfully to: ' . $user->email);
-            $message = 'Registration successful! Please check your email (' . $user->email . ') to verify your account before logging in.';
-        } catch (\Exception $e) {
-            // Log the detailed error for debugging
-            \Illuminate\Support\Facades\Log::error('Failed to send verification email: ' . $e->getMessage(), [
-                'user_email' => $user->email,
-                'error_trace' => $e->getTraceAsString()
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users',
+            'password' => 'required|min:8|confirmed',
+            'requested_role' => 'required|in:student,academic_advisor,coordinator,resource_person,hea',
+
+            // Conditional fields
+            'matric_no' => 'required_if:requested_role,student',
+            'program_id' => [
+                'required_if:requested_role,student',
+                'in:' . implode(',', $supportedProgramIds)
+            ],
+            'faculty_id' => 'required_if:requested_role,academic_advisor,coordinator,resource_person',
+            'campus_id' => 'required_if:requested_role,academic_advisor,coordinator,resource_person',
+
+            // Program requests for AA/PC/RP
+            'requested_programs' => 'required_if:requested_role,academic_advisor,coordinator,resource_person|array|min:1',
+            'requested_programs.*' => 'exists:programs,code',
+        ], [
+            'program_id.in' => 'Please select one of the supported bachelor\'s degree programs (CDCS230, CDCS251, CDCS253, CDCS255, CDCS266).',
+            'requested_programs.required_if' => 'Please select at least one program you will manage.',
+            'requested_programs.min' => 'Please select at least one program.',
+        ]);
+
+        // Determine approval workflow based on role
+        $approvalWorkflow = $this->determineApprovalWorkflow($validated['requested_role']);
+
+        $user = DB::transaction(function() use ($validated, $approvalWorkflow) {
+            // Create user
+            $user = User::create([
+                'id' => Str::uuid(),
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'role' => $approvalWorkflow['current_role'] ?? 'pending', // Legacy field for backward compatibility
+                'requested_role' => $validated['requested_role'],
+                'requested_programs' => isset($validated['requested_programs'])
+                    ? json_encode($validated['requested_programs'])
+                    : null,
+                'approval_status' => $approvalWorkflow['approval_status'],
+                'current_role' => $approvalWorkflow['current_role'],
+                'approved_at' => $approvalWorkflow['auto_approve'] ? now() : null,
+                // Email verification removed - all users must verify their email
+                'email_verified_at' => null,
             ]);
 
-            // Still allow registration but warn about email issue
-            $message = 'Registration successful! However, we could not send the verification email. Please contact support or try registering again.';
+            // Create role-specific record if auto-approved
+            if ($approvalWorkflow['auto_approve']) {
+                $this->createRoleRecord($user, $validated['requested_role'], $validated);
+            }
+
+            return $user;
+        });
+
+        // Send appropriate notifications
+        $this->sendNotifications($user, $approvalWorkflow);
+
+        // Redirect with appropriate message
+        return $this->redirectWithMessage($user, $approvalWorkflow);
+    }
+
+    /**
+     * Determine approval workflow based on role
+     */
+    private function determineApprovalWorkflow(string $role): array
+    {
+        return match($role) {
+            'student' => [
+                'approval_status' => 'approved',
+                'current_role' => $role,
+                'auto_approve' => true,
+                'notification_type' => 'auto_approved',
+                'redirect_message' => 'Registration successful! Please check your email to verify your account.',
+            ],
+
+            'academic_advisor', 'coordinator', 'resource_person' => [
+                'approval_status' => 'pending',
+                'current_role' => null,
+                'auto_approve' => false,
+                'notification_type' => 'pending_hea',
+                'redirect_message' => 'Registration submitted! HEA personnel will review your application and program requests. You will receive an email once approved.',
+            ],
+
+            'hea' => [
+                'approval_status' => 'pending_admin',
+                'current_role' => null,
+                'auto_approve' => false,
+                'notification_type' => 'pending_admin',
+                'redirect_message' => 'HEA registration submitted! The system administrator will review your request. You will receive an email once approved.',
+            ],
+        };
+    }
+
+    /**
+     * Create role-specific records for auto-approved users
+     */
+    private function createRoleRecord(User $user, string $role, array $data): void
+    {
+        $roleData = [
+            'id' => Str::uuid(),
+            'user_id' => $user->id,
+        ];
+
+        match($role) {
+            'student' => Student::create(array_merge($roleData, [
+                'matric_no' => $data['matric_no'],
+                'program_name' => $this->getProgramName($data['program_id'] ?? null),
+                'program_code' => $this->getProgramCode($data['program_id'] ?? null),
+                'faculty_id' => $data['faculty_id'] ?? null,
+                'ic_number' => null, // Optional field, can be updated later
+                'campus' => null, // Optional field, can be updated later
+                'intake_semester' => null, // Optional field, can be updated later
+            ])),
+
+            // External lecturers don't register - they use token-based access
+            default => null,
+        };
+    }
+
+    /**
+     * Send appropriate notifications based on workflow
+     */
+    private function sendNotifications(User $user, array $workflow): void
+    {
+        try {
+            match($workflow['notification_type']) {
+                'auto_approved' => $this->sendAutoApprovalEmail($user),
+                'pending_hea' => $this->sendPendingHeaEmail($user),
+                'pending_admin' => $this->sendPendingAdminEmail($user),
+            };
+        } catch (\Exception $e) {
+            Log::error('Failed to send registration email', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Send auto-approval confirmation email with email verification
+     */
+    private function sendAutoApprovalEmail(User $user): void
+    {
+        // Send email verification notification
+        $user->sendEmailVerificationNotification();
+    }
+
+    /**
+     * Send pending HEA approval email
+     */
+    private function sendPendingHeaEmail(User $user): void
+    {
+        Mail::to($user->email)->send(new UserRegistrationConfirmationMail($user, 'pending_hea'));
+        // HEA will see this in their dashboard automatically
+    }
+
+    /**
+     * Send pending admin approval email (for HEA registrations)
+     */
+    private function sendPendingAdminEmail(User $user): void
+    {
+        // Send confirmation to user
+        Mail::to($user->email)->send(new UserRegistrationConfirmationMail($user, 'pending_admin'));
+
+        // Send notification to system admin
+        $adminEmail = config('app.admin_email');
+        if ($adminEmail) {
+            Mail::to($adminEmail)->send(new HeaRegistrationNotificationMail($user));
+        }
+    }
+
+    /**
+     * Redirect with appropriate message
+     */
+    private function redirectWithMessage(User $user, array $workflow)
+    {
+        // For auto-approved users (students), log them in and redirect to email verification page
+        if ($workflow['auto_approve']) {
+            auth()->login($user);
+            return redirect()->route('verification.notice');
         }
 
-        $this->guard()->logout();
-        return redirect('/login')->with('status', $message);
+        // For pending approvals, redirect to login with message
+        return redirect()->route('login')->with('success', $workflow['redirect_message']);
+    }
+
+    /**
+     * Show QR code setup page after registration
+     */
+    public function showQrSetup()
+    {
+        // Check if there's a user ID in session
+        if (!session()->has('registration_user_id')) {
+            return redirect()->route('register')->with('error', 'Session expired. Please register again.');
+        }
+
+        $userId = session('registration_user_id');
+        $user = User::find($userId);
+
+        if (!$user) {
+            session()->forget('registration_user_id');
+            return redirect()->route('register')->with('error', 'User not found. Please register again.');
+        }
+
+        // Generate QR code
+        $google2fa = new \PragmaRX\Google2FA\Google2FA();
+        $qrCodeUrl = $this->generateQRCodeUrl($user, $google2fa);
+
+        // Generate recovery codes
+        $recoveryCodes = $this->generateRecoveryCodes();
+
+        return view('auth.register-qr-setup', compact('qrCodeUrl', 'recoveryCodes', 'user'));
+    }
+
+    /**
+     * Verify QR code and complete registration
+     */
+    public function verifyQr(Request $request)
+    {
+        $request->validate([
+            'one_time_password' => 'required|numeric|digits:6',
+            'recovery_codes_confirmed' => 'required|accepted',
+        ], [
+            'recovery_codes_confirmed.accepted' => 'You must confirm that you have saved your recovery codes.',
+        ]);
+
+        if (!session()->has('registration_user_id')) {
+            return redirect()->route('register')->with('error', 'Session expired. Please register again.');
+        }
+
+        $userId = session('registration_user_id');
+        $user = User::find($userId);
+
+        if (!$user) {
+            session()->forget('registration_user_id');
+            return redirect()->route('register')->with('error', 'User not found.');
+        }
+
+        $google2fa = new \PragmaRX\Google2FA\Google2FA();
+
+        // Verify OTP with time window tolerance (8 = 4 minutes before/after)
+        $valid = $google2fa->verifyKey($user->google2fa_secret, $request->one_time_password, 8);
+
+        if (!$valid) {
+            return back()->withErrors(['one_time_password' => 'The verification code is incorrect. Please try again.']);
+        }
+
+        // Mark 2FA as verified
+        $user->two_factor_verified_at = now();
+
+        // Store recovery codes (encrypted)
+        $recoveryCodes = session('recovery_codes');
+        $user->two_factor_recovery_codes = encrypt(json_encode($recoveryCodes));
+        $user->save();
+
+        // Get approval workflow from session
+        $approvalWorkflow = session('registration_approval_workflow');
+
+        // Send appropriate notifications NOW
+        $this->sendNotifications($user, $approvalWorkflow);
+
+        // Clear session data
+        session()->forget(['registration_user_id', 'registration_approval_workflow', 'recovery_codes']);
+
+        // Redirect with success message
+        return redirect()->route('login')->with('success', 'Registration successful! Two-factor authentication has been set up. Please check your email to verify your account.');
+    }
+
+    /**
+     * Generate QR code URL for Google Authenticator
+     */
+    private function generateQRCodeUrl(User $user, $google2fa)
+    {
+        $companyName = config('app.name');
+        $qrCodeUrl = $google2fa->getQRCodeUrl(
+            $companyName,
+            $user->email,
+            $user->google2fa_secret
+        );
+
+        // Generate SVG QR code
+        $renderer = new \BaconQrCode\Renderer\ImageRenderer(
+            new \BaconQrCode\Renderer\RendererStyle\RendererStyle(200),
+            new \BaconQrCode\Renderer\Image\SvgImageBackEnd()
+        );
+
+        $writer = new \BaconQrCode\Writer($renderer);
+        $qrCodeImage = $writer->writeString($qrCodeUrl);
+
+        return 'data:image/svg+xml;base64,' . base64_encode($qrCodeImage);
+    }
+
+    /**
+     * Generate recovery codes for 2FA
+     */
+    private function generateRecoveryCodes()
+    {
+        $codes = [];
+        for ($i = 0; $i < 8; $i++) {
+            $codes[] = strtoupper(Str::random(4) . '-' . Str::random(4) . '-' . Str::random(4));
+        }
+
+        // Store in session temporarily
+        session(['recovery_codes' => $codes]);
+
+        return $codes;
+    }
+
+    /**
+     * Get program name from program ID
+     */
+    private function getProgramName(?string $programId): string
+    {
+        if (!$programId) {
+            return 'Not Set';
+        }
+
+        $program = \App\Models\Program::find($programId);
+        return $program ? $program->name : 'Not Set';
+    }
+
+    /**
+     * Get program code from program ID
+     */
+    private function getProgramCode(?string $programId): ?string
+    {
+        if (!$programId) {
+            return null;
+        }
+
+        $program = \App\Models\Program::find($programId);
+        return $program ? $program->code : null;
     }
 }

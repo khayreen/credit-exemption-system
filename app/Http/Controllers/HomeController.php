@@ -25,15 +25,17 @@ class HomeController extends Controller
     public function index()
     {
         $user = auth()->user();
-        
-        // Redirect based on user role
-        switch ($user->role) {
+
+        // Redirect based on user's current role
+        switch ($user->current_role) {
             case 'student':
                 return redirect('/student/dashboard');
             case 'academic_advisor':
                 return redirect('/academic-advisor/dashboard');
             case 'coordinator':
                 return redirect('/coordinator/dashboard');
+            case 'program_coordinator':
+                return redirect('/program-coordinator/dashboard');
             case 'resource_person':
                 return redirect('/resource-person/dashboard');
             case 'external_lecturer':
@@ -41,7 +43,7 @@ class HomeController extends Controller
             case 'hea_personnel':
                 return redirect('/hea/dashboard');
         }
-        
+
         // Fallback to home view for unknown roles
         return view('home');
     }

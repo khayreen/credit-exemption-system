@@ -13,6 +13,13 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
+            'admin' => \App\Http\Middleware\CheckAdmin::class,
+            'require.2fa' => \App\Http\Middleware\Require2FASetup::class,
+        ]);
+
+        // Apply 2FA middleware to all web routes after authentication
+        $middleware->web(append: [
+            \App\Http\Middleware\Require2FASetup::class,
         ]);
     })
     ->withProviders([

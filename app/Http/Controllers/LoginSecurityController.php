@@ -115,6 +115,8 @@ class LoginSecurityController extends Controller
                         return redirect()->intended('/lecturer/dashboard');
                     case 'coordinator':
                         return redirect()->intended('/coordinator/dashboard');
+                    case 'program_coordinator':
+                        return redirect()->intended('/program-coordinator/dashboard');
                     case 'resource_person':
                         return redirect()->intended('/resource-person/dashboard');
                     case 'external_lecturer':

@@ -7,6 +7,8 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
 // Import the App facade
 use Illuminate\Support\Facades\App;
+// Import Paginator for Bootstrap styling
+use Illuminate\Pagination\Paginator;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -31,5 +33,8 @@ class AppServiceProvider extends ServiceProvider
         if (App::isLocal()) {
             URL::forceRootUrl(config('app.url'));
         }
+
+        // Use Bootstrap 5 for pagination styling (fixes giant arrow issue)
+        Paginator::useBootstrapFive();
     }
 }

@@ -108,7 +108,23 @@
                                         <td><strong>{{ $subject['course_code'] }}</strong></td>
                                         <td>{{ $subject['course_name'] }}</td>
                                         <td>
-                                            <span class="badge bg-success">{{ $subject['grade_letter'] }}</span>
+                                            @if($subject['is_combination'] && $subject['individual_grades'])
+                                                {{-- Display individual grades for combination courses --}}
+                                                @php
+                                                    $courseCodes = explode(' & ', $subject['course_code']);
+                                                    $grades = [];
+                                                    foreach($courseCodes as $code) {
+                                                        if(isset($subject['individual_grades'][$code])) {
+                                                            $grades[] = $subject['individual_grades'][$code];
+                                                        }
+                                                    }
+                                                @endphp
+                                                @foreach($grades as $index => $grade)
+                                                    <span class="badge bg-success">{{ $grade }}</span>@if($index < count($grades) - 1), @endif
+                                                @endforeach
+                                            @else
+                                                <span class="badge bg-success">{{ $subject['grade_letter'] }}</span>
+                                            @endif
                                         </td>
                                         <td>
                                             <span class="badge bg-primary">{{ $subject['equivalent_course'] ?: '-' }}</span>
@@ -131,23 +147,17 @@
                                                 </div>
                                             @else
                                                 <div class="btn-group-vertical btn-group-sm" role="group">
-                                                    <button type="button" class="btn btn-success btn-sm mb-1 decision-btn" 
-                                                            data-subject-id="{{ $subject['id'] }}" 
+                                                    <button type="button" class="btn btn-success btn-sm mb-1 decision-btn"
+                                                            data-subject-id="{{ $subject['id'] }}"
                                                             data-decision="Approved"
                                                             data-course-code="{{ $subject['course_code'] }}">
                                                         <i class="fas fa-check"></i> Approve
                                                     </button>
-                                                    <button type="button" class="btn btn-danger btn-sm mb-1 decision-btn" 
-                                                            data-subject-id="{{ $subject['id'] }}" 
+                                                    <button type="button" class="btn btn-danger btn-sm decision-btn"
+                                                            data-subject-id="{{ $subject['id'] }}"
                                                             data-decision="Rejected"
                                                             data-course-code="{{ $subject['course_code'] }}">
                                                         <i class="fas fa-times"></i> Reject
-                                                    </button>
-                                                    <button type="button" class="btn btn-warning btn-sm decision-btn" 
-                                                            data-subject-id="{{ $subject['id'] }}" 
-                                                            data-decision="Forward to Coordinator"
-                                                            data-course-code="{{ $subject['course_code'] }}">
-                                                        <i class="fas fa-arrow-right"></i> Forward
                                                     </button>
                                                 </div>
                                             @endif
@@ -188,10 +198,27 @@
                                         <td><strong>{{ $subject['course_code'] }}</strong></td>
                                         <td>{{ $subject['course_name'] }}</td>
                                         <td>
-                                            @if($subject['status'] == 'not_eligible_grade')
-                                                <span class="badge bg-danger">{{ $subject['grade_letter'] }}</span>
+                                            @if($subject['is_combination'] && $subject['individual_grades'])
+                                                {{-- Display individual grades for combination courses --}}
+                                                @php
+                                                    $courseCodes = explode(' & ', $subject['course_code']);
+                                                    $grades = [];
+                                                    foreach($courseCodes as $code) {
+                                                        if(isset($subject['individual_grades'][$code])) {
+                                                            $grades[] = $subject['individual_grades'][$code];
+                                                        }
+                                                    }
+                                                    $badgeClass = $subject['status'] == 'not_eligible_grade' ? 'bg-danger' : 'bg-secondary';
+                                                @endphp
+                                                @foreach($grades as $index => $grade)
+                                                    <span class="badge {{ $badgeClass }}">{{ $grade }}</span>@if($index < count($grades) - 1), @endif
+                                                @endforeach
                                             @else
-                                                <span class="badge bg-secondary">{{ $subject['grade_letter'] }}</span>
+                                                @if($subject['status'] == 'not_eligible_grade')
+                                                    <span class="badge bg-danger">{{ $subject['grade_letter'] }}</span>
+                                                @else
+                                                    <span class="badge bg-secondary">{{ $subject['grade_letter'] }}</span>
+                                                @endif
                                             @endif
                                         </td>
                                         <td>
@@ -224,23 +251,17 @@
                                                 </div>
                                             @else
                                                 <div class="btn-group-vertical btn-group-sm" role="group">
-                                                    <button type="button" class="btn btn-success btn-sm mb-1 decision-btn" 
-                                                            data-subject-id="{{ $subject['id'] }}" 
+                                                    <button type="button" class="btn btn-success btn-sm mb-1 decision-btn"
+                                                            data-subject-id="{{ $subject['id'] }}"
                                                             data-decision="Approved"
                                                             data-course-code="{{ $subject['course_code'] }}">
                                                         <i class="fas fa-check"></i> Approve
                                                     </button>
-                                                    <button type="button" class="btn btn-danger btn-sm mb-1 decision-btn" 
-                                                            data-subject-id="{{ $subject['id'] }}" 
+                                                    <button type="button" class="btn btn-danger btn-sm decision-btn"
+                                                            data-subject-id="{{ $subject['id'] }}"
                                                             data-decision="Rejected"
                                                             data-course-code="{{ $subject['course_code'] }}">
                                                         <i class="fas fa-times"></i> Reject
-                                                    </button>
-                                                    <button type="button" class="btn btn-warning btn-sm decision-btn" 
-                                                            data-subject-id="{{ $subject['id'] }}" 
-                                                            data-decision="Forward to Coordinator"
-                                                            data-course-code="{{ $subject['course_code'] }}">
-                                                        <i class="fas fa-arrow-right"></i> Forward
                                                     </button>
                                                 </div>
                                             @endif
@@ -453,11 +474,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const table = button.closest('table');
             const isPreQualifiedTable = table.classList.contains('table-success');
             const isManualReviewTable = table.classList.contains('table-warning');
-            
+
             let needsConfirmation = false;
-            if (decision === 'Forward to Coordinator') {
-                needsConfirmation = true; // Always confirm forward
-            } else if (decision === 'Rejected' && isPreQualifiedTable) {
+            if (decision === 'Rejected' && isPreQualifiedTable) {
                 needsConfirmation = true; // Confirm reject in pre-qualified table only
             }
             // No confirmation for: Approve (any table), Reject (manual review table)
@@ -557,23 +576,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         const actionCell = button.closest('td');
                         actionCell.innerHTML = `
                             <div class="btn-group-vertical btn-group-sm" role="group">
-                                <button type="button" class="btn btn-success btn-sm mb-1 decision-btn" 
-                                        data-subject-id="${subjectId}" 
+                                <button type="button" class="btn btn-success btn-sm mb-1 decision-btn"
+                                        data-subject-id="${subjectId}"
                                         data-decision="Approved"
                                         data-course-code="${courseCode}">
                                     <i class="fas fa-check"></i> Approve
                                 </button>
-                                <button type="button" class="btn btn-danger btn-sm mb-1 decision-btn" 
-                                        data-subject-id="${subjectId}" 
+                                <button type="button" class="btn btn-danger btn-sm decision-btn"
+                                        data-subject-id="${subjectId}"
                                         data-decision="Rejected"
                                         data-course-code="${courseCode}">
                                     <i class="fas fa-times"></i> Reject
-                                </button>
-                                <button type="button" class="btn btn-warning btn-sm decision-btn" 
-                                        data-subject-id="${subjectId}" 
-                                        data-decision="Forward to Coordinator"
-                                        data-course-code="${courseCode}">
-                                    <i class="fas fa-arrow-right"></i> Forward
                                 </button>
                             </div>
                         `;

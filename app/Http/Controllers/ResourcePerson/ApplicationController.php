@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ApplicationSubject;
 use App\Models\Course;
 use App\Models\CourseEquivalency;
+use App\Models\CourseEquivalencyRequest;
 use App\Models\ExternalLecturerRequest;
 use App\Models\Program;
 use Illuminate\Http\Request;
@@ -42,6 +43,41 @@ class ApplicationController extends Controller
                 ->get();
         }
 
+        // Get equivalency requests forwarded by Program Coordinators
+        if (empty($assignedPrograms)) {
+            $equivalencyRequests = CourseEquivalencyRequest::where(function($query) {
+                    $query->where('coordinator_decision', 'forward_to_rp')
+                          ->orWhere('status', 'pending');
+                })
+                ->with('student.user', 'coordinator')
+                ->orderBy('created_at', 'desc')
+                ->get();
+        } else {
+            $equivalencyRequests = CourseEquivalencyRequest::where(function($query) {
+                    $query->where('coordinator_decision', 'forward_to_rp')
+                          ->orWhere('status', 'pending');
+                })
+                ->whereIn('current_program_code', $assignedPrograms)
+                ->with('student.user', 'coordinator')
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+
+        // Group requests by unique equivalency combination (diploma + suggested degree + program)
+        // This ensures RP reviews each unique equivalency ONCE, not per student
+        $groupedByEquivalency = $equivalencyRequests->groupBy(function($request) {
+            return $request->diploma_course_code . '|' .
+                   $request->suggested_degree_course_code . '|' .
+                   $request->current_program_code;
+        });
+
+        // Group requests by coordinator and then by program code (for organized view)
+        $groupedEquivalencyRequests = $equivalencyRequests->groupBy(function($request) {
+            return $request->coordinator ? $request->coordinator->name : 'Direct Requests (No Coordinator)';
+        })->map(function($coordinatorRequests) {
+            return $coordinatorRequests->groupBy('current_program_code');
+        });
+
         $stats = [
             'subjects_for_review' => $subjects->count(),
             'syllabus_requests' => ApplicationSubject::where('status', 'Syllabus Requested')
@@ -51,10 +87,12 @@ class ApplicationController extends Controller
                     });
                 })
                 ->count(),
+            'equivalency_requests' => $equivalencyRequests->count(),
+            'unique_equivalencies' => $groupedByEquivalency->count(),
             'assigned_programs' => $assignedPrograms,
         ];
 
-        return view('resource_person.dashboard', compact('subjects', 'stats'));
+        return view('resource_person.dashboard', compact('subjects', 'stats', 'equivalencyRequests', 'groupedEquivalencyRequests', 'groupedByEquivalency'));
     }
 
     /**
@@ -101,6 +139,7 @@ class ApplicationController extends Controller
     public function requestSyllabus(Request $request, ApplicationSubject $subject)
     {
         $request->validate([
+            'external_lecturer_name' => 'required|string|max:255',
             'external_lecturer_email' => 'required|email',
             'request_notes' => 'nullable|string|max:1000'
         ]);
@@ -111,6 +150,7 @@ class ApplicationController extends Controller
             // Create external lecturer request record
             $externalRequest = ExternalLecturerRequest::create([
                 'application_subject_id' => $subject->id,
+                'external_lecturer_name' => $request->external_lecturer_name,
                 'external_lecturer_email' => $request->external_lecturer_email,
                 'request_notes' => $request->request_notes,
                 'access_token' => bin2hex(random_bytes(32)),
@@ -127,16 +167,46 @@ class ApplicationController extends Controller
                 'token' => $externalRequest->access_token
             ]);
 
-            // Send email notification (for now, just log it)
-            Log::info('Syllabus request sent to: ' . $request->external_lecturer_email);
-            Log::info('Submission URL: ' . $submissionUrl);
-            Log::info('Course: ' . $subject->course_code . ' - ' . $subject->course_name);
+            // Send email to external lecturer
+            try {
+                \Illuminate\Support\Facades\Mail::to($request->external_lecturer_email)
+                    ->send(new \App\Mail\SyllabusRequestMail(
+                        $request->external_lecturer_name,
+                        $subject->exemptionApplication->student->user->name,
+                        Auth::user()->name,
+                        $subject->course_code,
+                        $subject->course_name,
+                        $subject->credit_hour,
+                        $subject->exemptionApplication->previous_institution,
+                        $subject->exemptionApplication->previous_program,
+                        $submissionUrl,
+                        $request->request_notes,
+                        $externalRequest->token_expires_at
+                    ));
+
+                Log::info('Syllabus request email sent successfully', [
+                    'external_lecturer_email' => $request->external_lecturer_email,
+                    'submission_url' => $submissionUrl,
+                    'course' => $subject->course_code . ' - ' . $subject->course_name
+                ]);
+            } catch (\Exception $mailException) {
+                // Log email failure but don't rollback transaction
+                Log::error('Failed to send syllabus request email', [
+                    'error' => $mailException->getMessage(),
+                    'external_lecturer_email' => $request->external_lecturer_email
+                ]);
+
+                // Continue with success message but inform user about email issue
+                DB::commit();
+                return redirect()->route('resource_person.dashboard')
+                    ->with('warning', 'Syllabus request created but email could not be sent. Please share this link manually: ' . $submissionUrl);
+            }
 
             DB::commit();
 
-            return redirect()->route('resource_person.dashboard')->with('success', 
-                'Syllabus request has been sent to ' . $request->external_lecturer_email . 
-                ' for course ' . $subject->course_code . '.');
+            return redirect()->route('resource_person.dashboard')->with('success',
+                'Syllabus request has been sent successfully to ' . $request->external_lecturer_email .
+                ' for course ' . $subject->course_code . '!');
 
         } catch (\Exception $e) {
             DB::rollback();
@@ -195,6 +265,26 @@ class ApplicationController extends Controller
     }
 
     /**
+     * Securely stream the external lecturer submission syllabus file.
+     */
+    public function viewExternalSyllabus(\App\Models\ExternalLecturerSubmission $submission)
+    {
+        $syllabusPath = $submission->syllabus_file_path;
+
+        if (!$syllabusPath || !Storage::exists($syllabusPath)) {
+            abort(404, 'Syllabus file not found.');
+        }
+
+        $filePath = Storage::path($syllabusPath);
+        $originalName = $submission->syllabus_file_original_name ?? 'syllabus.pdf';
+
+        return response()->file($filePath, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $originalName . '"'
+        ]);
+    }
+
+    /**
      * Show the course equivalency management page.
      * Filters programs by assigned program codes.
      */
@@ -219,16 +309,24 @@ class ApplicationController extends Controller
 
     /**
      * Get existing equivalencies for a specific degree program via AJAX.
+     * Supports optional institution filter for non-UiTM equivalencies.
      */
     public function getExistingEquivalencies(Request $request)
     {
         $programCode = $request->input('program_code');
-        
-        // Get existing equivalencies for this specific program, ordered by oldest first (most recent at bottom)
-        $equivalencies = CourseEquivalency::where('program_code', $programCode)
-                                         ->with('degreeCourse')
-                                         ->orderBy('updated_at', 'asc')
-                                         ->get();
+        $institution = $request->input('institution');
+
+        // Build query for this specific program
+        $query = CourseEquivalency::where('program_code', $programCode)
+                                 ->with('degreeCourse');
+
+        // Apply institution filter if provided
+        if ($institution) {
+            $query->where('diploma_institution', 'LIKE', "%{$institution}%");
+        }
+
+        // Order by oldest first (most recent at bottom)
+        $equivalencies = $query->orderBy('updated_at', 'asc')->get();
 
         return response()->json($equivalencies);
     }
@@ -413,21 +511,38 @@ class ApplicationController extends Controller
                 'degree_course_code' => 'required|string',
                 'match_percentage' => 'required|numeric|min:0|max:100',
                 'notes' => 'nullable|string|max:1000',
-                'decision' => 'required|in:Approved,Rejected'
+                'decision' => 'required|in:Equivalent,Not Equivalent'
             ]);
 
             DB::beginTransaction();
 
+            // Generate automatic remark based on decision
+            $degreeCourseCode = $request->degree_course_code;
+            $automaticRemark = '';
+
+            if ($request->decision === 'Equivalent') {
+                $automaticRemark = "This subject has been reviewed and is approved for exemption. It is considered equivalent to degree course {$degreeCourseCode}.";
+            } else {
+                $automaticRemark = "This course has been assessed and is not equivalent to degree course {$degreeCourseCode}.";
+            }
+
+            // Combine automatic remark with optional notes
+            $finalNotes = $automaticRemark;
+            if ($request->notes) {
+                $finalNotes .= "\n\nAdditional Notes: " . $request->notes;
+            }
+
             // Update the subject status based on decision
-            $status = $request->decision === 'Approved' ? 'Approved (RP: ' . Auth::user()->name . ')' : 'Rejected (RP: ' . Auth::user()->name . ')';
-            
+            $status = $request->decision === 'Equivalent' ? 'Approved (RP: ' . Auth::user()->name . ')' : 'Rejected (RP: ' . Auth::user()->name . ')';
+
             $subject->update([
                 'status' => $status,
-                'notes' => $request->notes ?? $subject->notes
+                'exemption_reason' => $automaticRemark,
+                'notes' => $finalNotes
             ]);
 
-            // If approved, automatically create course equivalency
-            if ($request->decision === 'Approved') {
+            // If equivalent, automatically create course equivalency
+            if ($request->decision === 'Equivalent') {
                 // Find the degree course to get its name
                 $degreeCourse = Course::where('code', $request->degree_course_code)->first();
                 $programCode = $subject->exemptionApplication->current_program_code ?? 'CS251';
@@ -462,7 +577,8 @@ class ApplicationController extends Controller
                     'decision' => $request->decision,
                     'degree_course_code' => $request->degree_course_code,
                     'match_percentage' => $request->match_percentage,
-                    'notes' => $request->notes,
+                    'automatic_remark' => $automaticRemark,
+                    'additional_notes' => $request->notes,
                     'course_code' => $subject->course_code,
                     'course_name' => $subject->course_name,
                     'program_code' => $subject->exemptionApplication->current_program_code ?? 'N/A',
@@ -471,15 +587,15 @@ class ApplicationController extends Controller
                     'exemption_reason' => $subject->exemption_reason,
                     'grade' => $subject->grade,
                     'credit_hours' => $subject->credit_hour,
-                    'equivalency_created' => $request->decision === 'Approved' ? 'Yes' : 'No'
+                    'equivalency_created' => $request->decision === 'Equivalent' ? 'Yes' : 'No'
                 ])
             ]);
 
             DB::commit();
 
-            $message = $request->decision === 'Approved' 
-                ? 'Course approved and equivalency created automatically for ' . $subject->course_code
-                : 'Course rejected for ' . $subject->course_code;
+            $message = $request->decision === 'Equivalent'
+                ? 'Course marked as equivalent and equivalency created automatically for ' . $subject->course_code
+                : 'Course marked as not equivalent for ' . $subject->course_code;
 
             return redirect()->route('resource_person.dashboard')->with('success', $message);
 
@@ -492,8 +608,406 @@ class ApplicationController extends Controller
                 'subject_id' => $subject->id,
                 'user_id' => Auth::id()
             ]);
-            
+
             return back()->withErrors(['general' => 'An error occurred while processing your decision. Please try again.'])->withInput();
+        }
+    }
+
+    /**
+     * Display list of equivalency requests for review.
+     */
+    public function viewEquivalencyRequests()
+    {
+        $resourcePerson = Auth::user()->resourcePerson;
+        $assignedPrograms = $resourcePerson->assigned_programs ?? [];
+
+        // Get equivalency requests that were forwarded by Program Coordinators
+        // or legacy requests (coordinator_decision is null)
+        if (empty($assignedPrograms)) {
+            $requests = CourseEquivalencyRequest::where(function($query) {
+                    $query->where('coordinator_decision', 'forward_to_rp')
+                          ->orWhereNull('coordinator_decision');
+                })
+                ->with('student.user', 'reviewer', 'coordinator')
+                ->orderBy('created_at', 'desc')
+                ->get();
+        } else {
+            $requests = CourseEquivalencyRequest::whereIn('current_program_code', $assignedPrograms)
+                ->where(function($query) {
+                    $query->where('coordinator_decision', 'forward_to_rp')
+                          ->orWhereNull('coordinator_decision');
+                })
+                ->with('student.user', 'reviewer', 'coordinator')
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+
+        // Group requests by unique equivalency combination (diploma + suggested degree + program)
+        // This ensures RP reviews each unique equivalency ONCE, not per student
+        $groupedByEquivalency = $requests->groupBy(function($request) {
+            return $request->diploma_course_code . '|' .
+                   $request->suggested_degree_course_code . '|' .
+                   $request->current_program_code;
+        });
+
+        // Group requests by coordinator and then by program code (for organized view)
+        $groupedRequests = $requests->groupBy(function($request) {
+            return $request->coordinator ? $request->coordinator->name : 'Direct Requests (No Coordinator)';
+        })->map(function($coordinatorRequests) {
+            return $coordinatorRequests->groupBy('current_program_code');
+        });
+
+        return view('resource_person.equivalency_requests.index', compact('requests', 'groupedRequests', 'groupedByEquivalency'));
+    }
+
+    /**
+     * Display review page for a specific equivalency request.
+     */
+    public function reviewEquivalencyRequest(CourseEquivalencyRequest $request)
+    {
+        // Eager load relationships for syllabus viewing
+        $request->load(['externalLecturerRequest.submission', 'student.user', 'reviewer.user']);
+
+        $degreeCourses = Course::orderBy('code')->get();
+        return view('resource_person.equivalency_requests.review', compact('request', 'degreeCourses'));
+    }
+
+    /**
+     * Process the equivalency request (equivalent/not equivalent).
+     */
+    public function processEquivalencyRequest(Request $httpRequest, CourseEquivalencyRequest $request)
+    {
+        $httpRequest->validate([
+            'decision' => 'required|in:approved,rejected',
+            'approved_degree_course_code' => 'nullable|string|max:20',
+            'approved_degree_course_name' => 'nullable|string|max:255',
+            'match_percentage' => 'nullable|integer|min:0|max:100',
+            'reviewer_notes' => 'nullable|string|max:1000',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $decision = $httpRequest->decision;
+
+            // Generate automatic remark based on decision
+            $automaticRemark = '';
+            if ($decision === 'approved') {
+                $degreeCourseCode = strtoupper(trim($httpRequest->approved_degree_course_code));
+                $automaticRemark = "This subject has been reviewed and is approved for exemption. It is considered equivalent to degree course {$degreeCourseCode}.";
+            } else {
+                $diplomaCourseCode = $request->diploma_course_code;
+                $automaticRemark = "This course has been assessed and is not equivalent to the suggested degree course.";
+            }
+
+            // Combine automatic remark with optional reviewer notes
+            $finalNotes = $automaticRemark;
+            if ($httpRequest->reviewer_notes) {
+                $finalNotes .= "\n\nAdditional Notes: " . $httpRequest->reviewer_notes;
+            }
+
+            // Find ALL requests with the same equivalency combination
+            // (same diploma course + suggested degree course + program)
+            $matchingRequests = CourseEquivalencyRequest::where('diploma_course_code', $request->diploma_course_code)
+                ->where('suggested_degree_course_code', $request->suggested_degree_course_code)
+                ->where('current_program_code', $request->current_program_code)
+                ->where('status', '!=', 'approved') // Don't re-process already approved
+                ->where('status', '!=', 'rejected') // Don't re-process already rejected
+                ->get();
+
+            $affectedStudentCount = $matchingRequests->count();
+
+            // Update ALL matching requests with the same decision
+            foreach ($matchingRequests as $matchingRequest) {
+                $matchingRequest->status = $decision;
+                $matchingRequest->reviewed_by = Auth::user()->resourcePerson->id;
+                $matchingRequest->reviewed_at = now();
+                $matchingRequest->reviewer_notes = $finalNotes;
+
+                if ($decision === 'approved') {
+                    // Validate that approved course details are provided
+                    if (!$httpRequest->approved_degree_course_code || !$httpRequest->match_percentage) {
+                        throw new \Exception('Approved degree course code and match percentage are required for approval.');
+                    }
+
+                    $matchingRequest->approved_degree_course_code = strtoupper(trim($httpRequest->approved_degree_course_code));
+                    $matchingRequest->approved_degree_course_name = trim($httpRequest->approved_degree_course_name);
+                    $matchingRequest->match_percentage = $httpRequest->match_percentage;
+                }
+
+                $matchingRequest->save();
+
+                Log::info('Course equivalency decision applied', [
+                    'request_id' => $matchingRequest->id,
+                    'student_id' => $matchingRequest->student_id,
+                    'decision' => $decision,
+                ]);
+            }
+
+            // Create course equivalency record ONCE for this equivalency (if approved)
+            if ($decision === 'approved') {
+                $existingEquivalency = CourseEquivalency::where('diploma_course_code', strtoupper(trim($request->diploma_course_code)))
+                    ->where('degree_course_code', strtoupper(trim($httpRequest->approved_degree_course_code)))
+                    ->where('program_code', $request->current_program_code)
+                    ->first();
+
+                if (!$existingEquivalency) {
+                    CourseEquivalency::create([
+                        'diploma_course_code' => strtoupper(trim($request->diploma_course_code)),
+                        'diploma_course_name' => $request->diploma_course_name,
+                        'diploma_credit_hour' => $request->diploma_credit_hours,
+                        'diploma_institution' => $request->diploma_institution,
+                        'degree_course_code' => strtoupper(trim($httpRequest->approved_degree_course_code)),
+                        'degree_course_name' => trim($httpRequest->approved_degree_course_name),
+                        'match_percentage' => $httpRequest->match_percentage,
+                        'program_code' => $request->current_program_code,
+                        'notes' => 'Created by Resource Person from equivalency request affecting ' . $affectedStudentCount . ' student(s)',
+                    ]);
+
+                    Log::info('Course equivalency created from RP decision', [
+                        'diploma_course' => $request->diploma_course_code,
+                        'degree_course' => $httpRequest->approved_degree_course_code,
+                        'affected_students' => $affectedStudentCount,
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            $message = $decision === 'approved'
+                ? "Course marked as equivalent for {$affectedStudentCount} student(s). Course equivalency created successfully!"
+                : "Course marked as not equivalent for {$affectedStudentCount} student(s).";
+
+            return redirect()->route('resource_person.equivalency_requests.index')->with('success', $message);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollback();
+            return back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Error processing equivalency request', [
+                'error' => $e->getMessage(),
+                'request_id' => $request->id
+            ]);
+
+            return back()->withErrors(['error' => 'An error occurred while processing the request: ' . $e->getMessage()])->withInput();
+        }
+    }
+
+    /**
+     * Request official syllabus from external lecturer for equivalency request.
+     */
+    public function requestSyllabusForEquivalency(CourseEquivalencyRequest $equivalencyRequest)
+    {
+        try {
+            DB::beginTransaction();
+
+            // Use PC-selected lecturer information
+            $lecturerEmail = $equivalencyRequest->selected_lecturer_email;
+            $lecturerName = $equivalencyRequest->selected_lecturer_name;
+
+            // Create external lecturer request record
+            $externalRequest = ExternalLecturerRequest::create([
+                'course_equivalency_request_id' => $equivalencyRequest->id,
+                'external_lecturer_email' => $lecturerEmail,
+                'external_lecturer_name' => $lecturerName,
+                'request_notes' => 'Official syllabus request for course equivalency verification: ' . $equivalencyRequest->diploma_course_code,
+                'access_token' => bin2hex(random_bytes(32)),
+                'token_expires_at' => now()->addDays(30), // 30 days expiry
+                'status' => 'pending'
+            ]);
+
+            // Update equivalency request with sent timestamp
+            $equivalencyRequest->syllabus_request_sent_at = now();
+            $equivalencyRequest->save();
+
+            // Create secure submission URL
+            $submissionUrl = route('external.lecturer.submission.form', [
+                'token' => $externalRequest->access_token
+            ]);
+
+            // Send email to external lecturer
+            try {
+                \Illuminate\Support\Facades\Mail::to($lecturerEmail)
+                    ->send(new \App\Mail\SyllabusRequestMail(
+                        $lecturerName,
+                        'Multiple Students', // Don't expose individual student names
+                        Auth::user()->name,
+                        $equivalencyRequest->diploma_course_code,
+                        $equivalencyRequest->diploma_course_name,
+                        $equivalencyRequest->diploma_credit_hours,
+                        $equivalencyRequest->diploma_institution,
+                        $equivalencyRequest->diploma_program,
+                        $submissionUrl,
+                        'Official syllabus request for course equivalency verification',
+                        $externalRequest->token_expires_at
+                    ));
+
+                Log::info('Syllabus request email sent successfully', [
+                    'equivalency_request_id' => $equivalencyRequest->id,
+                    'external_lecturer_email' => $lecturerEmail,
+                    'submission_url' => $submissionUrl,
+                    'diploma_course' => $equivalencyRequest->diploma_course_code . ' - ' . $equivalencyRequest->diploma_course_name
+                ]);
+            } catch (\Exception $mailException) {
+                // Log email failure but don't rollback transaction
+                Log::error('Failed to send syllabus request email', [
+                    'error' => $mailException->getMessage(),
+                    'external_lecturer_email' => $lecturerEmail
+                ]);
+
+                // Continue with success message but inform user about email issue
+                DB::commit();
+                return redirect()->route('resource_person.equivalency_requests.review', $equivalencyRequest)
+                    ->with('warning', 'Syllabus request created but email could not be sent. Please share this link manually: ' . $submissionUrl);
+            }
+
+            DB::commit();
+
+            return redirect()->route('resource_person.equivalency_requests.review', $equivalencyRequest)
+                ->with('success', 'Syllabus request has been sent successfully to ' . $lecturerEmail . '!');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Failed to send syllabus request for equivalency', [
+                'error' => $e->getMessage(),
+                'equivalency_request_id' => $equivalencyRequest->id
+            ]);
+            return back()->with('error', 'Failed to send syllabus request. Please try again.');
+        }
+    }
+
+    /**
+     * Preview the syllabus request email with all equivalency request data.
+     */
+    public function previewSyllabusEmail(CourseEquivalencyRequest $request)
+    {
+        // Generate access token and submission URL for preview
+        $accessToken = bin2hex(random_bytes(32));
+        $submissionUrl = route('external.lecturer.submission.form', ['token' => $accessToken]);
+        $tokenExpiresAt = now()->addDays(30);
+
+        // Prepare email data with all important information (use PC-selected lecturer)
+        $emailData = [
+            'lecturer_name' => $request->selected_lecturer_name,
+            'lecturer_email' => $request->selected_lecturer_email,
+            'student_name' => 'Multiple Students', // Don't expose individual student names
+            'student_matric' => 'N/A',
+            'student_program' => $request->current_program_code . ' - ' . $request->current_program_name,
+            'diploma_course_code' => $request->diploma_course_code,
+            'diploma_course_name' => $request->diploma_course_name,
+            'diploma_credit_hours' => $request->diploma_credit_hours,
+            'diploma_institution' => $request->diploma_institution,
+            'diploma_program' => $request->diploma_program,
+            'suggested_degree_course' => $request->suggested_degree_course_code . ' - ' . $request->suggested_degree_course_name,
+            'justification' => null, // No justification needed
+            'submission_url' => $submissionUrl,
+            'token_expires_at' => $tokenExpiresAt->format('d F Y, h:i A'),
+            'request_id' => $request->id,
+        ];
+
+        // Default email subject and message
+        $emailData['subject'] = 'Course Syllabus Request - UiTM Credit Exemption System';
+        $emailData['message'] = "I am reaching out to request your kind assistance. My name is " . Auth::user()->name . ", and I am assisting with the course equivalency evaluation for Universiti Teknologi MARA (UiTM). We are currently reviewing a subject previously offered at your institution and require the complete course syllabus to proceed with our assessment.\n\n" .
+                               "Please refer to the course details below and submit the syllabus using the secure link provided. We greatly appreciate your time and cooperation.";
+
+        return view('resource_person.equivalency_requests.preview_email', compact('request', 'emailData'));
+    }
+
+    /**
+     * Send the syllabus request email with custom content.
+     */
+    public function sendSyllabusEmail(Request $httpRequest, CourseEquivalencyRequest $request)
+    {
+        $httpRequest->validate([
+            'email_greeting' => 'required|string|max:200',
+            'email_subject' => 'required|string|max:255',
+            'email_message' => 'required|string|max:5000',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            // Use PC-selected lecturer information
+            $lecturerEmail = $request->selected_lecturer_email;
+            $lecturerName = $request->selected_lecturer_name;
+
+            // Create external lecturer request record
+            $externalRequest = ExternalLecturerRequest::create([
+                'course_equivalency_request_id' => $request->id,
+                'external_lecturer_email' => $lecturerEmail,
+                'external_lecturer_name' => $lecturerName,
+                'request_notes' => $httpRequest->email_message,
+                'access_token' => bin2hex(random_bytes(32)),
+                'token_expires_at' => now()->addDays(30),
+                'status' => 'pending'
+            ]);
+
+            // Update equivalency request with sent timestamp
+            $request->syllabus_request_sent_at = now();
+            $request->save();
+
+            // Create secure submission URL
+            $submissionUrl = route('external.lecturer.submission.form', [
+                'token' => $externalRequest->access_token
+            ]);
+
+            // Prepare email data
+            $emailData = [
+                'subject' => $httpRequest->email_subject,
+                'greeting' => $httpRequest->email_greeting,
+                'lecturerName' => $lecturerName,
+                'studentName' => 'Multiple Students', // Don't expose individual student names
+                'studentMatric' => 'N/A',
+                'studentProgram' => $request->current_program_code . ' - ' . $request->current_program_name,
+                'diplomaCourseCode' => $request->diploma_course_code,
+                'diplomaCourseName' => $request->diploma_course_name,
+                'diplomaCreditHours' => $request->diploma_credit_hours,
+                'diplomaInstitution' => $request->diploma_institution,
+                'diplomaProgram' => $request->diploma_program,
+                'suggestedDegreeCourse' => $request->suggested_degree_course_code . ' - ' . $request->suggested_degree_course_name,
+                'justification' => null, // No justification
+                'customMessage' => $httpRequest->email_message,
+                'submissionUrl' => $submissionUrl,
+                'tokenExpiresAt' => $externalRequest->token_expires_at,
+            ];
+
+            // Send email
+            try {
+                \Illuminate\Support\Facades\Mail::send('emails.syllabus_request_custom', $emailData, function($message) use ($lecturerEmail, $lecturerName, $emailData) {
+                    $message->to($lecturerEmail, $lecturerName)
+                            ->subject($emailData['subject']);
+                });
+
+                Log::info('Custom syllabus request email sent successfully', [
+                    'equivalency_request_id' => $request->id,
+                    'external_lecturer_email' => $lecturerEmail,
+                    'submission_url' => $submissionUrl,
+                ]);
+
+                DB::commit();
+
+                return redirect()->route('resource_person.equivalency_requests.review', $request)
+                    ->with('success', 'Syllabus request email has been sent successfully to ' . $lecturerEmail . '!');
+
+            } catch (\Exception $mailException) {
+                Log::error('Failed to send custom syllabus request email', [
+                    'error' => $mailException->getMessage(),
+                    'external_lecturer_email' => $lecturerEmail
+                ]);
+
+                DB::commit();
+                return redirect()->route('resource_person.equivalency_requests.review', $request)
+                    ->with('warning', 'Syllabus request created but email could not be sent. Error: ' . $mailException->getMessage() . '. Submission URL: ' . $submissionUrl);
+            }
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Failed to create syllabus request', [
+                'error' => $e->getMessage(),
+                'equivalency_request_id' => $request->id
+            ]);
+            return back()->with('error', 'Failed to send syllabus request. Please try again. Error: ' . $e->getMessage())->withInput();
         }
     }
 }

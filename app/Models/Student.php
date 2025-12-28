@@ -11,8 +11,8 @@ class Student extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'user_id', 'matric_no', 'program_name', 'ic_number', 'campus', 'intake_semester',
-        'home_address', 'faculty_id'
+        'user_id', 'matric_no', 'program_name', 'program_code', 'ic_number', 'campus', 'intake_semester',
+        'home_address', 'faculty_id', 'mode_of_study'
     ];
 
     public function user() { return $this->belongsTo(User::class); }

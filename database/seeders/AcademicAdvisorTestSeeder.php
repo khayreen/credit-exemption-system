@@ -38,15 +38,6 @@ class AcademicAdvisorTestSeeder extends Seeder
                 'program_code' => 'CS230',
                 'program_name' => 'Bachelor of Computer Science (Hons.)'
             ],
-            // CS240 - 1 advisor
-            [
-                'name' => 'Zainal Fikri',
-                'email' => 'zainal.fikri@gmail.com',
-                'staff_id' => 'STAFF2401',
-                'group' => 'CS2403A',
-                'program_code' => 'CS240',
-                'program_name' => 'Bachelor of Information Technology (Hons.)'
-            ],
             // CS251 - 1 advisor
             [
                 'name' => 'Asrol Arshad',
@@ -90,24 +81,6 @@ class AcademicAdvisorTestSeeder extends Seeder
                 'program_code' => 'CS255',
                 'program_name' => 'Bachelor of Computer Science (Hons.) Computer Networks'
             ],
-            // CS259 - 1 advisor
-            [
-                'name' => 'Dr. Raihah',
-                'email' => 'raihah@gmail.com',
-                'staff_id' => 'STAFF2591',
-                'group' => 'CS2593A',
-                'program_code' => 'CS259',
-                'program_name' => 'Bachelor of Information Systems (Hons.) Intelligent Systems Engineering'
-            ],
-            // CS264 - 1 advisor
-            [
-                'name' => 'Norzatul Bazamah',
-                'email' => 'norzatul.bazamah@gmail.com',
-                'staff_id' => 'STAFF2641',
-                'group' => 'CS2643A',
-                'program_code' => 'CS264',
-                'program_name' => 'Bachelor of Information Systems (Hons.) Business Computing'
-            ],
             // CS266 - 1 advisor
             [
                 'name' => 'Prof. Madya Dr. Ismadi Md Badarudin',
@@ -116,15 +89,6 @@ class AcademicAdvisorTestSeeder extends Seeder
                 'group' => 'CS2663A',
                 'program_code' => 'CS266',
                 'program_name' => 'Bachelor of Information Systems (Hons.) Information Systems Engineering'
-            ],
-            // CS270 - 1 advisor
-            [
-                'name' => 'Dr. Nor Masri Sahri',
-                'email' => 'nor.masri@gmail.com',
-                'staff_id' => 'STAFF2701',
-                'group' => 'CS2703A',
-                'program_code' => 'CS270',
-                'program_name' => 'Bachelor of Computer Science (Hons.) Mobile Computing'
             ],
         ];
 
@@ -146,6 +110,7 @@ class AcademicAdvisorTestSeeder extends Seeder
                 'email' => $advisorData['email'],
                 'password' => Hash::make('password123'),
                 'role' => 'academic_advisor',
+                'current_role' => 'academic_advisor',
                 'email_verified_at' => now(), // Auto-verify for testing
             ]);
 
@@ -155,6 +120,7 @@ class AcademicAdvisorTestSeeder extends Seeder
                 'staff_id' => $advisorData['staff_id'],
                 'department' => 'Fakulti Sains Komputer dan Matematik',
                 'specialization' => $advisorData['program_name'],
+                'assigned_programs' => [$advisorData['program_code']],
             ]);
 
             echo "✓ Created: {$advisorData['name']} ({$advisorData['email']}) - Group: {$advisorData['group']}\n";
@@ -166,14 +132,10 @@ class AcademicAdvisorTestSeeder extends Seeder
 
         echo "📋 Summary by Course:\n";
         echo "   CS230: 3 advisors (CS2301B, CS2303B, CS2303C)\n";
-        echo "   CS240: 1 advisor  (CS2403A)\n";
         echo "   CS251: 1 advisor  (CS2513A)\n";
         echo "   CS253: 2 advisors (CS2531A, CS2533B)\n";
         echo "   CS255: 2 advisors (CS2551A, CS2553B)\n";
-        echo "   CS259: 1 advisor  (CS2593A)\n";
-        echo "   CS264: 1 advisor  (CS2643A)\n";
         echo "   CS266: 1 advisor  (CS2663A)\n";
-        echo "   CS270: 1 advisor  (CS2703A)\n";
         echo "==========================================\n\n";
     }
 }

@@ -22,6 +22,7 @@ class CS251CourseEquivalencySeeder extends Seeder
                 'email' => 'rp@test.com',
                 'password' => bcrypt('password'),
                 'role' => 'resource_person',
+                'current_role' => 'resource_person',
                 'email_verified_at' => now(),
             ]);
         }

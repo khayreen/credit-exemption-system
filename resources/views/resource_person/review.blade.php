@@ -80,8 +80,8 @@
                     <form method="POST" action="{{ route('resource_person.subject.process', $subject) }}">
                         @csrf
                         <h5>Finding & Equivalency Creation</h5>
-                        <p class="text-muted">Find the closest equivalent degree course, determine the match percentage, and then submit your final recommendation (Approve/Reject).</p>
-                        
+                        <p class="text-muted">Find the closest equivalent degree course, determine the match percentage, and then submit your final recommendation (Equivalent/Not Equivalent).</p>
+
                         <div class="mb-3">
                             <label for="degree_course_code" class="form-label"><strong>1. Equivalent Degree Course</strong></label>
                             <select name="degree_course_code" id="degree_course_code" class="form-select" required>
@@ -98,15 +98,17 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="notes" class="form-label"><strong>3. Justification / Notes</strong></label>
-                            <textarea name="notes" id="notes" class="form-control" rows="3" placeholder="Provide justification for your decision..."></textarea>
+                            <label for="notes" class="form-label"><strong>3. Justification / Notes (Optional)</strong></label>
+                            <textarea name="notes" id="notes" class="form-control" rows="3" placeholder="Provide additional justification for your decision (optional)..."></textarea>
+                            <small class="form-text text-muted">Note: An automatic remark will be generated based on your decision.</small>
                         </div>
 
                         <div class="mb-3">
                             <label for="decision" class="form-label"><strong>4. Final Recommendation</strong></label>
                             <select name="decision" id="decision" class="form-select" required>
-                                <option value="Approved">Approve</option>
-                                <option value="Rejected">Reject</option>
+                                <option value="" selected disabled>-- Select Decision --</option>
+                                <option value="Equivalent">Equivalent</option>
+                                <option value="Not Equivalent">Not Equivalent</option>
                             </select>
                         </div>
 
@@ -143,18 +145,26 @@
                 </div>
                 <div class="modal-body">
                     <p class="text-muted">Request a complete syllabus for <strong>{{ $subject->course_code }} - {{ $subject->course_name }}</strong> from an external lecturer.</p>
-                    
+
+                    <div class="mb-3">
+                        <label for="external_lecturer_name" class="form-label">External Lecturer Name <span class="text-danger">*</span></label>
+                        <input type="text" name="external_lecturer_name" id="external_lecturer_name"
+                               class="form-control" required
+                               placeholder="e.g., Dr. Sarah Johnson">
+                        <div class="form-text">Include appropriate title (Dr., Prof., etc.) if known.</div>
+                    </div>
+
                     <div class="mb-3">
                         <label for="external_lecturer_email" class="form-label">External Lecturer Email <span class="text-danger">*</span></label>
-                        <input type="email" name="external_lecturer_email" id="external_lecturer_email" 
-                               class="form-control" required 
+                        <input type="email" name="external_lecturer_email" id="external_lecturer_email"
+                               class="form-control" required
                                placeholder="Enter external lecturer's email address">
-                        <div class="form-text">The external lecturer will receive an email with instructions to register and submit the syllabus.</div>
+                        <div class="form-text">The external lecturer will receive an email with a secure submission link.</div>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="request_notes" class="form-label">Additional Notes (Optional)</label>
-                        <textarea name="request_notes" id="request_notes" class="form-control" rows="3" 
+                        <textarea name="request_notes" id="request_notes" class="form-control" rows="3"
                                   placeholder="Any specific requirements or notes for the external lecturer..."></textarea>
                     </div>
                 </div>

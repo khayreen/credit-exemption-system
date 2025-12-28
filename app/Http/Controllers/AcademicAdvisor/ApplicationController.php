@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\ExemptionApplication;
 use App\Models\ApplicationSubject;
 use App\Models\CourseEquivalency;
+use App\Models\EquivalencyList;
+use App\Models\PendingEquivalencyMapping;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -92,6 +94,15 @@ class ApplicationController extends Controller
                 }
             }
             
+            // Check if this is a combination course (contains " & ")
+            $isCombination = strpos($subject->course_code, ' & ') !== false;
+            $individualGrades = null;
+
+            if ($isCombination && $notes && isset($notes['individual_grades'])) {
+                // For combination courses, get individual grades from notes
+                $individualGrades = $notes['individual_grades'];
+            }
+
             return [
                 'id' => $subject->id,
                 'course_code' => $subject->course_code,
@@ -99,6 +110,8 @@ class ApplicationController extends Controller
                 'credit_hour' => $subject->credit_hour,
                 'grade_letter' => $this->convertGPAToGrade($subject->grade),
                 'grade_gpa' => $subject->grade,
+                'individual_grades' => $individualGrades, // For combination courses
+                'is_combination' => $isCombination,
                 'status' => $subject->status,
                 'exemption_reason' => $subject->exemption_reason,
                 'equivalent_course' => $equivalentCourse,
@@ -224,9 +237,11 @@ class ApplicationController extends Controller
                 ->whereNotIn('status', ['Approved', 'Rejected', 'Forward to Coordinator'])
                 ->count();
 
-            // If all subjects are processed, update application status
+            // If all subjects are processed, update application status and record reviewer
             if ($pendingSubjects === 0) {
                 $application->status = 'Reviewed by Academic Advisor';
+                $application->reviewed_by = Auth::id();
+                $application->reviewed_at = now();
                 $application->save();
             }
 
@@ -445,9 +460,11 @@ class ApplicationController extends Controller
                     ->whereNotIn('status', ['Approved', 'Rejected', 'Forward to Coordinator'])
                     ->count();
 
-                // If all subjects are processed, update application status
+                // If all subjects are processed, update application status and record reviewer
                 if ($pendingSubjects === 0) {
                     $application->status = 'Reviewed by Academic Advisor';
+                    $application->reviewed_by = Auth::id();
+                    $application->reviewed_at = now();
                     $application->save();
                 }
 
@@ -536,9 +553,11 @@ class ApplicationController extends Controller
                     ->whereNotIn('status', ['Approved', 'Rejected', 'Forward to Coordinator'])
                     ->count();
 
-                // If all subjects are processed, update application status
+                // If all subjects are processed, update application status and record reviewer
                 if ($pendingSubjects === 0) {
                     $application->status = 'Reviewed by Academic Advisor';
+                    $application->reviewed_by = Auth::id();
+                    $application->reviewed_at = now();
                     $application->save();
                 }
 
@@ -563,5 +582,357 @@ class ApplicationController extends Controller
                 'message' => 'An error occurred while processing bulk rejection. Please try again.'
             ], 500);
         }
+    }
+
+    /**
+     * Display all equivalency lists (Read-Only for Academic Advisors)
+     * Organized by program with current + history structure
+     */
+    public function viewEquivalencyLists()
+    {
+        // Define supported programs
+        $programs = ['CDCS230', 'CDCS251', 'CDCS253', 'CDCS255', 'CDCS266'];
+
+        $programData = [];
+        $totalPublished = 0;
+        $latestPublishedProgram = null;
+        $latestPublishedDate = null;
+
+        foreach ($programs as $programCode) {
+            // Get current (latest) HEA-endorsed published list for this program
+            // ONLY shows lists that went through: Resource Person → HEA Endorsement → Published
+            $current = EquivalencyList::where('program_code', $programCode)
+                ->where('status', 'published')
+                ->whereNotNull('endorsed_at') // CRITICAL: Only HEA-endorsed lists
+                ->with(['creator', 'publisher', 'endorsedBy', 'courseEquivalencies'])
+                ->orderByRaw('COALESCE(endorsed_at, created_at) DESC')
+                ->first();
+
+            // Get history (all other HEA-endorsed published lists except the latest)
+            $history = EquivalencyList::where('program_code', $programCode)
+                ->where('status', 'published')
+                ->whereNotNull('endorsed_at') // CRITICAL: Only HEA-endorsed lists
+                ->with(['creator', 'publisher', 'endorsedBy', 'courseEquivalencies'])
+                ->orderByRaw('COALESCE(endorsed_at, created_at) DESC')
+                ->when($current, function($query) use ($current) {
+                    return $query->where('id', '!=', $current->id);
+                })
+                ->get();
+
+            $count = ($current ? 1 : 0) + $history->count();
+            $totalPublished += $count;
+
+            $programData[$programCode] = [
+                'current' => $current,
+                'history' => $history,
+                'count' => $count,
+                'name' => $this->getProgramName($programCode),
+            ];
+
+            // Track the program with the latest HEA-endorsed list to auto-expand
+            $currentEndorsedDate = $current ? ($current->endorsed_at ?: $current->created_at) : null;
+            if ($currentEndorsedDate && (!$latestPublishedDate || $currentEndorsedDate > $latestPublishedDate)) {
+                $latestPublishedProgram = $programCode;
+                $latestPublishedDate = $currentEndorsedDate;
+            }
+        }
+
+        // Statistics (ONLY HEA-endorsed lists shown as "Published")
+        $stats = [
+            'total_published' => $totalPublished,
+        ];
+
+        // If no published lists exist, default to first program
+        if ($latestPublishedProgram === null) {
+            $latestPublishedProgram = $programs[0];
+        }
+
+        // Indicate this is read-only for Academic Advisors
+        $isReadOnly = true;
+
+        return view('academic_advisor.equivalency_lists.index', compact(
+            'programData',
+            'programs',
+            'stats',
+            'isReadOnly',
+            'latestPublishedProgram'
+        ));
+    }
+
+    /**
+     * Get program name by code
+     */
+    private function getProgramName($code)
+    {
+        $programNames = [
+            'CDCS230' => 'SARJANA MUDA SAINS KOMPUTER (KEPUJIAN)',
+            'CDCS251' => 'SARJANA MUDA SAINS KOMPUTER (KEPUJIAN) PENGKOMPUTERAN NETSENTRIK',
+            'CDCS253' => 'SARJANA MUDA SAINS KOMPUTER (KEPUJIAN) PENGKOMPUTERAN MULTIMEDIA',
+            'CDCS255' => 'SARJANA MUDA SAINS KOMPUTER (KEPUJIAN) RANGKAIAN KOMPUTER',
+            'CDCS266' => 'SARJANA MUDA SISTEM MAKLUMAT (KEPUJIAN) KEJURUTERAAN SISTEM MAKLUMAT',
+        ];
+
+        return $programNames[$code] ?? $code;
+    }
+
+    /**
+     * View all course equivalencies (Read-Only for Academic Advisors)
+     * Same view as Program Coordinator
+     */
+    public function viewAllCourseEquivalencies()
+    {
+        // Get all programs that have course equivalencies
+        // Use LEFT JOIN to handle programs not in the programs table
+        $programs = DB::table('course_equivalencies')
+            ->join('equivalency_lists', 'course_equivalencies.equivalency_list_id', '=', 'equivalency_lists.id')
+            ->leftJoin('programs', 'course_equivalencies.program_code', '=', 'programs.code')
+            ->whereNotNull('course_equivalencies.program_code')
+            ->where('course_equivalencies.program_code', '!=', '')
+            ->select(
+                'course_equivalencies.program_code as code',
+                DB::raw('COALESCE(programs.name, course_equivalencies.program_code) as name')
+            )
+            ->distinct()
+            ->orderBy('course_equivalencies.program_code')
+            ->get();
+
+        // Get all unique institutions from course equivalencies
+        $institutions = CourseEquivalency::whereNotNull('diploma_institution')
+            ->where('diploma_institution', '!=', '')
+            ->distinct()
+            ->orderBy('diploma_institution')
+            ->pluck('diploma_institution')
+            ->toArray();
+
+        // Pass the correct API route for Academic Advisors
+        $apiRoute = route('academic_advisor.api.existing_equivalencies');
+        $backRoute = route('academic_advisor.dashboard');
+
+        return view('program_coordinator.course_equivalencies.view', compact('programs', 'institutions', 'apiRoute', 'backRoute'));
+    }
+
+    /**
+     * API endpoint to get existing course equivalencies for a program
+     * (Read-Only for Academic Advisors)
+     */
+    public function getExistingEquivalencies(Request $request)
+    {
+        $programCode = $request->get('program_code');
+        $status = $request->get('status', 'current'); // current, all_published, include_drafts
+        $semester = $request->get('semester');
+        $category = $request->get('category');
+        $institution = $request->get('institution');
+
+        if (!$programCode) {
+            return response()->json(['error' => 'Program code is required'], 400);
+        }
+
+        // Build query for equivalencies
+        $query = CourseEquivalency::with('equivalencyList');
+
+        // Filter by program code
+        if ($programCode !== 'ALL') {
+            $query->where('program_code', $programCode);
+        }
+
+        // Filter by status
+        $query->whereHas('equivalencyList', function($q) use ($status, $programCode) {
+            if ($status === 'current') {
+                // Only get from latest published list per program
+                $q->where('status', 'published')
+                  ->whereIn('id', function($subquery) use ($programCode) {
+                      $subquery->selectRaw('MAX(id)')
+                          ->from('equivalency_lists')
+                          ->where('status', 'published')
+                          ->when($programCode !== 'ALL', function($q2) use ($programCode) {
+                              $q2->where('program_code', $programCode);
+                          })
+                          ->groupBy('program_code');
+                  });
+            } elseif ($status === 'all_published') {
+                $q->where('status', 'published');
+            }
+            // 'include_drafts' = no status filter
+        });
+
+        // Filter by semester
+        if ($semester && $semester !== 'ALL') {
+            $query->whereHas('equivalencyList', function($q) use ($semester) {
+                $q->where('semester', $semester);
+            });
+        }
+
+        // Filter by category
+        if ($category && $category !== 'ALL') {
+            $query->whereHas('equivalencyList', function($q) use ($category) {
+                $q->where('category', $category);
+            });
+        }
+
+        // Filter by institution
+        if ($institution && $institution !== 'ALL') {
+            $query->whereHas('equivalencyList', function($q) use ($institution) {
+                if ($institution === 'internal') {
+                    $q->where('category', 'internal');
+                } else {
+                    $q->where('source_institution', $institution);
+                }
+            });
+        }
+
+        // Get all equivalencies
+        $equivalencies = $query
+            ->orderBy('program_code')
+            ->orderBy('diploma_course_code')
+            ->get()
+            ->map(function($eq) {
+                return [
+                    'id' => $eq->id,
+                    'program_code' => $eq->program_code,
+                    'diploma_course_code' => $eq->diploma_course_code,
+                    'diploma_course_name' => $eq->diploma_course_name,
+                    'diploma_credit_hour' => $eq->diploma_credit_hour,
+                    'diploma_institution' => $eq->diploma_institution,
+                    'degree_course_code' => $eq->degree_course_code,
+                    'degree_course_name' => $eq->degree_course_name,
+                    'degree_credit_hour' => $eq->degree_credit_hour,
+                    'match_percentage' => $eq->match_percentage,
+                    'is_eligible' => $eq->is_eligible,
+                    'list_semester' => $eq->equivalencyList->semester ?? 'N/A',
+                    'list_category' => $eq->equivalencyList->category ?? 'N/A',
+                    'list_status' => $eq->equivalencyList->status ?? 'N/A',
+                    'source_institution' => $eq->equivalencyList->source_institution ?? 'Internal',
+                ];
+            });
+
+        return response()->json($equivalencies);
+    }
+
+    /**
+     * Show a specific equivalency list (Read-Only for Academic Advisors)
+     * Same view as Program Coordinator but read-only
+     */
+    public function showEquivalencyList(EquivalencyList $list)
+    {
+        $list->load(['creator', 'publisher', 'courseEquivalencies']);
+
+        // Indicate this is read-only for Academic Advisors
+        $isReadOnly = true;
+
+        return view('program_coordinator.equivalency_lists.show', compact('list', 'isReadOnly'));
+    }
+
+    /**
+     * Download PDF of a published equivalency list
+     */
+    public function downloadListPdf(EquivalencyList $list)
+    {
+        // Ensure the list is published and HEA-endorsed
+        if ($list->endorsed_at === null || !$list->is_active) {
+            abort(404, 'List not available');
+        }
+
+        $list->load(['creator', 'endorser', 'publisher', 'courseEquivalencies']);
+
+        return view('student.course_equivalencies.pdf', compact('list'));
+    }
+
+    /**
+     * Show Academic Advisor's students organized by groups
+     */
+    public function myStudents()
+    {
+        // Get the Academic Advisor's record
+        $academicAdvisor = \App\Models\AcademicAdvisor::where('user_id', Auth::id())->first();
+
+        if (!$academicAdvisor || !$academicAdvisor->assigned_programs) {
+            // No assigned groups
+            return view('academic_advisor.my_students', [
+                'groupData' => [],
+                'stats' => [
+                    'total_students' => 0,
+                    'total_applications' => 0,
+                    'pending_applications' => 0,
+                    'reviewed_applications' => 0,
+                ],
+            ]);
+        }
+
+        // assigned_programs actually contains GROUP codes like CDCS2513A
+        $assignedGroups = $academicAdvisor->assigned_programs;
+        $groupData = [];
+        $totalStudents = 0;
+        $totalApplications = 0;
+        $pendingApplications = 0;
+        $reviewedApplications = 0;
+
+        // Group names mapping (group code => full program name)
+        $groupProgramNames = [
+            'CDCS2301B' => 'BACHELOR OF COMPUTER SCIENCE (HONS.)',
+            'CDCS2303B' => 'BACHELOR OF COMPUTER SCIENCE (HONS.)',
+            'CDCS2303C' => 'BACHELOR OF COMPUTER SCIENCE (HONS.)',
+            'CDCS2513A' => 'BACHELOR OF COMPUTER SCIENCE (HONS.) NETCENTRIC COMPUTING',
+            'CDCS2531A' => 'BACHELOR OF COMPUTER SCIENCE (HONS.) MULTIMEDIA COMPUTING',
+            'CDCS2533B' => 'BACHELOR OF COMPUTER SCIENCE (HONS.) MULTIMEDIA COMPUTING',
+            'CDCS2551A' => 'BACHELOR OF COMPUTER SCIENCE (HONS.) COMPUTER NETWORKS',
+            'CDCS2553B' => 'BACHELOR OF COMPUTER SCIENCE (HONS.) COMPUTER NETWORKS',
+            'CDCS2663A' => 'BACHELOR OF INFORMATION SYSTEMS (HONS.) INFORMATION SYSTEMS ENGINEERING',
+        ];
+
+        foreach ($assignedGroups as $groupCode) {
+            // Get students for this group by matching applications with this student_group
+            $applications = \App\Models\ExemptionApplication::where('student_group', $groupCode)
+                ->with(['student.user'])
+                ->latest()
+                ->get();
+
+            // Group by student to get unique students with their latest application
+            $studentsGrouped = $applications->groupBy('student_id');
+
+            // Add application status to each student
+            $studentsData = $studentsGrouped->map(function($studentApplications) use (&$totalApplications, &$pendingApplications, &$reviewedApplications) {
+                $latestApplication = $studentApplications->first();
+                $student = $latestApplication->student;
+
+                if ($latestApplication) {
+                    $totalApplications++;
+                    if ($latestApplication->status === 'Submitted') {
+                        $pendingApplications++;
+                    } else {
+                        $reviewedApplications++;
+                    }
+                }
+
+                return [
+                    'id' => $student->id,
+                    'matric_no' => $latestApplication->matric_no ?: ($student->matric_no ?? 'N/A'),
+                    'name' => $latestApplication->name ?: ($student->user->name ?? 'N/A'),
+                    'email' => $latestApplication->email ?: ($student->user->email ?? 'N/A'),
+                    'campus' => $latestApplication->campus ?: ($student->campus ?? 'N/A'),
+                    'intake_semester' => $student->intake_semester ?? 'N/A',
+                    'application_status' => $latestApplication->status,
+                    'application_id' => $latestApplication->id,
+                    'application_date' => $latestApplication->created_at,
+                ];
+            })->values();
+
+            $totalStudents += $studentsData->count();
+
+            $groupData[$groupCode] = [
+                'code' => $groupCode,
+                'name' => $groupProgramNames[$groupCode] ?? $groupCode,
+                'students' => $studentsData,
+                'count' => $studentsData->count(),
+            ];
+        }
+
+        $stats = [
+            'total_students' => $totalStudents,
+            'total_applications' => $totalApplications,
+            'pending_applications' => $pendingApplications,
+            'reviewed_applications' => $reviewedApplications,
+        ];
+
+        return view('academic_advisor.my_students', compact('groupData', 'stats'));
     }
 }

@@ -30,7 +30,7 @@ class LoginController extends Controller
     /**
      * The user has been authenticated.
      * This method is called after a user successfully logs in with their password.
-     * We use it to redirect them to our 2FA verification flow.
+     * We use it to redirect them to email verification or 2FA setup/verification.
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  mixed  $user
@@ -38,11 +38,31 @@ class LoginController extends Controller
      */
     protected function authenticated(Request $request, $user)
     {
-        // Log the user out of the main session guard.
+        // External lecturers don't use 2FA (they use token-based access)
+        if ($user->current_role === 'external_lecturer') {
+            return null; // Allow login normally
+        }
+
+        // Check if email is verified
+        if (!$user->hasVerifiedEmail()) {
+            auth()->logout();
+            return redirect()->route('login')
+                ->with('warning', 'Please verify your email address before logging in. Check your inbox for the verification link.');
+        }
+
+        // MANDATORY 2FA for all users (except external lecturers)
+
+        // First login: 2FA not set up yet
+        if (!$user->two_factor_verified_at) {
+            // Redirect to 2FA setup (stay logged in for setup)
+            return redirect()->route('2fa.setup')
+                ->with('status', 'Please set up two-factor authentication to secure your account.');
+        }
+
+        // Subsequent logins: 2FA already set up
+        // Logout and require OTP verification
         auth()->logout();
-        // Store their ID in the session so we know who is trying to 2FA.
         $request->session()->put('2fa_user_id', $user->id);
-        // Redirect to the 2FA page.
-        return redirect()->route('2fa.index');
+        return redirect()->route('2fa.login');
     }
 }

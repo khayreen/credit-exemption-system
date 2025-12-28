@@ -11,6 +11,12 @@ class AcademicAdvisorTestSeeder extends Seeder
 {
     public function run()
     {
+        // Only run this seeder in local/testing environments
+        if (!app()->environment('local', 'testing')) {
+            $this->command->warn('⚠️  AcademicAdvisorTestSeeder skipped - only runs in local/testing environments');
+            return;
+        }
+
         // Actual FSKM Academic Advisors with their assigned groups
         $advisors = [
             // CS230 - 3 advisors

@@ -14,6 +14,12 @@ class ProgramCoordinatorSeeder extends Seeder
      */
     public function run(): void
     {
+        // Only run this seeder in local/testing environments
+        if (!app()->environment('local', 'testing')) {
+            $this->command->warn('⚠️  ProgramCoordinatorSeeder skipped - only runs in local/testing environments');
+            return;
+        }
+
         $coordinators = [
             [
                 'name' => 'Ts. Dr. Edzreena Edza Binti Odzaly',

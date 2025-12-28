@@ -11,13 +11,15 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Email template preview (for testing only - remove in production)
-Route::get('/preview-email', function () {
-    return view('emails.verify-email', [
-        'userName' => 'Syameer Anwari',
-        'verificationUrl' => url('/email/verify/sample-token'),
-    ]);
-});
+// Email template preview (only available in local/staging environments)
+if (app()->environment('local', 'staging')) {
+    Route::get('/preview-email', function () {
+        return view('emails.verify-email', [
+            'userName' => 'Syameer Anwari',
+            'verificationUrl' => url('/email/verify/sample-token'),
+        ]);
+    });
+}
 
 // Default Laravel auth routes, with email verification enabled
 Auth::routes(['verify' => true]);

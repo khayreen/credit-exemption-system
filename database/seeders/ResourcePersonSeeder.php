@@ -14,6 +14,12 @@ class ResourcePersonSeeder extends Seeder
      */
     public function run(): void
     {
+        // Only run this seeder in local/testing environments
+        if (!app()->environment('local', 'testing')) {
+            $this->command->warn('⚠️  ResourcePersonSeeder skipped - only runs in local/testing environments');
+            return;
+        }
+
         $resourcePersons = [
             [
                 'name' => 'Nor Aimuni Binti Md Rashid',

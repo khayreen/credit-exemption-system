@@ -15,6 +15,12 @@ class ExternalLecturerSeeder extends Seeder
      */
     public function run(): void
     {
+        // Only run this seeder in local/testing environments
+        if (!app()->environment('local', 'testing')) {
+            $this->command->warn('⚠️  ExternalLecturerSeeder skipped - only runs in local/testing environments');
+            return;
+        }
+
         // Create test external lecturer user
         $user = User::create([
             'id' => Str::uuid(),

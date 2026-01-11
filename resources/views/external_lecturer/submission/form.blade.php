@@ -61,7 +61,6 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <p><strong>Requested Course:</strong> {{ $applicationSubject->course_code }} - {{ $applicationSubject->course_name }}</p>
-                                    <p><strong>Credit Hours:</strong> {{ $applicationSubject->credit_hour }}</p>
                                 </div>
                                 <div class="col-md-6">
                                     <p><strong>Student Program:</strong> {{ $exemptionApplication->current_program_code ?? 'N/A' }}</p>
@@ -73,7 +72,6 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <p><strong>Requested Course:</strong> {{ $equivalencyRequest->diploma_course_code }} - {{ $equivalencyRequest->diploma_course_name }}</p>
-                                    <p><strong>Credit Hours:</strong> {{ $equivalencyRequest->diploma_credit_hours }}</p>
                                 </div>
                                 <div class="col-md-6">
                                     <p><strong>Student:</strong> {{ $equivalencyRequest->student->user->name }}</p>
@@ -155,10 +153,15 @@
                                 <div class="col-md-2">
                                     <div class="mb-3">
                                         <label for="credit_hours" class="form-label">Credit Hours <span class="text-danger">*</span></label>
-                                        <input type="number" name="credit_hours" id="credit_hours"
-                                               class="form-control @error('credit_hours') is-invalid @enderror"
-                                               value="{{ old('credit_hours', (int)($requestType === 'application_subject' ? $applicationSubject->credit_hour : $equivalencyRequest->diploma_credit_hours)) }}"
-                                               min="1" max="10" step="1" required>
+                                        <select name="credit_hours" id="credit_hours"
+                                                class="form-select @error('credit_hours') is-invalid @enderror" required>
+                                            <option value="">Select</option>
+                                            @for ($i = 1; $i <= 10; $i += 0.5)
+                                                <option value="{{ number_format($i, 2, '.', '') }}" {{ old('credit_hours') == number_format($i, 2, '.', '') ? 'selected' : '' }}>
+                                                    {{ number_format($i, 2) }}
+                                                </option>
+                                            @endfor
+                                        </select>
                                         @error('credit_hours')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror

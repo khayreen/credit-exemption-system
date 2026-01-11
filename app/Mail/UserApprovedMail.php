@@ -6,14 +6,18 @@ use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Contracts\Queue\ShouldQueue;
 
-class UserApprovedMail extends Mailable
+class UserApprovedMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
     public $user;
     public $role;
     public $programs;
+
+    public int $timeout = 60;
+    public int $tries = 3;
 
     /**
      * Create a new message instance.
@@ -27,6 +31,7 @@ class UserApprovedMail extends Mailable
         $this->user = $user;
         $this->role = $role;
         $this->programs = $programs;
+        \$this->onQueue('emails');
     }
 
     /**

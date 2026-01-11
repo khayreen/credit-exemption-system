@@ -32,10 +32,31 @@ class SubmissionController extends Controller
             return view('external_lecturer.submission.already_submitted', compact('request'));
         }
 
-        $applicationSubject = $request->applicationSubject;
-        $exemptionApplication = $applicationSubject->exemptionApplication;
+        // Determine the request type and load appropriate relationships
+        if ($request->application_subject_id) {
+            // This is for an exemption application workflow
+            $requestType = 'application_subject';
+            $applicationSubject = $request->applicationSubject;
+            $exemptionApplication = $applicationSubject->exemptionApplication;
+            $equivalencyRequest = null;
 
-        return view('external_lecturer.submission.form', compact('request', 'applicationSubject', 'exemptionApplication'));
+            return view('external_lecturer.submission.form', compact('request', 'requestType', 'applicationSubject', 'exemptionApplication', 'equivalencyRequest'));
+        } elseif ($request->course_equivalency_request_id) {
+            // This is for a course equivalency request workflow
+            $requestType = 'course_equivalency_request';
+            $equivalencyRequest = $request->courseEquivalencyRequest()->with('student.user')->first();
+            $applicationSubject = null;
+            $exemptionApplication = null;
+
+            return view('external_lecturer.submission.form', compact('request', 'requestType', 'equivalencyRequest', 'applicationSubject', 'exemptionApplication'));
+        } else {
+            // Invalid request - neither workflow type is set
+            Log::error('External lecturer request has no valid workflow type', [
+                'request_id' => $request->id,
+                'token' => $token
+            ]);
+            return view('external_lecturer.submission.invalid_token');
+        }
     }
 
     /**
@@ -54,7 +75,7 @@ class SubmissionController extends Controller
             'institution_name' => 'required|string|max:255',
             'course_code' => 'required|string|max:20',
             'course_name' => 'required|string|max:255',
-            'credit_hours' => 'required|integer|min:1|max:10',
+            'credit_hours' => 'required|numeric|min:1|max:10',
             'justification_notes' => 'required|string|max:2000',
             'syllabus_file' => 'required|file|mimes:pdf|max:5120' // 5MB max
         ]);
@@ -107,18 +128,39 @@ class SubmissionController extends Controller
                 'submitted_at' => now()
             ]);
 
-            // Update application subject status
-            $externalRequest->applicationSubject->update([
-                'status' => 'Syllabus Received'
-            ]);
+            // Update the appropriate parent record based on workflow type
+            if ($externalRequest->application_subject_id) {
+                // Update application subject status for exemption application workflow
+                $externalRequest->applicationSubject->update([
+                    'status' => 'Syllabus Received'
+                ]);
+            } elseif ($externalRequest->course_equivalency_request_id) {
+                // Update course equivalency request status for equivalency request workflow
+                $externalRequest->courseEquivalencyRequest->update([
+                    'syllabus_received_at' => now(),
+                    'status' => 'under_review' // Keep it under review for RP to make final decision
+                ]);
+            }
 
             DB::commit();
+
+            Log::info('External lecturer syllabus submitted successfully', [
+                'external_request_id' => $externalRequest->id,
+                'submission_id' => $submission->id,
+                'lecturer_email' => $externalRequest->external_lecturer_email,
+                'course_code' => $request->course_code
+            ]);
 
             return view('external_lecturer.submission.success', compact('externalRequest', 'submission'));
 
         } catch (\Exception $e) {
             DB::rollback();
-            Log::error('Failed to submit syllabus: ' . $e->getMessage());
+            Log::error('Failed to submit syllabus', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'token' => $token,
+                'external_request_id' => $externalRequest->id ?? null
+            ]);
             return back()->with('error', 'Failed to submit syllabus. Please try again.');
         }
     }

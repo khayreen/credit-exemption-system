@@ -102,8 +102,9 @@
                                     // Get the first request as representative
                                     $representative = $equivalencyGroup->first();
                                     $studentCount = $equivalencyGroup->count();
+                                    $hasSyllabus = $representative->syllabus_received_at !== null;
                                 @endphp
-                                <tr>
+                                <tr class="{{ $hasSyllabus ? 'table-success' : '' }}">
                                     <td>
                                         <strong>{{ $representative->diploma_course_code }}</strong><br>
                                         <small class="text-muted">{{ Str::limit($representative->diploma_course_name, 40) }}</small><br>
@@ -120,12 +121,16 @@
                                         <span class="badge bg-info">{{ $studentCount }} student(s)</span>
                                     </td>
                                     <td>
-                                        @if($representative->status === 'pending')
+                                        @if($hasSyllabus)
+                                            <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Syllabus Received</span>
+                                            <br><small class="text-success">Ready for Review!</small>
+                                        @elseif($representative->syllabus_request_sent_at)
+                                            <span class="badge bg-info">Awaiting Lecturer</span>
+                                            <br><small class="text-muted">Email sent {{ $representative->syllabus_request_sent_at->diffForHumans() }}</small>
+                                        @elseif($representative->status === 'pending')
                                             <span class="badge bg-warning text-dark">Pending</span>
                                         @elseif($representative->status === 'under_review')
-                                            <span class="badge bg-info">Under Review</span>
-                                        @elseif($representative->status === 'syllabus_received')
-                                            <span class="badge bg-info">Syllabus Received</span>
+                                            <span class="badge bg-primary">Under Review</span>
                                         @elseif($representative->status === 'approved')
                                             <span class="badge bg-success">Approved</span>
                                         @elseif($representative->status === 'rejected')

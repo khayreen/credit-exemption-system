@@ -17,25 +17,28 @@ class DashboardController extends Controller
      */
     public function index()
     {
+        // Fetch only actionable and relevant statistics
         $stats = [
-            'total_users' => \App\Models\User::count(),
-            'total_applications' => \App\Models\ExemptionApplication::count(),
-            'pending_applications' => \App\Models\ExemptionApplication::whereNotIn('status', ['Completed', 'Rejected by HEA'])->count(),
-            'total_logs' => \App\Models\AuditTrail::count(),
+            'total_users' => User::count(),
+            'pending_applications' => ExemptionApplication::whereNotIn('status', ['Completed', 'Rejected by HEA'])->count(),
             'pending_endorsements' => EquivalencyList::pending()->count(),
             'pending_internal' => EquivalencyList::pending()->where('category', 'internal')->count(),
             'pending_external' => EquivalencyList::pending()->where('category', 'external')->count(),
             'published_lists' => EquivalencyList::published()->count(),
+            'pending_user_approvals' => 0, // TODO: Fix approval_status column
         ];
 
-        // Get recent pending submissions
+        // Get recent pending endorsement submissions (top 5, prioritized by oldest first)
         $pendingLists = EquivalencyList::with(['creator'])
             ->pending()
             ->orderBy('submitted_at', 'asc')
             ->take(5)
             ->get();
 
-        return view('hea.dashboard', compact('stats', 'pendingLists'));
+        // Get pending user approvals (top 5, prioritized by oldest first)
+        $pendingUserApprovals = collect(); // TODO: Fix approval_status column
+
+        return view('hea.dashboard', compact('stats', 'pendingLists', 'pendingUserApprovals'));
     }
 
     /**
@@ -57,7 +60,7 @@ class DashboardController extends Controller
 
         // Apply role filter
         if ($roleFilter !== 'all') {
-            $query->where('role', $roleFilter);
+            $query->where('current_role', $roleFilter);
         }
 
         // Apply sort order
@@ -71,7 +74,7 @@ class DashboardController extends Controller
 
         // For external lecturers, get their submission data
         foreach ($users as $user) {
-            if ($user->role === 'external_lecturer' && $user->externalLecturer) {
+            if ($user->current_role === 'external_lecturer' && $user->externalLecturer) {
                 // Get all submissions by this external lecturer
                 $submissions = \App\Models\ExternalLecturerSubmission::whereHas('request', function($q) use ($user) {
                     $q->where('external_lecturer_email', $user->externalLecturer->email);

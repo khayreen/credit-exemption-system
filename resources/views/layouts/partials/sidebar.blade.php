@@ -74,7 +74,7 @@
                 </a>
             </li>
             <li>
-                <a href="{{ \App\Models\SystemSetting::get('academic_calendar_url', 'https://uitm.edu.my/index.php/en/academic-calendar') }}" target="_blank">
+                <a href="https://hea.uitm.edu.my/index.php/calendars/academic-calendar" target="_blank">
                     <i class="fas fa-calendar-alt"></i> Academic Calendar
                 </a>
             </li>

@@ -8,10 +8,14 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Contracts\Queue\ShouldQueue;
 
-class SyllabusRequestMail extends Mailable
+class SyllabusRequestMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
+
+    public int $timeout = 60;
+    public int $tries = 3;
 
     public $lecturerName;
     public $studentName;
@@ -41,6 +45,7 @@ class SyllabusRequestMail extends Mailable
         $this->submissionUrl = $submissionUrl;
         $this->requestNotes = $requestNotes;
         $this->tokenExpiresAt = $tokenExpiresAt;
+        \$this->onQueue('emails');
     }
 
     /**

@@ -91,22 +91,24 @@
                                 <td>{{ $user->email }}</td>
                                 <td>
                                     @php
-                                        $roleBadgeClass = match($user->role) {
+                                        $displayRole = $user->current_role ?? $user->requested_role;
+                                        $roleBadgeClass = match($displayRole) {
                                             'hea_personnel' => 'bg-danger',
                                             'program_coordinator' => 'bg-info',
                                             'resource_person' => 'bg-secondary',
                                             'academic_advisor' => 'bg-warning text-dark',
+                                            'coordinator' => 'bg-info',
                                             'external_lecturer' => 'bg-purple text-white',
                                             'student' => 'bg-success',
                                             default => 'bg-secondary'
                                         };
                                     @endphp
                                     <span class="badge {{ $roleBadgeClass }}">
-                                        {{ ucfirst(str_replace('_', ' ', $user->role)) }}
+                                        {{ ucfirst(str_replace('_', ' ', $displayRole)) }}
                                     </span>
                                 </td>
                                 <td>
-                                    @if($user->role === 'academic_advisor' && $user->academicAdvisor)
+                                    @if($user->current_role === 'academic_advisor' && $user->academicAdvisor)
                                         <div>
                                             @if($user->academicAdvisor->assigned_programs && count($user->academicAdvisor->assigned_programs) > 0)
                                                 <div class="d-flex flex-wrap gap-1">
@@ -118,7 +120,7 @@
                                                 <small class="text-muted">No programs assigned</small>
                                             @endif
                                         </div>
-                                    @elseif($user->role === 'program_coordinator' && $user->programCoordinator)
+                                    @elseif($user->current_role === 'program_coordinator' && $user->programCoordinator)
                                         <div>
                                             @if($user->programCoordinator->program_codes && count($user->programCoordinator->program_codes) > 0)
                                                 <div class="d-flex flex-wrap gap-1">
@@ -130,7 +132,7 @@
                                                 <small class="text-muted">No programs assigned</small>
                                             @endif
                                         </div>
-                                    @elseif($user->role === 'resource_person' && $user->resourcePerson)
+                                    @elseif($user->current_role === 'resource_person' && $user->resourcePerson)
                                         <div>
                                             @if($user->resourcePerson->assigned_programs && count($user->resourcePerson->assigned_programs) > 0)
                                                 <div class="d-flex flex-wrap gap-1">
@@ -142,7 +144,7 @@
                                                 <small class="text-muted">No programs assigned</small>
                                             @endif
                                         </div>
-                                    @elseif($user->role === 'external_lecturer')
+                                    @elseif($user->current_role === 'external_lecturer')
                                         <div class="d-flex flex-column gap-1">
                                             @if($user->externalLecturer)
                                                 <div>

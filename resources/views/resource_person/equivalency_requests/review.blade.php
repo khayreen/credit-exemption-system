@@ -116,7 +116,7 @@
                             <p class="mb-0">{{ $request->diploma_course_name }}</p>
                         </div>
                     </div>
-                    <div class="row mb-3">
+                    <div class="row">
                         <div class="col-md-6">
                             <p class="mb-1 text-muted">Institution</p>
                             <p class="mb-0">{{ $request->diploma_institution }}</p>
@@ -124,12 +124,6 @@
                         <div class="col-md-6">
                             <p class="mb-1 text-muted">Program</p>
                             <p class="mb-0">{{ $request->diploma_program }}</p>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <p class="mb-1 text-muted">Credit Hours</p>
-                            <p class="mb-0">{{ $request->diploma_credit_hours }}</p>
                         </div>
                     </div>
                 </div>
@@ -163,7 +157,13 @@
             @endif
 
             <!-- External Lecturer Syllabus Verification -->
-            @if($request->selected_lecturer_name && $request->selected_lecturer_email)
+            @php
+                // Use PC-selected lecturer if available, otherwise use student-provided lecturer
+                $lecturerName = $request->selected_lecturer_name ?? $request->external_lecturer_name;
+                $lecturerEmail = $request->selected_lecturer_email ?? $request->external_lecturer_email;
+                $lecturerSource = $request->selected_lecturer_name ? 'Selected by PC' : 'Provided by Student';
+            @endphp
+            @if($lecturerName && $lecturerEmail)
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-secondary text-white">
                     <h5 class="mb-0"><i class="fas fa-user-tie me-2"></i>External Lecturer Verification</h5>
@@ -171,12 +171,12 @@
                 <div class="card-body">
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <p class="mb-1 text-muted">Lecturer Name (Selected by PC)</p>
-                            <p class="mb-0"><strong>{{ $request->selected_lecturer_name }}</strong></p>
+                            <p class="mb-1 text-muted">Lecturer Name ({{ $lecturerSource }})</p>
+                            <p class="mb-0"><strong>{{ $lecturerName }}</strong></p>
                         </div>
                         <div class="col-md-6">
                             <p class="mb-1 text-muted">Lecturer Email</p>
-                            <p class="mb-0">{{ $request->selected_lecturer_email }}</p>
+                            <p class="mb-0">{{ $lecturerEmail }}</p>
                         </div>
                     </div>
 
@@ -215,8 +215,57 @@
             </div>
             @endif
 
+            <!-- External Lecturer Submitted Course Information -->
+            @if($request->syllabus_received_at && $request->externalLecturerRequest && $request->externalLecturerRequest->submission)
+                @php
+                    $submission = $request->externalLecturerRequest->submission;
+                @endphp
+                <div class="card shadow-sm mb-4 border-success">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-check-double me-2"></i>Lecturer's Submitted Course Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-success mb-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Note:</strong> This is the official course information provided by the external lecturer.
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <p class="mb-1 text-muted">Course Code</p>
+                                <p class="mb-0"><strong>{{ $submission->course_code }}</strong></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1 text-muted">Course Name</p>
+                                <p class="mb-0">{{ $submission->course_name }}</p>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <p class="mb-1 text-muted">Institution Name</p>
+                                <p class="mb-0">{{ $submission->institution_name }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1 text-muted">Credit Hours</p>
+                                <p class="mb-0"><strong>{{ number_format($submission->credit_hours, 2) }}</strong></p>
+                            </div>
+                        </div>
+
+                        @if($submission->justification_notes)
+                            <div class="row">
+                                <div class="col-12">
+                                    <p class="mb-1 text-muted">Lecturer's Justification Notes</p>
+                                    <div class="alert alert-light mb-0">{{ $submission->justification_notes }}</div>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            @endif
+
             <!-- Review Form (if pending or syllabus received) -->
-            @if(in_array($request->status, ['pending', 'syllabus_received']))
+            @if(in_array($request->status, ['pending', 'syllabus_received', 'under_review']))
                 <div class="card shadow-sm mb-4 border-primary">
                     <div class="card-header bg-primary text-white">
                         <h5 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Review Decision</h5>
@@ -224,6 +273,57 @@
                     <div class="card-body">
                         <form action="{{ route('resource_person.equivalency_requests.process', $request) }}" method="POST" id="reviewForm">
                             @csrf
+
+                            <!-- Course Evaluation Information -->
+                            <div class="alert alert-info mb-3">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Note:</strong> Your decision will apply to all students requesting this equivalency. Please evaluate the diploma course against the student's suggested degree course and provide a match percentage.
+                            </div>
+
+                            <!-- Diploma Course (Student Submitted) -->
+                            <div class="card bg-light mb-3">
+                                <div class="card-body">
+                                    <h6 class="text-muted mb-2"><i class="fas fa-graduation-cap me-2"></i>Diploma Course (Student Submitted)</h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p class="mb-1 text-muted small">Course Code</p>
+                                            <p class="mb-0"><strong>{{ $request->diploma_course_code }}</strong></p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p class="mb-1 text-muted small">Course Name</p>
+                                            <p class="mb-0">{{ $request->diploma_course_name }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Suggested Degree Course (Student Submitted) -->
+                            <div class="card bg-light mb-3">
+                                <div class="card-body">
+                                    <h6 class="text-muted mb-2"><i class="fas fa-lightbulb me-2"></i>Suggested Degree Course (Student Submitted)</h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p class="mb-1 text-muted small">Course Code</p>
+                                            <p class="mb-0"><strong>{{ $request->suggested_degree_course_code }}</strong></p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p class="mb-1 text-muted small">Course Name</p>
+                                            <p class="mb-0">{{ $request->suggested_degree_course_name }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Match Percentage Input -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Match Percentage <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="number" name="match_percentage" class="form-control"
+                                           value="{{ old('match_percentage', 85) }}" min="0" max="100" step="1" required>
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <small class="text-muted">Enter the match percentage (0-100). For equivalent courses, enter a high percentage (e.g., 80-100%). For non-equivalent courses, enter a low percentage to indicate the mismatch.</small>
+                            </div>
 
                             <!-- Decision -->
                             <div class="mb-3">
@@ -239,52 +339,6 @@
                                         <i class="fas fa-times-circle me-1"></i>Not Equivalent
                                     </label>
                                 </div>
-                            </div>
-
-                            <!-- Approval Fields (shown when equivalent is selected) -->
-                            <div id="approval_fields" style="display: none;">
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    <strong>Note:</strong> Your decision will apply to all students requesting this equivalency. A course equivalency record will be automatically created in the system.
-                                </div>
-
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Approved Degree Course Code <span class="text-danger">*</span></label>
-                                        <select name="approved_degree_course_code" id="degree_course_select" class="form-select">
-                                            <option value="">Select Course</option>
-                                            @foreach($degreeCourses as $course)
-                                                <option value="{{ $course->code }}"
-                                                        data-name="{{ $course->name }}"
-                                                        {{ old('approved_degree_course_code', $request->suggested_degree_course_code) == $course->code ? 'selected' : '' }}>
-                                                    {{ $course->code }} - {{ $course->name }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Approved Degree Course Name</label>
-                                        <input type="text" name="approved_degree_course_name" id="degree_course_name" class="form-control"
-                                               value="{{ old('approved_degree_course_name', $request->suggested_degree_course_name) }}" readonly>
-                                    </div>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label class="form-label">Match Percentage <span class="text-danger">*</span></label>
-                                    <div class="input-group">
-                                        <input type="number" name="match_percentage" class="form-control"
-                                               value="{{ old('match_percentage', 85) }}" min="0" max="100" step="1">
-                                        <span class="input-group-text">%</span>
-                                    </div>
-                                    <small class="text-muted">Enter the equivalency match percentage (0-100)</small>
-                                </div>
-                            </div>
-
-                            <!-- Reviewer Notes -->
-                            <div class="mb-3">
-                                <label class="form-label">Reviewer Notes (Optional)</label>
-                                <textarea name="reviewer_notes" class="form-control" rows="4"
-                                          placeholder="Add any notes or comments about your decision...">{{ old('reviewer_notes') }}</textarea>
                             </div>
 
                             <!-- Submit Buttons -->
@@ -363,43 +417,26 @@
     </div>
 </div>
 
-@if(in_array($request->status, ['pending', 'syllabus_received']))
+@if(in_array($request->status, ['pending', 'syllabus_received', 'under_review']))
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const approveRadio = document.getElementById('decision_approve');
     const rejectRadio = document.getElementById('decision_reject');
-    const approvalFields = document.getElementById('approval_fields');
     const submitBtn = document.getElementById('submitBtn');
-    const degreeSelect = document.getElementById('degree_course_select');
-    const degreeNameInput = document.getElementById('degree_course_name');
 
-    // Enable/disable approval fields based on decision
-    function updateApprovalFields() {
-        if (approveRadio.checked) {
-            approvalFields.style.display = 'block';
-            degreeSelect.required = true;
-            document.querySelector('input[name="match_percentage"]').required = true;
-        } else {
-            approvalFields.style.display = 'none';
-            degreeSelect.required = false;
-            document.querySelector('input[name="match_percentage"]').required = false;
+    // Enable submit button when a decision is selected
+    function enableSubmitButton() {
+        if (approveRadio.checked || rejectRadio.checked) {
+            submitBtn.disabled = false;
         }
-        submitBtn.disabled = false;
     }
 
-    approveRadio.addEventListener('change', updateApprovalFields);
-    rejectRadio.addEventListener('change', updateApprovalFields);
-
-    // Auto-fill degree course name when course is selected
-    degreeSelect.addEventListener('change', function() {
-        const selectedOption = this.options[this.selectedIndex];
-        const courseName = selectedOption.getAttribute('data-name');
-        degreeNameInput.value = courseName || '';
-    });
+    approveRadio.addEventListener('change', enableSubmitButton);
+    rejectRadio.addEventListener('change', enableSubmitButton);
 
     // Initialize on page load
     if (approveRadio.checked || rejectRadio.checked) {
-        updateApprovalFields();
+        enableSubmitButton();
     }
 });
 </script>

@@ -1,5 +1,14 @@
 @extends('layouts.app')
 
+@push('styles')
+<style>
+    .icon-green {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
+    }
+</style>
+@endpush
+
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
@@ -60,6 +69,19 @@
             </div>
         </div>
     </div>
+    @if($stats['equivalency_syllabus_received'] > 0)
+    <div class="col-md-4 mb-4">
+        <div class="card stat-card border-success" style="border-width: 2px !important;">
+            <div class="d-flex align-items-center">
+                <div class="stat-icon icon-green"><i class="fas fa-check-circle"></i></div>
+                <div>
+                    <h5 class="card-title mb-0">{{ $stats['equivalency_syllabus_received'] }}</h5>
+                    <p class="card-text text-success fw-bold">Syllabus Received! <span class="badge bg-success">NEW</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
 </div>
 
 <!-- Pending Subjects Table -->
@@ -143,8 +165,9 @@
                                     // Get the first request as representative
                                     $representative = $equivalencyGroup->first();
                                     $studentCount = $equivalencyGroup->count();
+                                    $hasSyllabus = $representative->syllabus_received_at !== null;
                                 @endphp
-                                <tr>
+                                <tr class="{{ $hasSyllabus ? 'table-success' : '' }}">
                                     <td>
                                         <strong>{{ $representative->diploma_course_code }}</strong><br>
                                         <small class="text-muted">{{ Str::limit($representative->diploma_course_name, 40) }}</small><br>
@@ -161,12 +184,16 @@
                                         <span class="badge bg-info">{{ $studentCount }} student(s)</span>
                                     </td>
                                     <td>
-                                        @if($representative->status === 'pending')
+                                        @if($hasSyllabus)
+                                            <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Syllabus Received</span>
+                                            <br><small class="text-success">Ready for Review!</small>
+                                        @elseif($representative->syllabus_request_sent_at)
+                                            <span class="badge bg-info">Awaiting Lecturer</span>
+                                            <br><small class="text-muted">Email sent {{ $representative->syllabus_request_sent_at->diffForHumans() }}</small>
+                                        @elseif($representative->status === 'pending')
                                             <span class="badge bg-warning text-dark">Pending</span>
                                         @elseif($representative->status === 'under_review')
-                                            <span class="badge bg-info">Under Review</span>
-                                        @elseif($representative->status === 'syllabus_received')
-                                            <span class="badge bg-info">Syllabus Received</span>
+                                            <span class="badge bg-primary">Under Review</span>
                                         @elseif($representative->status === 'approved')
                                             <span class="badge bg-success">Approved</span>
                                         @elseif($representative->status === 'rejected')

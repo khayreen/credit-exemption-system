@@ -400,7 +400,7 @@ class ImportExternalEquivalencies extends Command
     protected function getSystemApprover(): ?User
     {
         // Try to find an admin user
-        $admin = User::where('role', 'admin')
+        $admin = User::where('current_role', 'admin')
             ->orWhere('email', 'admin@uitm.edu.my')
             ->first();
 
@@ -409,7 +409,7 @@ class ImportExternalEquivalencies extends Command
         }
 
         // Try to find any resource person
-        $resourcePerson = User::where('role', 'resource_person')->first();
+        $resourcePerson = User::where('current_role', 'resource_person')->first();
 
         if ($resourcePerson) {
             return $resourcePerson;

@@ -33,11 +33,6 @@ Route::get('/email/verify', function (Illuminate\Http\Request $request) {
     return view('auth.verify-email');
 })->middleware('auth')->name('verification.notice');
 
-Route::post('/email/verification-notification', function (Illuminate\Http\Request $request) {
-    $request->user()->sendEmailVerificationNotification();
-    return back()->with('resent', true);
-})->middleware(['auth', 'throttle:6,1'])->name('verification.resend');
-
 // Registration QR code setup routes (guest only)
 Route::middleware('guest')->group(function () {
     Route::get('/register/qr-setup', [App\Http\Controllers\Auth\RegisterController::class, 'showQrSetup'])->name('register.qr.setup');
@@ -52,7 +47,7 @@ Route::post('/2fa/verify', [LoginSecurityController::class, 'verify2fa'])->name(
 // 2FA Setup routes (requires auth only - email verification is checked in LoginController)
 Route::middleware(['auth'])->group(function () {
     Route::get('/2fa/setup', [App\Http\Controllers\Auth\TwoFactorController::class, 'showSetup'])->name('2fa.setup');
-    Route::post('/2fa/setup/verify', [App\Http\Controllers\Auth\TwoFactorController::class, 'verify'])->name('2fa.verify');
+    Route::post('/2fa/setup/verify', [App\Http\Controllers\Auth\TwoFactorController::class, 'verify'])->name('2fa.setup.verify');
 });
 
 // 2FA Login routes (no auth middleware - user is logging in)
@@ -94,6 +89,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('equivalency-request/store', [App\Http\Controllers\Student\EquivalencyRequestController::class, 'store'])->name('equivalency.request.store');
         Route::get('equivalency-request/list', [App\Http\Controllers\Student\EquivalencyRequestController::class, 'index'])->name('equivalency.request.index');
         Route::get('equivalency-request/{request}', [App\Http\Controllers\Student\EquivalencyRequestController::class, 'show'])->name('equivalency.request.show');
+
+        // Equivalency Checker API routes
+        Route::get('api/equivalency-checker/diploma-courses', [App\Http\Controllers\Api\EquivalencyCheckerController::class, 'searchDiplomaCourses'])->name('api.equivalency.diploma_courses');
+        Route::get('api/equivalency-checker/degree-courses', [App\Http\Controllers\Api\EquivalencyCheckerController::class, 'searchDegreeCourses'])->name('api.equivalency.degree_courses');
+        Route::post('api/equivalency-checker/check', [App\Http\Controllers\Api\EquivalencyCheckerController::class, 'checkEquivalency'])->name('api.equivalency.check');
 
         // Published Course Equivalency Lists (View Only)
         Route::get('course-equivalencies', [App\Http\Controllers\Student\EquivalencyViewController::class, 'index'])->name('course_equivalencies.index');

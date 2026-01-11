@@ -31,7 +31,7 @@ class CheckRole
         // Loop through the roles required by the route (e.g., ['student']).
         foreach ($roles as $role) {
             // If the user's role matches the required role, let them pass.
-            if ($user->role == $role) {
+            if ($user->current_role == $role) {
                 return $next($request);
             }
         }

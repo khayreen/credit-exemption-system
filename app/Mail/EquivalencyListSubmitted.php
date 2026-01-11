@@ -8,14 +8,18 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Contracts\Queue\ShouldQueue;
 
-class EquivalencyListSubmitted extends Mailable
+class EquivalencyListSubmitted extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
     public EquivalencyList $list;
     public string $submitterName;
     public string $reviewUrl;
+
+    public int $timeout = 60;
+    public int $tries = 3;
 
     /**
      * Create a new message instance.
@@ -25,6 +29,7 @@ class EquivalencyListSubmitted extends Mailable
         $this->list = $list;
         $this->submitterName = $submitterName;
         $this->reviewUrl = $reviewUrl;
+        \$this->onQueue('emails');
     }
 
     /**

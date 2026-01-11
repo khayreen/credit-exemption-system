@@ -407,7 +407,7 @@
             </div>
 
             <!-- Form -->
-            <form method="POST" action="{{ route('2fa.verify') }}">
+            <form method="POST" action="{{ route('2fa.setup.verify') }}">
                 @csrf
 
                 <!-- Step 1: Install App -->

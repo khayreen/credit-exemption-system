@@ -109,7 +109,7 @@ class ArchiveExpiredLists extends Command
 
         // Send notification to HEA personnel
         try {
-            $heaUsers = User::where('role', 'hea_personnel')->get();
+            $heaUsers = User::where('current_role', 'hea_personnel')->get();
             // Note: You could create a dedicated mail class for this if needed
             $this->info("Notified {$heaUsers->count()} HEA personnel about archived lists.");
         } catch (\Exception $e) {

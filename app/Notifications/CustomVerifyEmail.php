@@ -3,12 +3,34 @@
 namespace App\Notifications;
 
 use Illuminate\Auth\Notifications\VerifyEmail;
+use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Carbon;
+use Illuminate\Contracts\Queue\ShouldQueue;
 
-class CustomVerifyEmail extends VerifyEmail
+class CustomVerifyEmail extends VerifyEmail implements ShouldQueue
 {
+    use Queueable;
+
+    /**
+     * The number of seconds before the job times out.
+     */
+    public int $timeout = 60;
+
+    /**
+     * The number of times the job may be attempted.
+     */
+    public int $tries = 3;
+
+    /**
+     * Create a new notification instance.
+     */
+    public function __construct()
+    {
+        $this->onQueue('emails');
+    }
+
     /**
      * Get the mail representation of the notification.
      */

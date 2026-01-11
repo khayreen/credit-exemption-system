@@ -102,7 +102,7 @@ class HeaApprovalController extends Controller
         ]);
 
         // Send rejection email
-        Mail::to($user->email)->send(new UserRejectedMail($user, $validated['rejection_reason']));
+        Mail::to($user->email)->queue(new UserRejectedMail($user, $validated['rejection_reason']));
 
         return back()->with('success', "HEA registration rejected.");
     }

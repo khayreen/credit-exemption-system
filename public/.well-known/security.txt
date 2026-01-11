@@ -1,0 +1,8 @@
+Contact: mailto:support@uitm.edu.my
+Expires: 2027-01-01T00:00:00.000Z
+Preferred-Languages: en, ms
+Canonical: https://uitmcredit.me/.well-known/security.txt
+
+# UiTM Credit Exemption Management System
+# Official system for managing course credit exemptions
+# Operated by Universiti Teknologi MARA (UiTM)

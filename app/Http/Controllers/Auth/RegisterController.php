@@ -218,7 +218,7 @@ class RegisterController extends Controller
      */
     private function sendPendingHeaEmail(User $user): void
     {
-        Mail::to($user->email)->send(new UserRegistrationConfirmationMail($user, 'pending_hea'));
+        Mail::to($user->email)->queue(new UserRegistrationConfirmationMail($user, 'pending_hea'));
         // HEA will see this in their dashboard automatically
     }
 
@@ -228,12 +228,12 @@ class RegisterController extends Controller
     private function sendPendingAdminEmail(User $user): void
     {
         // Send confirmation to user
-        Mail::to($user->email)->send(new UserRegistrationConfirmationMail($user, 'pending_admin'));
+        Mail::to($user->email)->queue(new UserRegistrationConfirmationMail($user, 'pending_admin'));
 
         // Send notification to system admin
         $adminEmail = config('app.admin_email');
         if ($adminEmail) {
-            Mail::to($adminEmail)->send(new HeaRegistrationNotificationMail($user));
+            Mail::to($adminEmail)->queue(new HeaRegistrationNotificationMail($user));
         }
     }
 

@@ -6,13 +6,24 @@ use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Contracts\Queue\ShouldQueue;
 
-class UserRegistrationConfirmationMail extends Mailable
+class UserRegistrationConfirmationMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
     public $user;
     public $status;
+
+    /**
+     * The number of seconds before the job times out.
+     */
+    public int $timeout = 60;
+
+    /**
+     * The number of times the job may be attempted.
+     */
+    public int $tries = 3;
 
     /**
      * Create a new message instance.
@@ -24,6 +35,7 @@ class UserRegistrationConfirmationMail extends Mailable
     {
         $this->user = $user;
         $this->status = $status;
+        $this->onQueue('emails');
     }
 
     /**

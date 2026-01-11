@@ -9,10 +9,14 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Contracts\Queue\ShouldQueue;
 
-class NewEquivalencyListPublished extends Mailable
+class NewEquivalencyListPublished extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
+
+    public int $timeout = 60;
+    public int $tries = 3;
 
     public EquivalencyList $list;
     public ?Student $student;
@@ -24,6 +28,7 @@ class NewEquivalencyListPublished extends Mailable
     {
         $this->list = $list;
         $this->student = $student;
+        \$this->onQueue('emails');
     }
 
     /**

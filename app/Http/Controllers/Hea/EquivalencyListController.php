@@ -268,36 +268,101 @@ class EquivalencyListController extends Controller
 
     /**
      * Display pending equivalency lists awaiting HEA endorsement
+     * ONLY shows CS110 (internal) lists - external lists are managed separately
      */
     public function pending(Request $request)
     {
-        $categoryFilter = $request->get('category', 'all');
+        // Filter options
+        $programFilter = $request->get('program', 'all');
+        $semesterFilter = $request->get('semester', 'all');
+        $statusFilter = $request->get('status', 'all');
+        $sortBy = $request->get('sort', 'oldest');
 
-        $query = EquivalencyList::with(['creator', 'courseEquivalencies'])
-            ->pending(); // Uses the scopePending() we just added
+        // CRITICAL: Only fetch internal (CS110) lists
+        $query = EquivalencyList::with(['creator', 'courseEquivalencies', 'reviewer'])
+            ->pending()
+            ->where('category', 'internal'); // CS110 lists only
 
-        if ($categoryFilter !== 'all') {
-            $query->where('category', $categoryFilter);
+        // Apply filters
+        if ($programFilter !== 'all') {
+            $query->where('program_code', $programFilter);
         }
 
-        $lists = $query->orderBy('submitted_at', 'asc')->get();
+        if ($semesterFilter !== 'all') {
+            $query->where('semester', $semesterFilter);
+        }
 
-        // Split by category
-        $internalLists = $lists->where('category', 'internal');
-        $externalLists = $lists->where('category', 'external');
+        if ($statusFilter !== 'all') {
+            $query->where('status', $statusFilter);
+        }
 
-        $pendingCounts = [
-            'total' => $lists->count(),
-            'internal' => $internalLists->count(),
-            'external' => $externalLists->count(),
+        // Apply sorting
+        switch ($sortBy) {
+            case 'newest':
+                $query->orderBy('submitted_at', 'desc');
+                break;
+            case 'program':
+                $query->orderBy('program_code')->orderBy('submitted_at', 'asc');
+                break;
+            default: // 'oldest'
+                $query->orderBy('submitted_at', 'asc');
+        }
+
+        $allLists = $query->get();
+
+        // Group lists by target degree program
+        $listsByProgram = $allLists->groupBy('program_code');
+
+        // Calculate statistics
+        $stats = [
+            'total_pending' => $allLists->count(),
+            'submitted' => $allLists->where('status', 'submitted')->count(),
+            'under_review' => $allLists->where('status', 'under_review')->count(),
+            'oldest_days' => $this->calculateOldestWaitingDays($allLists),
         ];
 
+        // Get available semesters for filter
+        $semesters = EquivalencyList::pending()
+            ->where('category', 'internal')
+            ->distinct()
+            ->pluck('semester')
+            ->sort()
+            ->values();
+
+        // Get available programs for filter
+        $programs = $this->getProgramNames();
+
+        // Calculate changes from previous semester for each list
+        foreach ($allLists as $list) {
+            $previousList = $this->getPreviousSemesterList($list);
+            $list->changes = $previousList ? $this->calculateChanges($list, $previousList) : null;
+            $list->previousList = $previousList;
+        }
+
         return view('hea.equivalency_lists.pending', compact(
-            'internalLists',
-            'externalLists',
-            'pendingCounts',
-            'categoryFilter'
+            'listsByProgram',
+            'allLists',
+            'stats',
+            'programs',
+            'semesters',
+            'programFilter',
+            'semesterFilter',
+            'statusFilter',
+            'sortBy'
         ));
+    }
+
+    /**
+     * Calculate oldest waiting days for urgency indicator
+     */
+    private function calculateOldestWaitingDays($lists)
+    {
+        if ($lists->isEmpty()) {
+            return 0;
+        }
+
+        $oldest = $lists->min('submitted_at');
+        return $oldest ? now()->diffInDays($oldest) : 0;
     }
 
     /**

@@ -43,22 +43,24 @@ class ApplicationController extends Controller
                 ->get();
         }
 
-        // Get equivalency requests forwarded by Program Coordinators
+        // Get equivalency requests forwarded by Program Coordinators or pending review
         if (empty($assignedPrograms)) {
             $equivalencyRequests = CourseEquivalencyRequest::where(function($query) {
                     $query->where('coordinator_decision', 'forward_to_rp')
-                          ->orWhere('status', 'pending');
+                          ->orWhere('status', 'pending')
+                          ->orWhere('status', 'under_review');
                 })
-                ->with('student.user', 'coordinator')
+                ->with('student.user', 'coordinator', 'externalLecturerRequest')
                 ->orderBy('created_at', 'desc')
                 ->get();
         } else {
             $equivalencyRequests = CourseEquivalencyRequest::where(function($query) {
                     $query->where('coordinator_decision', 'forward_to_rp')
-                          ->orWhere('status', 'pending');
+                          ->orWhere('status', 'pending')
+                          ->orWhere('status', 'under_review');
                 })
                 ->whereIn('current_program_code', $assignedPrograms)
-                ->with('student.user', 'coordinator')
+                ->with('student.user', 'coordinator', 'externalLecturerRequest')
                 ->orderBy('created_at', 'desc')
                 ->get();
         }
@@ -78,6 +80,11 @@ class ApplicationController extends Controller
             return $coordinatorRequests->groupBy('current_program_code');
         });
 
+        // Count equivalency requests with syllabus received (needs attention)
+        $syllabusReceivedCount = $equivalencyRequests->filter(function($request) {
+            return $request->syllabus_received_at !== null;
+        })->count();
+
         $stats = [
             'subjects_for_review' => $subjects->count(),
             'syllabus_requests' => ApplicationSubject::where('status', 'Syllabus Requested')
@@ -88,6 +95,7 @@ class ApplicationController extends Controller
                 })
                 ->count(),
             'equivalency_requests' => $equivalencyRequests->count(),
+            'equivalency_syllabus_received' => $syllabusReceivedCount,
             'unique_equivalencies' => $groupedByEquivalency->count(),
             'assigned_programs' => $assignedPrograms,
         ];
@@ -621,23 +629,24 @@ class ApplicationController extends Controller
         $resourcePerson = Auth::user()->resourcePerson;
         $assignedPrograms = $resourcePerson->assigned_programs ?? [];
 
-        // Get equivalency requests that were forwarded by Program Coordinators
-        // or legacy requests (coordinator_decision is null)
+        // Get equivalency requests forwarded by Program Coordinators or pending review
         if (empty($assignedPrograms)) {
             $requests = CourseEquivalencyRequest::where(function($query) {
                     $query->where('coordinator_decision', 'forward_to_rp')
-                          ->orWhereNull('coordinator_decision');
+                          ->orWhere('status', 'pending')
+                          ->orWhere('status', 'under_review');
                 })
-                ->with('student.user', 'reviewer', 'coordinator')
+                ->with('student.user', 'reviewer', 'coordinator', 'externalLecturerRequest')
                 ->orderBy('created_at', 'desc')
                 ->get();
         } else {
-            $requests = CourseEquivalencyRequest::whereIn('current_program_code', $assignedPrograms)
-                ->where(function($query) {
+            $requests = CourseEquivalencyRequest::where(function($query) {
                     $query->where('coordinator_decision', 'forward_to_rp')
-                          ->orWhereNull('coordinator_decision');
+                          ->orWhere('status', 'pending')
+                          ->orWhere('status', 'under_review');
                 })
-                ->with('student.user', 'reviewer', 'coordinator')
+                ->whereIn('current_program_code', $assignedPrograms)
+                ->with('student.user', 'reviewer', 'coordinator', 'externalLecturerRequest')
                 ->orderBy('created_at', 'desc')
                 ->get();
         }
@@ -668,8 +677,7 @@ class ApplicationController extends Controller
         // Eager load relationships for syllabus viewing
         $request->load(['externalLecturerRequest.submission', 'student.user', 'reviewer.user']);
 
-        $degreeCourses = Course::orderBy('code')->get();
-        return view('resource_person.equivalency_requests.review', compact('request', 'degreeCourses'));
+        return view('resource_person.equivalency_requests.review', compact('request'));
     }
 
     /**
@@ -679,10 +687,7 @@ class ApplicationController extends Controller
     {
         $httpRequest->validate([
             'decision' => 'required|in:approved,rejected',
-            'approved_degree_course_code' => 'nullable|string|max:20',
-            'approved_degree_course_name' => 'nullable|string|max:255',
-            'match_percentage' => 'nullable|integer|min:0|max:100',
-            'reviewer_notes' => 'nullable|string|max:1000',
+            'match_percentage' => 'required|integer|min:0|max:100',
         ]);
 
         try {
@@ -690,20 +695,16 @@ class ApplicationController extends Controller
 
             $decision = $httpRequest->decision;
 
+            // Use the student's suggested degree course for evaluation
+            $degreeCourseCode = strtoupper(trim($request->suggested_degree_course_code));
+            $degreeCourseName = trim($request->suggested_degree_course_name);
+
             // Generate automatic remark based on decision
             $automaticRemark = '';
             if ($decision === 'approved') {
-                $degreeCourseCode = strtoupper(trim($httpRequest->approved_degree_course_code));
-                $automaticRemark = "This subject has been reviewed and is approved for exemption. It is considered equivalent to degree course {$degreeCourseCode}.";
+                $automaticRemark = "This subject has been reviewed and is approved for exemption. It is considered equivalent to degree course {$degreeCourseCode} ({$degreeCourseName}). Match percentage: {$httpRequest->match_percentage}%.";
             } else {
-                $diplomaCourseCode = $request->diploma_course_code;
-                $automaticRemark = "This course has been assessed and is not equivalent to the suggested degree course.";
-            }
-
-            // Combine automatic remark with optional reviewer notes
-            $finalNotes = $automaticRemark;
-            if ($httpRequest->reviewer_notes) {
-                $finalNotes .= "\n\nAdditional Notes: " . $httpRequest->reviewer_notes;
+                $automaticRemark = "This course has been assessed and is not equivalent to degree course {$degreeCourseCode} ({$degreeCourseName}). Match percentage: {$httpRequest->match_percentage}%.";
             }
 
             // Find ALL requests with the same equivalency combination
@@ -722,18 +723,12 @@ class ApplicationController extends Controller
                 $matchingRequest->status = $decision;
                 $matchingRequest->reviewed_by = Auth::user()->resourcePerson->id;
                 $matchingRequest->reviewed_at = now();
-                $matchingRequest->reviewer_notes = $finalNotes;
+                $matchingRequest->reviewer_notes = $automaticRemark;
 
-                if ($decision === 'approved') {
-                    // Validate that approved course details are provided
-                    if (!$httpRequest->approved_degree_course_code || !$httpRequest->match_percentage) {
-                        throw new \Exception('Approved degree course code and match percentage are required for approval.');
-                    }
-
-                    $matchingRequest->approved_degree_course_code = strtoupper(trim($httpRequest->approved_degree_course_code));
-                    $matchingRequest->approved_degree_course_name = trim($httpRequest->approved_degree_course_name);
-                    $matchingRequest->match_percentage = $httpRequest->match_percentage;
-                }
+                // Store the evaluation details using the student's suggested courses
+                $matchingRequest->approved_degree_course_code = $degreeCourseCode;
+                $matchingRequest->approved_degree_course_name = $degreeCourseName;
+                $matchingRequest->match_percentage = $httpRequest->match_percentage;
 
                 $matchingRequest->save();
 
@@ -747,7 +742,7 @@ class ApplicationController extends Controller
             // Create course equivalency record ONCE for this equivalency (if approved)
             if ($decision === 'approved') {
                 $existingEquivalency = CourseEquivalency::where('diploma_course_code', strtoupper(trim($request->diploma_course_code)))
-                    ->where('degree_course_code', strtoupper(trim($httpRequest->approved_degree_course_code)))
+                    ->where('degree_course_code', $degreeCourseCode)
                     ->where('program_code', $request->current_program_code)
                     ->first();
 
@@ -757,22 +752,26 @@ class ApplicationController extends Controller
                         'diploma_course_name' => $request->diploma_course_name,
                         'diploma_credit_hour' => $request->diploma_credit_hours,
                         'diploma_institution' => $request->diploma_institution,
-                        'degree_course_code' => strtoupper(trim($httpRequest->approved_degree_course_code)),
-                        'degree_course_name' => trim($httpRequest->approved_degree_course_name),
+                        'degree_course_code' => $degreeCourseCode,
+                        'degree_course_name' => $degreeCourseName,
                         'match_percentage' => $httpRequest->match_percentage,
                         'program_code' => $request->current_program_code,
-                        'notes' => 'Created by Resource Person from equivalency request affecting ' . $affectedStudentCount . ' student(s)',
+                        'notes' => 'Created by Resource Person from equivalency request affecting ' . $affectedStudentCount . ' student(s). Match percentage: ' . $httpRequest->match_percentage . '%',
                     ]);
 
                     Log::info('Course equivalency created from RP decision', [
                         'diploma_course' => $request->diploma_course_code,
-                        'degree_course' => $httpRequest->approved_degree_course_code,
+                        'degree_course' => $degreeCourseCode,
+                        'match_percentage' => $httpRequest->match_percentage,
                         'affected_students' => $affectedStudentCount,
                     ]);
                 }
             }
 
             DB::commit();
+
+            // Send notifications to all affected parties
+            $this->sendEquivalencyDecisionNotifications($request, $decision, $affectedStudentCount, $matchingRequests);
 
             $message = $decision === 'approved'
                 ? "Course marked as equivalent for {$affectedStudentCount} student(s). Course equivalency created successfully!"
@@ -802,9 +801,9 @@ class ApplicationController extends Controller
         try {
             DB::beginTransaction();
 
-            // Use PC-selected lecturer information
-            $lecturerEmail = $equivalencyRequest->selected_lecturer_email;
-            $lecturerName = $equivalencyRequest->selected_lecturer_name;
+            // Use PC-selected lecturer if available, otherwise use student-provided lecturer
+            $lecturerEmail = $equivalencyRequest->selected_lecturer_email ?? $equivalencyRequest->external_lecturer_email;
+            $lecturerName = $equivalencyRequest->selected_lecturer_name ?? $equivalencyRequest->external_lecturer_name;
 
             // Create external lecturer request record
             $externalRequest = ExternalLecturerRequest::create([
@@ -887,10 +886,10 @@ class ApplicationController extends Controller
         $submissionUrl = route('external.lecturer.submission.form', ['token' => $accessToken]);
         $tokenExpiresAt = now()->addDays(30);
 
-        // Prepare email data with all important information (use PC-selected lecturer)
+        // Prepare email data with all important information (use PC-selected or student-provided lecturer)
         $emailData = [
-            'lecturer_name' => $request->selected_lecturer_name,
-            'lecturer_email' => $request->selected_lecturer_email,
+            'lecturer_name' => $request->selected_lecturer_name ?? $request->external_lecturer_name,
+            'lecturer_email' => $request->selected_lecturer_email ?? $request->external_lecturer_email,
             'student_name' => 'Multiple Students', // Don't expose individual student names
             'student_matric' => 'N/A',
             'student_program' => $request->current_program_code . ' - ' . $request->current_program_name,
@@ -928,9 +927,9 @@ class ApplicationController extends Controller
         try {
             DB::beginTransaction();
 
-            // Use PC-selected lecturer information
-            $lecturerEmail = $request->selected_lecturer_email;
-            $lecturerName = $request->selected_lecturer_name;
+            // Use PC-selected lecturer if available, otherwise use student-provided lecturer
+            $lecturerEmail = $request->selected_lecturer_email ?? $request->external_lecturer_email;
+            $lecturerName = $request->selected_lecturer_name ?? $request->external_lecturer_name;
 
             // Create external lecturer request record
             $externalRequest = ExternalLecturerRequest::create([
@@ -1008,6 +1007,68 @@ class ApplicationController extends Controller
                 'equivalency_request_id' => $request->id
             ]);
             return back()->with('error', 'Failed to send syllabus request. Please try again. Error: ' . $e->getMessage())->withInput();
+        }
+    }
+
+    /**
+     * Send notifications to all affected parties after RP decision.
+     */
+    private function sendEquivalencyDecisionNotifications(
+        CourseEquivalencyRequest $request,
+        string $decision,
+        int $affectedStudentCount,
+        $matchingRequests
+    ): void {
+        $isApproved = $decision === 'approved';
+        $decisionText = $isApproved ? 'Approved' : 'Rejected';
+        $diplomaCourse = $request->diploma_course_code . ' - ' . $request->diploma_course_name;
+        $degreeCourse = $request->suggested_degree_course_code . ' - ' . $request->suggested_degree_course_name;
+
+        // 1. Notify all students who requested this equivalency
+        foreach ($matchingRequests as $studentRequest) {
+            \App\Models\Notification::create([
+                'user_id' => $studentRequest->student->user_id,
+                'type' => 'request_reviewed',
+                'title' => 'Equivalency Request ' . $decisionText,
+                'message' => "Your course equivalency request for {$diplomaCourse} has been reviewed and {$decisionText}.",
+                'link' => route('student.equivalency.request.index'),
+            ]);
+        }
+
+        // 2. If approved, notify all Academic Advisors about new mapping
+        if ($isApproved) {
+            // Get all academic advisors from all programs
+            $academicAdvisors = \App\Models\AcademicAdvisor::with('user')->get();
+
+            foreach ($academicAdvisors as $advisor) {
+                \App\Models\Notification::create([
+                    'user_id' => $advisor->user_id,
+                    'type' => 'new_mapping',
+                    'title' => 'New Course Mapping Added',
+                    'message' => "A new course equivalency mapping has been added: {$diplomaCourse} → {$degreeCourse} for program {$request->current_program_code}.",
+                    'link' => null, // Will be handled in dashboard
+                ]);
+            }
+
+            // 3. Notify all Program Coordinators about new mapping
+            $programCoordinators = \App\Models\ProgramCoordinator::with('user')->get();
+
+            foreach ($programCoordinators as $coordinator) {
+                \App\Models\Notification::create([
+                    'user_id' => $coordinator->user_id,
+                    'type' => 'new_mapping',
+                    'title' => 'New Course Mapping Added',
+                    'message' => "A new course equivalency mapping has been added: {$diplomaCourse} → {$degreeCourse} for program {$request->current_program_code}.",
+                    'link' => null, // Will be handled in dashboard
+                ]);
+            }
+
+            Log::info('Equivalency decision notifications sent', [
+                'decision' => $decision,
+                'affected_students' => $affectedStudentCount,
+                'academic_advisors_notified' => $academicAdvisors->count(),
+                'program_coordinators_notified' => $programCoordinators->count(),
+            ]);
         }
     }
 }

@@ -9,6 +9,14 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\App;
 // Import Paginator for Bootstrap styling
 use Illuminate\Pagination\Paginator;
+// Import Mail facade for SendGrid
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Mail\MailManager;
+use SendGrid;
+use SendGrid\Mail\Mail as SendGridMail;
+// Import Observer
+use App\Models\CourseEquivalency;
+use App\Observers\CourseEquivalencyObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -36,5 +44,15 @@ class AppServiceProvider extends ServiceProvider
 
         // Use Bootstrap 5 for pagination styling (fixes giant arrow issue)
         Paginator::useBootstrapFive();
+
+        // Register SendGrid transport
+        Mail::extend('sendgrid', function () {
+            return new \App\Mail\Transport\SendGridTransport(
+                new SendGrid(config('services.sendgrid.api_key'))
+            );
+        });
+
+        // Register observers for automatic statistics synchronization
+        CourseEquivalency::observe(CourseEquivalencyObserver::class);
     }
 }

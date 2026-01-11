@@ -118,11 +118,23 @@
                                                 </tr>
                                                 <tr>
                                                     <th>Total Mappings:</th>
-                                                    <td><strong>{{ $list->total_mappings }}</strong> course(s)</td>
+                                                    <td><strong>{{ $list->courseEquivalencies->count() }}</strong> course(s)</td>
                                                 </tr>
                                                 <tr>
-                                                    <th>Created By:</th>
-                                                    <td>{{ $list->creator->name ?? 'N/A' }}</td>
+                                                    <th>Resource Person:</th>
+                                                    <td>
+                                                        @php
+                                                            $resourcePersons = [
+                                                                'CDCS253' => 'Norshahidatul Hasana Binti Ishak',
+                                                                'CDCS255' => 'Ts. Nurul Najwa Binti Abdul Rahid',
+                                                                'CDCS266' => 'Noor Afni Binti Deraman',
+                                                                'CDCS230' => 'Fadzlin Binti Ahmadon',
+                                                                'CDCS251' => 'Nor Aimuni Binti Md Rashid',
+                                                            ];
+                                                            $resourcePersonName = $resourcePersons[$list->program_code] ?? ($list->creator->name ?? 'N/A');
+                                                        @endphp
+                                                        <strong>{{ $resourcePersonName }}</strong>
+                                                    </td>
                                                 </tr>
                                                 <tr>
                                                     <th>Created At:</th>

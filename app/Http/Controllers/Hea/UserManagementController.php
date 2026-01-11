@@ -104,7 +104,7 @@ class UserManagementController extends Controller
                 ]),
             ]);
 
-            Mail::to($user->email)->send(new UserRejectedMail($user, $validated['rejection_reason']));
+            Mail::to($user->email)->queue(new UserRejectedMail($user, $validated['rejection_reason']));
 
             return back()->with('success', "User {$user->name} rejected.");
         }

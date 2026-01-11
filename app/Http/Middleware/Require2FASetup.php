@@ -25,7 +25,7 @@ class Require2FASetup
         // If user is authenticated but hasn't completed 2FA setup
         if ($user && !$user->two_factor_verified_at) {
             // Allow access to 2FA setup, verification routes, and email verification page
-            $allowedRoutes = ['2fa.setup', '2fa.verify', 'verification.notice', 'verification.resend', 'verification.verify', 'logout'];
+            $allowedRoutes = ['2fa.setup', '2fa.setup.verify', 'verification.notice', 'verification.resend', 'verification.verify', 'logout'];
             if (!$request->routeIs($allowedRoutes)) {
                 return redirect()->route('2fa.setup')
                     ->with('warning', 'Please complete two-factor authentication setup before continuing.');

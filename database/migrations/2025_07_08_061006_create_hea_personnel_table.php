@@ -14,8 +14,8 @@ return new class extends Migration
         Schema::create('hea_personnel', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('user_id')->constrained()->onDelete('cascade');
-            $table->string('staff_id')->unique();
-            $table->string('unit');
+            $table->string('staff_id')->unique()->nullable();
+            $table->string('unit')->nullable();
             $table->timestamps();
         });
     }

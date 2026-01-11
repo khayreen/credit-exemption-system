@@ -108,7 +108,7 @@ class LoginSecurityController extends Controller
                 $request->session()->put('2fa_verified', true);
 
                 // Redirect based on user role
-                switch ($user->role) {
+                switch ($user->current_role) {
                     case 'student':
                         return redirect()->intended('/student/dashboard');
                     case 'lecturer':

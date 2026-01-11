@@ -7,10 +7,14 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Contracts\Queue\ShouldQueue;
 
-class SemesterReminder extends Mailable
+class SemesterReminder extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
+
+    public int $timeout = 60;
+    public int $tries = 3;
 
     public string $resourcePersonName;
     public array $assignedPrograms;
@@ -33,6 +37,7 @@ class SemesterReminder extends Mailable
         $this->upcomingSemester = $upcomingSemester;
         $this->programsMissingLists = $programsMissingLists;
         $this->createUrl = $createUrl;
+        \$this->onQueue('emails');
     }
 
     /**

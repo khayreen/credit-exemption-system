@@ -16,6 +16,7 @@ class ProgramCoordinator extends Model
         'name',
         'email',
         'program_codes',
+        'program_category',
     ];
 
     protected $casts = [

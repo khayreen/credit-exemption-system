@@ -206,7 +206,7 @@
             <div class="card-body text-center py-5">
                 <i class="fas fa-graduation-cap fa-4x text-muted mb-3"></i>
                 <h4 class="text-muted">No Programs Assigned</h4>
-                <p class="text-muted mb-0">You don't have any programs assigned yet.</p>
+                <p class="text-muted mb-0">You don't have any programs assigned yet. Contact HEA for program assignment.</p>
             </div>
         </div>
     @endif

@@ -599,27 +599,21 @@ class ApplicationController extends Controller
         $latestPublishedDate = null;
 
         foreach ($programs as $programCode) {
-            // Get current (latest) HEA-endorsed published list for this program
-            // ONLY shows lists that went through: Resource Person → HEA Endorsement → Published
+            // Get current (latest) HEA-endorsed CS110 (internal) list for this program
+            // ONLY shows internal lists that went through: Resource Person → HEA Endorsement → Published
             $current = EquivalencyList::where('program_code', $programCode)
                 ->where('status', 'published')
-                ->whereNotNull('endorsed_at') // CRITICAL: Only HEA-endorsed lists
+                ->where('category', 'internal') // CS110 lists only, not external institution mappings
+                ->whereNotNull('endorsed_at') // Must be HEA-endorsed
                 ->with(['creator', 'publisher', 'endorsedBy', 'courseEquivalencies'])
-                ->orderByRaw('COALESCE(endorsed_at, created_at) DESC')
+                ->orderBy('endorsed_at', 'desc')
                 ->first();
 
-            // Get history (all other HEA-endorsed published lists except the latest)
-            $history = EquivalencyList::where('program_code', $programCode)
-                ->where('status', 'published')
-                ->whereNotNull('endorsed_at') // CRITICAL: Only HEA-endorsed lists
-                ->with(['creator', 'publisher', 'endorsedBy', 'courseEquivalencies'])
-                ->orderByRaw('COALESCE(endorsed_at, created_at) DESC')
-                ->when($current, function($query) use ($current) {
-                    return $query->where('id', '!=', $current->id);
-                })
-                ->get();
+            // Academic Advisors do NOT see historical/archived lists
+            // Only Resource Person and HEA can view archived lists
+            $history = collect(); // Empty collection
 
-            $count = ($current ? 1 : 0) + $history->count();
+            $count = $current ? 1 : 0;
             $totalPublished += $count;
 
             $programData[$programCode] = [
@@ -630,14 +624,14 @@ class ApplicationController extends Controller
             ];
 
             // Track the program with the latest HEA-endorsed list to auto-expand
-            $currentEndorsedDate = $current ? ($current->endorsed_at ?: $current->created_at) : null;
+            $currentEndorsedDate = $current ? $current->endorsed_at : null;
             if ($currentEndorsedDate && (!$latestPublishedDate || $currentEndorsedDate > $latestPublishedDate)) {
                 $latestPublishedProgram = $programCode;
                 $latestPublishedDate = $currentEndorsedDate;
             }
         }
 
-        // Statistics (ONLY HEA-endorsed lists shown as "Published")
+        // Statistics (only HEA-endorsed CS110 lists count as published)
         $stats = [
             'total_published' => $totalPublished,
         ];
@@ -681,20 +675,14 @@ class ApplicationController extends Controller
      */
     public function viewAllCourseEquivalencies()
     {
-        // Get all programs that have course equivalencies
-        // Use LEFT JOIN to handle programs not in the programs table
-        $programs = DB::table('course_equivalencies')
-            ->join('equivalency_lists', 'course_equivalencies.equivalency_list_id', '=', 'equivalency_lists.id')
-            ->leftJoin('programs', 'course_equivalencies.program_code', '=', 'programs.code')
-            ->whereNotNull('course_equivalencies.program_code')
-            ->where('course_equivalencies.program_code', '!=', '')
-            ->select(
-                'course_equivalencies.program_code as code',
-                DB::raw('COALESCE(programs.name, course_equivalencies.program_code) as name')
-            )
-            ->distinct()
-            ->orderBy('course_equivalencies.program_code')
-            ->get();
+        // Get all supported programs from config (show all 5 degree programs)
+        $supportedPrograms = config('programs.supported_programs');
+        $programs = collect($supportedPrograms)->map(function($name, $code) {
+            return (object) [
+                'code' => $code,
+                'name' => $name,
+            ];
+        })->values();
 
         // Get all unique institutions from course equivalencies
         $institutions = CourseEquivalency::whereNotNull('diploma_institution')

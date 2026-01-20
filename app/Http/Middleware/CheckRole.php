@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\AccessLog;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -35,6 +36,15 @@ class CheckRole
                 return $next($request);
             }
         }
+
+        // Log the unauthorized access attempt before aborting
+        AccessLog::log(
+            $request->path(),
+            $request->method(),
+            'denied',
+            'User role (' . ($user->current_role ?? 'none') . ') not in allowed roles: ' . implode(', ', $roles),
+            $user->id
+        );
 
         // If the loop finishes and no role matched, the user is not authorized.
         // Show a "403 Forbidden" error page.

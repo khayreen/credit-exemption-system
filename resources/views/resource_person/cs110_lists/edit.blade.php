@@ -19,7 +19,7 @@
             </p>
         </div>
         <div>
-            <a href="{{ route('resource_person.equivalency_lists.index') }}" class="btn btn-outline-secondary">
+            <a href="{{ route('resource_person.equivalency_lists.published') }}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left"></i> Back to Lists
             </a>
         </div>

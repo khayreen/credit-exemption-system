@@ -19,7 +19,8 @@
                     'program_coordinator' => 'Program Coordinator',
                     'resource_person' => 'Resource Person',
                     'external_lecturer' => 'External Lecturer',
-                    'hea_personnel' => 'HEA Personnel'
+                    'hea_personnel' => 'HEA Personnel',
+                    'admin' => 'System Administrator'
                 ];
                 echo $roleMap[$roleDisplay] ?? ucwords(str_replace('_', ' ', $roleDisplay));
             @endphp
@@ -29,14 +30,22 @@
     <ul class="list-unstyled components">
         <p class="px-4 text-muted"><small>MAIN MENU</small></p>
         
-        {{-- FIX: Added a special case for the HEA Personnel role --}}
-        @if(Auth::user()->role == 'hea_personnel')
+        {{-- Dashboard link based on role --}}
+        @if(Auth::user()->current_role == 'admin')
+            <li class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
+                <a href="{{ route('admin.dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+            </li>
+        @elseif(Auth::user()->role == 'hea_personnel')
             <li class="{{ request()->routeIs('hea.dashboard') ? 'active' : '' }}">
                 <a href="{{ route('hea.dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
             </li>
-        @elseif(in_array(Auth::user()->role, ['student', 'academic_advisor', 'coordinator', 'program_coordinator', 'resource_person']))
+        @elseif(in_array(Auth::user()->role, ['student', 'academic_advisor', 'coordinator', 'resource_person']))
             <li class="{{ request()->routeIs(Auth::user()->role . '.dashboard') ? 'active' : '' }}">
                 <a href="{{ route(Auth::user()->role . '.dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+            </li>
+        @elseif(Auth::user()->role == 'program_coordinator')
+            <li class="{{ request()->routeIs('program_coordinator.dashboard') ? 'active' : '' }}">
+                <a href="{{ route('program_coordinator.dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
             </li>
         @else
              <li class="{{ request()->routeIs('home') ? 'active' : '' }}">
@@ -99,8 +108,8 @@
         @endif
 
         @if(Auth::user()->role == 'program_coordinator')
-            <li class="{{ request()->routeIs('program_coordinator.dashboard') ? 'active' : '' }}">
-                <a href="{{ route('program_coordinator.dashboard') }}">
+            <li class="{{ request()->routeIs('program_coordinator.equivalency_requests.*') || request()->routeIs('program_coordinator.course_requests') ? 'active' : '' }}">
+                <a href="{{ route('program_coordinator.equivalency_requests.index') }}">
                     <i class="fas fa-inbox"></i> Equivalency Requests
                 </a>
             </li>
@@ -111,22 +120,6 @@
                     <i class="fas fa-clipboard-check"></i> Published Lists
                 </a>
             </li>
-            <li class="{{ request()->routeIs('program_coordinator.equivalency_lists.drafts') ? 'active' : '' }}">
-                <a href="{{ route('program_coordinator.equivalency_lists.drafts') }}">
-                    <i class="fas fa-file-alt"></i> Draft Management
-                </a>
-            </li>
-            <li class="{{ request()->routeIs('program_coordinator.pending_mappings.*') ? 'active' : '' }}">
-                <a href="{{ route('program_coordinator.pending_mappings.index') }}">
-                    <i class="fas fa-inbox"></i> Pending Mappings
-                    @php
-                        $pendingCount = \App\Models\PendingEquivalencyMapping::pending()->count();
-                    @endphp
-                    @if($pendingCount > 0)
-                        <span class="badge bg-danger ms-2">{{ $pendingCount }}</span>
-                    @endif
-                </a>
-            </li>
             <li class="{{ request()->routeIs('program_coordinator.course_equivalencies.*') ? 'active' : '' }}">
                 <a href="{{ route('program_coordinator.course_equivalencies.view') }}">
                     <i class="fas fa-search"></i> All Course Mappings
@@ -135,19 +128,28 @@
         @endif
 
         @if(Auth::user()->role == 'resource_person')
-            <li class="{{ request()->routeIs('resource_person.equivalency_lists.published') ? 'active' : '' }}">
+            <li class="{{ request()->routeIs('resource_person.equivalency_requests.*') ? 'active' : '' }}">
+                <a href="{{ route('resource_person.equivalency_requests.index') }}">
+                    <i class="fas fa-inbox"></i> Equivalency Requests
+                </a>
+            </li>
+
+            <p class="px-4 text-muted mt-4"><small>SYLLABUS MANAGEMENT</small></p>
+            <li class="{{ request()->routeIs('resource_person.syllabi.*') ? 'active' : '' }}">
+                <a href="{{ route('resource_person.syllabi.index') }}">
+                    <i class="fas fa-file-pdf"></i> Degree Syllabus
+                </a>
+            </li>
+
+            <p class="px-4 text-muted mt-4"><small>EQUIVALENCY MANAGEMENT</small></p>
+            <li class="{{ request()->routeIs('resource_person.equivalency_lists.published') || request()->routeIs('resource_person.equivalency_lists.index') || request()->routeIs('resource_person.equivalency_lists.edit') ? 'active' : '' }}">
                 <a href="{{ route('resource_person.equivalency_lists.published') }}">
                     <i class="fas fa-clipboard-list"></i> Equivalency Lists
                 </a>
             </li>
-            <li class="{{ request()->routeIs('resource_person.equivalency_lists.index') || request()->routeIs('resource_person.equivalency_lists.edit') ? 'active' : '' }}">
-                <a href="{{ route('resource_person.equivalency_lists.index') }}">
-                    <i class="fas fa-list-alt"></i> My CS110 Lists
-                </a>
-            </li>
-            <li class="{{ request()->routeIs('resource_person.equivalency_mappings.*') ? 'active' : '' }}">
-                <a href="{{ route('resource_person.equivalency_mappings.create') }}">
-                    <i class="fas fa-paper-plane"></i> Forward Mapping
+            <li class="{{ request()->routeIs('resource_person.course_equivalencies.*') ? 'active' : '' }}">
+                <a href="{{ route('resource_person.course_equivalencies.view') }}">
+                    <i class="fas fa-search"></i> All Course Mappings
                 </a>
             </li>
         @endif
@@ -157,11 +159,48 @@
              <li class="{{ request()->routeIs('hea.equivalency_lists.pending') || request()->routeIs('hea.equivalency_lists.review') ? 'active' : '' }}"><a href="{{ route('hea.equivalency_lists.pending') }}"><i class="fas fa-inbox"></i> Pending Endorsements</a></li>
              <li class="{{ request()->routeIs('hea.equivalency_lists.published_view') ? 'active' : '' }}"><a href="{{ route('hea.equivalency_lists.published_view') }}"><i class="fas fa-clipboard-list"></i> Equivalency Lists</a></li>
              <li class="{{ request()->routeIs('hea.course_equivalencies.view') ? 'active' : '' }}"><a href="{{ route('hea.course_equivalencies.view') }}"><i class="fas fa-clipboard-list"></i> All Course Mappings</a></li>
+             <li class="{{ request()->routeIs('hea.semester_reminder') ? 'active' : '' }}"><a href="{{ route('hea.semester_reminder') }}"><i class="fas fa-bell"></i> Semester Reminder</a></li>
 
-             <p class="px-4 text-muted mt-4"><small>SYSTEM MANAGEMENT</small></p>
-             <li class="{{ request()->routeIs('hea.users.index') ? 'active' : '' }}"><a href="{{ route('hea.users.index') }}"><i class="fas fa-users-cog"></i> User Management</a></li>
+             <p class="px-4 text-muted mt-4"><small>USER MANAGEMENT</small></p>
+             <li class="{{ request()->routeIs('hea.users.pending') ? 'active' : '' }}"><a href="{{ route('hea.users.pending') }}"><i class="fas fa-user-clock"></i> Pending Approvals</a></li>
+             <li class="{{ request()->routeIs('hea.users.active') ? 'active' : '' }}"><a href="{{ route('hea.users.active') }}"><i class="fas fa-user-check"></i> Active Staff</a></li>
+             <li class="{{ request()->routeIs('hea.users.index') ? 'active' : '' }}"><a href="{{ route('hea.users.index') }}"><i class="fas fa-users-cog"></i> User Overview</a></li>
+
+             <p class="px-4 text-muted mt-4"><small>SYSTEM</small></p>
              <li class="{{ request()->routeIs('hea.applications.index') ? 'active' : '' }}"><a href="{{ route('hea.applications.index') }}"><i class="fas fa-file-signature"></i> All Applications</a></li>
              <li class="{{ request()->routeIs('hea.logs.index') ? 'active' : '' }}"><a href="{{ route('hea.logs.index') }}"><i class="fas fa-history"></i> System Logs</a></li>
+        @endif
+
+        @if(Auth::user()->current_role == 'admin')
+            <p class="px-4 text-muted mt-4"><small>USER MANAGEMENT</small></p>
+            <li class="{{ request()->routeIs('admin.hea.approvals') ? 'active' : '' }}">
+                <a href="{{ route('admin.hea.approvals') }}"><i class="fas fa-user-check"></i> HEA Approvals</a>
+            </li>
+
+            <p class="px-4 text-muted mt-4"><small>SECURITY MONITORING</small></p>
+            <li class="{{ request()->routeIs('admin.security.login-attempts') ? 'active' : '' }}">
+                <a href="{{ route('admin.security.login-attempts') }}"><i class="fas fa-sign-in-alt"></i> Login Attempts</a>
+            </li>
+            <li class="{{ request()->routeIs('admin.security.sessions') ? 'active' : '' }}">
+                <a href="{{ route('admin.security.sessions') }}"><i class="fas fa-desktop"></i> Active Sessions</a>
+            </li>
+            <li class="{{ request()->routeIs('admin.security.all-users') ? 'active' : '' }}">
+                <a href="{{ route('admin.security.all-users') }}"><i class="fas fa-users"></i> All Users</a>
+            </li>
+            <li class="{{ request()->routeIs('admin.security.locked-accounts') ? 'active' : '' }}">
+                <a href="{{ route('admin.security.locked-accounts') }}"><i class="fas fa-lock"></i> Locked Accounts</a>
+            </li>
+            <li class="{{ request()->routeIs('admin.security.access-logs') ? 'active' : '' }}">
+                <a href="{{ route('admin.security.access-logs') }}"><i class="fas fa-door-open"></i> Access Logs</a>
+            </li>
+            <li class="{{ request()->routeIs('admin.security.security-events') ? 'active' : '' }}">
+                <a href="{{ route('admin.security.security-events') }}"><i class="fas fa-shield-virus"></i> Security Events</a>
+            </li>
+
+            <p class="px-4 text-muted mt-4"><small>CONTENT MANAGEMENT</small></p>
+            <li class="{{ request()->routeIs('admin.content.terms.*') ? 'active' : '' }}">
+                <a href="{{ route('admin.content.terms.index') }}"><i class="fas fa-file-contract"></i> Terms & Conditions</a>
+            </li>
         @endif
 
         <li class="{{ request()->routeIs('profile.show') ? 'active' : '' }}">

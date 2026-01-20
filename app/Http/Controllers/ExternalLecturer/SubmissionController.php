@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\ExternalLecturer;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditTrail;
 use App\Models\ExternalLecturerRequest;
 use App\Models\ExternalLecturerSubmission;
+use App\Models\Notification;
+use App\Models\ResourcePerson;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -151,6 +154,31 @@ class SubmissionController extends Controller
                 'course_code' => $request->course_code
             ]);
 
+            // Create audit trail for syllabus submission
+            AuditTrail::create([
+                'id' => Str::uuid(),
+                'user_id' => null, // External lecturer is not a system user
+                'action' => 'syllabus_submitted',
+                'auditable_type' => ExternalLecturerSubmission::class,
+                'auditable_id' => $submission->id,
+                'details' => json_encode([
+                    'external_lecturer_email' => $externalRequest->external_lecturer_email,
+                    'external_lecturer_name' => $externalRequest->external_lecturer_name,
+                    'course_code' => $request->course_code,
+                    'course_name' => $request->course_name,
+                    'institution_name' => $request->institution_name,
+                    'credit_hours' => $request->credit_hours,
+                    'external_request_id' => $externalRequest->id,
+                    'equivalency_request_id' => $externalRequest->course_equivalency_request_id,
+                    'submission_id' => $submission->id,
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]),
+            ]);
+
+            // Send notification to Resource Persons about syllabus receipt
+            $this->notifyResourcePersons($externalRequest, $request->course_code, $request->course_name);
+
             return view('external_lecturer.submission.success', compact('externalRequest', 'submission'));
 
         } catch (\Exception $e) {
@@ -162,6 +190,73 @@ class SubmissionController extends Controller
                 'external_request_id' => $externalRequest->id ?? null
             ]);
             return back()->with('error', 'Failed to submit syllabus. Please try again.');
+        }
+    }
+
+    /**
+     * Notify Resource Persons about syllabus receipt.
+     */
+    private function notifyResourcePersons(ExternalLecturerRequest $externalRequest, string $courseCode, string $courseName): void
+    {
+        try {
+            // Get the program code from the equivalency request
+            $programCode = null;
+            $reviewLink = null;
+
+            if ($externalRequest->course_equivalency_request_id) {
+                $equivalencyRequest = $externalRequest->courseEquivalencyRequest;
+                if ($equivalencyRequest) {
+                    $programCode = $equivalencyRequest->current_program_code;
+                    $reviewLink = route('resource_person.equivalency_requests.review', $equivalencyRequest);
+                }
+            } elseif ($externalRequest->application_subject_id) {
+                $applicationSubject = $externalRequest->applicationSubject;
+                if ($applicationSubject && $applicationSubject->exemptionApplication) {
+                    $programCode = $applicationSubject->exemptionApplication->current_program_code;
+                    $reviewLink = route('resource_person.subject.review', $applicationSubject);
+                }
+            }
+
+            // Find Resource Persons to notify
+            $resourcePersons = collect();
+
+            if ($programCode) {
+                // Get RPs assigned to this specific program
+                $resourcePersons = ResourcePerson::whereJsonContains('assigned_programs', $programCode)
+                    ->with('user')
+                    ->get();
+            }
+
+            // If no program-specific RPs found, notify all RPs
+            if ($resourcePersons->isEmpty()) {
+                $resourcePersons = ResourcePerson::with('user')->get();
+            }
+
+            // Create notification for each Resource Person
+            foreach ($resourcePersons as $rp) {
+                if ($rp->user_id) {
+                    Notification::create([
+                        'user_id' => $rp->user_id,
+                        'type' => 'syllabus_received',
+                        'title' => 'Syllabus Received',
+                        'message' => "External lecturer has submitted the syllabus for {$courseCode} - {$courseName}. Ready for your review.",
+                        'link' => $reviewLink,
+                    ]);
+                }
+            }
+
+            Log::info('Resource Persons notified about syllabus submission', [
+                'course_code' => $courseCode,
+                'program_code' => $programCode,
+                'rp_count' => $resourcePersons->count(),
+            ]);
+
+        } catch (\Exception $e) {
+            // Log error but don't fail the submission
+            Log::error('Failed to notify Resource Persons about syllabus', [
+                'error' => $e->getMessage(),
+                'external_request_id' => $externalRequest->id,
+            ]);
         }
     }
 }

@@ -143,8 +143,8 @@
                     <div class="criteria-card">
                         <div class="criteria-number">3</div>
                         <h6>Equivalency Match</h6>
-                        <p>Course content similarity must be <strong>≥80%</strong> as determined by HEA assessment</p>
-                        <span class="criteria-badge"><i class="fas fa-percentage"></i> ≥80% Match</span>
+                        <p>Course content similarity must be <strong>>80%</strong> as determined by HEA assessment</p>
+                        <span class="criteria-badge"><i class="fas fa-percentage"></i> >80% Match</span>
                     </div>
                 </div>
             </div>
@@ -467,7 +467,7 @@
                             <h6>Academic Calendar</h6>
                             <p class="text-muted mb-1">Check important dates and deadlines</p>
                             <p class="mb-0">
-                                <a href="{{ \App\Models\SystemSetting::get('academic_calendar_url', 'https://uitm.edu.my/index.php/en/academic-calendar') }}" target="_blank" style="color: #667eea; font-weight: 600;">
+                                <a href="https://hea.uitm.edu.my/index.php/calendars/academic-calendar" target="_blank" style="color: #667eea; font-weight: 600;">
                                     View Calendar <i class="fas fa-external-link-alt ms-1"></i>
                                 </a>
                             </p>

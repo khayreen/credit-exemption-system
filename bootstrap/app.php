@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Apply 2FA middleware to all web routes after authentication
         $middleware->web(append: [
             \App\Http\Middleware\Require2FASetup::class,
+            \App\Http\Middleware\DetectSecurityThreats::class,
         ]);
     })
     ->withProviders([

@@ -28,7 +28,7 @@ class UserRejectedMail extends Mailable implements ShouldQueue
     {
         $this->user = $user;
         $this->rejectionReason = $rejectionReason;
-        \$this->onQueue('emails');
+        $this->onQueue('emails');
     }
 
     /**

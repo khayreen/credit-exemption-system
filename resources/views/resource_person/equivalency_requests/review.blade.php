@@ -57,10 +57,10 @@
             <!-- Status Card -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header @php
-                    // Check status and syllabus request state
-                    if ($request->status === 'syllabus_received') {
+                    // Check status and syllabus request state - use syllabus_received_at timestamp
+                    if ($request->syllabus_received_at !== null) {
                         echo 'bg-success text-white';
-                    } elseif ($request->status === 'pending' && $request->syllabus_request_sent_at) {
+                    } elseif ($request->syllabus_request_sent_at && !$request->syllabus_received_at) {
                         echo 'bg-info text-white';
                     } else {
                         echo match($request->status) {
@@ -74,9 +74,9 @@
                     <h5 class="mb-0">
                         <i class="fas fa-info-circle me-2"></i>
                         Status:
-                        @if($request->status === 'syllabus_received')
+                        @if($request->syllabus_received_at !== null && !in_array($request->status, ['approved', 'rejected']))
                             <i class="fas fa-check-circle me-1"></i>Syllabus Received - Ready for Review
-                        @elseif($request->status === 'pending' && $request->syllabus_request_sent_at)
+                        @elseif($request->syllabus_request_sent_at && !$request->syllabus_received_at)
                             Awaiting Lecturer Response
                         @else
                             {{ strtoupper(str_replace('_', ' ', $request->status)) }}
@@ -100,43 +100,60 @@
                 </div>
             </div>
 
-            <!-- Diploma Course Information -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fas fa-graduation-cap me-2"></i>Diploma Course Information</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <p class="mb-1 text-muted">Course Code</p>
-                            <p class="mb-0"><strong>{{ $request->diploma_course_code }}</strong></p>
+            <!-- Course Comparison - Side by Side -->
+            <div class="row mb-4">
+                <!-- Diploma Course Information -->
+                <div class="col-lg-6 mb-3 mb-lg-0">
+                    <div class="card shadow-sm h-100 border-primary">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0"><i class="fas fa-graduation-cap me-2"></i>Diploma Course (From)</h6>
                         </div>
-                        <div class="col-md-6">
-                            <p class="mb-1 text-muted">Course Name</p>
-                            <p class="mb-0">{{ $request->diploma_course_name }}</p>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <p class="mb-1 text-muted small">Course Code</p>
+                                <p class="mb-0 fs-5"><strong>{{ $request->diploma_course_code }}</strong></p>
+                            </div>
+                            <div class="mb-3">
+                                <p class="mb-1 text-muted small">Course Name</p>
+                                <p class="mb-0">{{ $request->diploma_course_name }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <p class="mb-1 text-muted small">Institution</p>
+                                <p class="mb-0">{{ $request->diploma_institution }}</p>
+                            </div>
+                            <div>
+                                <p class="mb-1 text-muted small">Program</p>
+                                <p class="mb-0">{{ $request->diploma_program }}</p>
+                            </div>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <p class="mb-1 text-muted">Institution</p>
-                            <p class="mb-0">{{ $request->diploma_institution }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <p class="mb-1 text-muted">Program</p>
-                            <p class="mb-0">{{ $request->diploma_program }}</p>
-                        </div>
-                    </div>
                 </div>
-            </div>
 
-            <!-- Student's Suggested Degree Course -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Student's Suggested Degree Course</h5>
-                </div>
-                <div class="card-body">
-                    <p class="mb-2"><strong>Course Code:</strong> {{ $request->suggested_degree_course_code }}</p>
-                    <p class="mb-0"><strong>Course Name:</strong> {{ $request->suggested_degree_course_name }}</p>
+                <!-- Student's Suggested Degree Course -->
+                <div class="col-lg-6">
+                    <div class="card shadow-sm h-100 border-success">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0"><i class="fas fa-university me-2"></i>Degree Course (To)</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <p class="mb-1 text-muted small">Course Code</p>
+                                <p class="mb-0 fs-5"><strong>{{ $request->suggested_degree_course_code }}</strong></p>
+                            </div>
+                            <div class="mb-3">
+                                <p class="mb-1 text-muted small">Course Name</p>
+                                <p class="mb-0">{{ $request->suggested_degree_course_name }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <p class="mb-1 text-muted small">Program</p>
+                                <p class="mb-0">{{ $request->current_program_code }} - {{ $request->current_program_name }}</p>
+                            </div>
+                            <div>
+                                <p class="mb-1 text-muted small">Suggested By</p>
+                                <p class="mb-0"><span class="badge bg-info">Student</span></p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -156,56 +173,116 @@
                 </div>
             @endif
 
-            <!-- External Lecturer Syllabus Verification -->
+            <!-- External Lecturer Verification (Combined Card) -->
             @php
                 // Use PC-selected lecturer if available, otherwise use student-provided lecturer
                 $lecturerName = $request->selected_lecturer_name ?? $request->external_lecturer_name;
                 $lecturerEmail = $request->selected_lecturer_email ?? $request->external_lecturer_email;
                 $lecturerSource = $request->selected_lecturer_name ? 'Selected by PC' : 'Provided by Student';
+                $submission = $request->externalLecturerRequest?->submission;
             @endphp
             @if($lecturerName && $lecturerEmail)
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0"><i class="fas fa-user-tie me-2"></i>External Lecturer Verification</h5>
+            <div class="card shadow-sm mb-4 {{ $request->syllabus_received_at ? 'border-success' : '' }}">
+                <div class="card-header {{ $request->syllabus_received_at ? 'bg-success' : 'bg-secondary' }} text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-tie me-2"></i>External Lecturer Verification
+                        @if($request->syllabus_received_at)
+                            <span class="badge bg-light text-success ms-2"><i class="fas fa-check me-1"></i>Syllabus Received</span>
+                        @endif
+                    </h5>
                 </div>
                 <div class="card-body">
+                    <!-- Lecturer Info -->
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <p class="mb-1 text-muted">Lecturer Name ({{ $lecturerSource }})</p>
-                            <p class="mb-0"><strong>{{ $lecturerName }}</strong></p>
+                            <p class="mb-1 text-muted small">Lecturer Name</p>
+                            <p class="mb-0"><strong>{{ $lecturerName }}</strong> <span class="badge bg-secondary">{{ $lecturerSource }}</span></p>
                         </div>
                         <div class="col-md-6">
-                            <p class="mb-1 text-muted">Lecturer Email</p>
+                            <p class="mb-1 text-muted small">Lecturer Email</p>
                             <p class="mb-0">{{ $lecturerEmail }}</p>
                         </div>
                     </div>
 
-                    <!-- Syllabus Request Status -->
-                    @if($request->syllabus_received_at)
-                        <div class="alert alert-success mb-0">
-                            <i class="fas fa-check-circle me-2"></i>
-                            <strong>Official Syllabus Received</strong><br>
-                            <small>Received on: {{ $request->syllabus_received_at->format('d M Y, h:i A') }}</small>
-                            @if($request->externalLecturerRequest && $request->externalLecturerRequest->submission)
-                                <br>
-                                <a href="{{ route('resource_person.external_submission.view_syllabus', $request->externalLecturerRequest->submission) }}"
-                                   class="btn btn-sm btn-success mt-2" target="_blank">
-                                    <i class="fas fa-file-pdf me-1"></i>View Official Syllabus
-                                </a>
+                    <hr class="my-3">
+
+                    <!-- State-based Content -->
+                    @if($request->syllabus_received_at && $submission)
+                        {{-- STATE: Syllabus Received --}}
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-success text-white rounded-circle p-2 me-3" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <div>
+                                <strong class="text-success">Syllabus Received</strong><br>
+                                <small class="text-muted">{{ $request->syllabus_received_at->format('d M Y, h:i A') }}</small>
+                            </div>
+                        </div>
+
+                        {{-- Submitted Course Details --}}
+                        <div class="bg-light rounded p-3 mb-3">
+                            <h6 class="text-muted mb-3"><i class="fas fa-file-alt me-2"></i>Submitted Course Details</h6>
+                            <div class="row mb-2">
+                                <div class="col-md-6">
+                                    <p class="mb-1 text-muted small">Course Code</p>
+                                    <p class="mb-0"><strong>{{ $submission->course_code }}</strong></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-1 text-muted small">Course Name</p>
+                                    <p class="mb-0">{{ $submission->course_name }}</p>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="mb-1 text-muted small">Institution</p>
+                                    <p class="mb-0">{{ $submission->institution_name }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-1 text-muted small">Credit Hours</p>
+                                    <p class="mb-0"><strong>{{ number_format($submission->credit_hours, 2) }}</strong></p>
+                                </div>
+                            </div>
+                            @if($submission->justification_notes)
+                                <hr class="my-2">
+                                <p class="mb-1 text-muted small">Lecturer's Justification</p>
+                                <p class="mb-0 fst-italic">"{{ $submission->justification_notes }}"</p>
                             @endif
                         </div>
-                    @elseif($request->syllabus_request_sent_at)
-                        <div class="alert alert-info mb-0">
-                            <i class="fas fa-clock me-2"></i>
-                            <strong>Awaiting Lecturer Response</strong><br>
-                            <small>Syllabus requested on: {{ $request->syllabus_request_sent_at->format('d M Y, h:i A') }}</small><br>
-                            <small class="text-muted">Waiting for lecturer to submit the syllabus...</small>
+
+                        {{-- Action Buttons --}}
+                        <div class="d-flex gap-2">
+                            <a href="{{ route('resource_person.external_submission.view_syllabus', $submission) }}"
+                               class="btn btn-outline-success" target="_blank">
+                                <i class="fas fa-file-pdf me-1"></i>View Syllabus PDF
+                            </a>
+                            <a href="{{ route('resource_person.equivalency_requests.compare', $request) }}" class="btn btn-success">
+                                <i class="fas fa-columns me-1"></i>Compare with Degree Syllabi
+                            </a>
                         </div>
+
+                    @elseif($request->syllabus_request_sent_at)
+                        {{-- STATE: Awaiting Response --}}
+                        <div class="d-flex align-items-center">
+                            <div class="bg-info text-white rounded-circle p-2 me-3" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div>
+                                <strong class="text-info">Awaiting Lecturer Response</strong><br>
+                                <small class="text-muted">Syllabus requested on {{ $request->syllabus_request_sent_at->format('d M Y, h:i A') }}</small><br>
+                                <small class="text-muted">Waiting for lecturer to submit the official syllabus...</small>
+                            </div>
+                        </div>
+
                     @else
-                        <div class="alert alert-info mb-3">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <strong>Official Syllabus Required</strong><br>
-                            <small>Request official course syllabus directly from the lecturer for verification.</small>
+                        {{-- STATE: Not Requested --}}
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-warning text-dark rounded-circle p-2 me-3" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                            <div>
+                                <strong class="text-warning">Syllabus Not Yet Requested</strong><br>
+                                <small class="text-muted">Request the official course syllabus from the lecturer for verification.</small>
+                            </div>
                         </div>
                         <a href="{{ route('resource_person.equivalency_requests.preview_email', $request) }}" class="btn btn-primary">
                             <i class="fas fa-envelope-open-text me-2"></i>Preview & Send Email to Lecturer
@@ -215,75 +292,25 @@
             </div>
             @endif
 
-            <!-- External Lecturer Submitted Course Information -->
-            @if($request->syllabus_received_at && $request->externalLecturerRequest && $request->externalLecturerRequest->submission)
-                @php
-                    $submission = $request->externalLecturerRequest->submission;
-                @endphp
-                <div class="card shadow-sm mb-4 border-success">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0"><i class="fas fa-check-double me-2"></i>Lecturer's Submitted Course Information</h5>
+            <!-- Review Form - Only show when syllabus NOT received (for quick reject without comparison) -->
+            @if(!$request->syllabus_received_at && in_array($request->status, ['pending', 'under_review']))
+                <div class="card shadow-sm mb-4 border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Quick Decision (No Syllabus)</h5>
                     </div>
                     <div class="card-body">
-                        <div class="alert alert-success mb-3">
+                        <div class="alert alert-warning mb-3">
                             <i class="fas fa-info-circle me-2"></i>
-                            <strong>Note:</strong> This is the official course information provided by the external lecturer.
+                            <strong>Note:</strong> No official syllabus has been received yet. You may reject this request if clearly not equivalent, or request the syllabus from the external lecturer for proper comparison.
                         </div>
 
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <p class="mb-1 text-muted">Course Code</p>
-                                <p class="mb-0"><strong>{{ $submission->course_code }}</strong></p>
-                            </div>
-                            <div class="col-md-6">
-                                <p class="mb-1 text-muted">Course Name</p>
-                                <p class="mb-0">{{ $submission->course_name }}</p>
-                            </div>
-                        </div>
-
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <p class="mb-1 text-muted">Institution Name</p>
-                                <p class="mb-0">{{ $submission->institution_name }}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <p class="mb-1 text-muted">Credit Hours</p>
-                                <p class="mb-0"><strong>{{ number_format($submission->credit_hours, 2) }}</strong></p>
-                            </div>
-                        </div>
-
-                        @if($submission->justification_notes)
-                            <div class="row">
-                                <div class="col-12">
-                                    <p class="mb-1 text-muted">Lecturer's Justification Notes</p>
-                                    <div class="alert alert-light mb-0">{{ $submission->justification_notes }}</div>
-                                </div>
-                            </div>
-                        @endif
-                    </div>
-                </div>
-            @endif
-
-            <!-- Review Form (if pending or syllabus received) -->
-            @if(in_array($request->status, ['pending', 'syllabus_received', 'under_review']))
-                <div class="card shadow-sm mb-4 border-primary">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Review Decision</h5>
-                    </div>
-                    <div class="card-body">
                         <form action="{{ route('resource_person.equivalency_requests.process', $request) }}" method="POST" id="reviewForm">
                             @csrf
-
-                            <!-- Course Evaluation Information -->
-                            <div class="alert alert-info mb-3">
-                                <i class="fas fa-info-circle me-2"></i>
-                                <strong>Note:</strong> Your decision will apply to all students requesting this equivalency. Please evaluate the diploma course against the student's suggested degree course and provide a match percentage.
-                            </div>
 
                             <!-- Diploma Course (Student Submitted) -->
                             <div class="card bg-light mb-3">
                                 <div class="card-body">
-                                    <h6 class="text-muted mb-2"><i class="fas fa-graduation-cap me-2"></i>Diploma Course (Student Submitted)</h6>
+                                    <h6 class="text-muted mb-2"><i class="fas fa-graduation-cap me-2"></i>Diploma Course</h6>
                                     <div class="row">
                                         <div class="col-md-6">
                                             <p class="mb-1 text-muted small">Course Code</p>
@@ -300,7 +327,7 @@
                             <!-- Suggested Degree Course (Student Submitted) -->
                             <div class="card bg-light mb-3">
                                 <div class="card-body">
-                                    <h6 class="text-muted mb-2"><i class="fas fa-lightbulb me-2"></i>Suggested Degree Course (Student Submitted)</h6>
+                                    <h6 class="text-muted mb-2"><i class="fas fa-lightbulb me-2"></i>Suggested Degree Course</h6>
                                     <div class="row">
                                         <div class="col-md-6">
                                             <p class="mb-1 text-muted small">Course Code</p>
@@ -319,10 +346,10 @@
                                 <label class="form-label fw-bold">Match Percentage <span class="text-danger">*</span></label>
                                 <div class="input-group">
                                     <input type="number" name="match_percentage" class="form-control"
-                                           value="{{ old('match_percentage', 85) }}" min="0" max="100" step="1" required>
+                                           value="{{ old('match_percentage', 0) }}" min="0" max="100" step="1" required>
                                     <span class="input-group-text">%</span>
                                 </div>
-                                <small class="text-muted">Enter the match percentage (0-100). For equivalent courses, enter a high percentage (e.g., 80-100%). For non-equivalent courses, enter a low percentage to indicate the mismatch.</small>
+                                <small class="text-muted">For rejection without syllabus comparison, typically enter a low percentage (0-50%).</small>
                             </div>
 
                             <!-- Decision -->
@@ -417,7 +444,7 @@
     </div>
 </div>
 
-@if(in_array($request->status, ['pending', 'syllabus_received', 'under_review']))
+@if(!$request->syllabus_received_at && in_array($request->status, ['pending', 'under_review']))
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const approveRadio = document.getElementById('decision_approve');

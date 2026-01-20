@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class UserManagementController extends Controller
@@ -55,7 +56,18 @@ class UserManagementController extends Controller
 
         $allPrograms = Program::orderBy('code')->get();
 
-        return view('hea.users.pending', compact('pendingUsers', 'allPrograms'));
+        // Pass config data for editing program assignments
+        $programGroups = config('programs.program_groups');
+        $coordinatorCategories = config('programs.coordinator_categories');
+        $supportedPrograms = config('programs.supported_programs');
+
+        return view('hea.users.pending', compact(
+            'pendingUsers',
+            'allPrograms',
+            'programGroups',
+            'coordinatorCategories',
+            'supportedPrograms'
+        ));
     }
 
     /**
@@ -109,28 +121,32 @@ class UserManagementController extends Controller
             return back()->with('success', "User {$user->name} rejected.");
         }
 
-        // Approval flow
-        $validated = $request->validate([
-            'role' => 'required|in:academic_advisor,coordinator,resource_person',
-            'programs' => 'required|array|min:1',
-            'programs.*' => 'exists:programs,code',
-        ], [
-            'programs.required' => 'Please assign at least one program.',
-            'programs.min' => 'Please assign at least one program.',
-        ]);
+        // Approval flow - check if HEA modified the program assignment
+        $role = $user->requested_role;
 
-        DB::transaction(function() use ($user, $validated) {
+        // Determine the program data to use (modified by HEA or original request)
+        $requestedProgramsData = $this->getApprovalProgramData($request, $user, $role);
+
+        // Update user's requested_programs if HEA modified it (for record keeping)
+        if ($request->has('modified_programs') && $request->modified_programs) {
+            $user->requested_programs = is_array($requestedProgramsData)
+                ? json_encode($requestedProgramsData)
+                : $requestedProgramsData;
+            $user->save();
+        }
+
+        DB::transaction(function() use ($user, $role, $requestedProgramsData) {
             // Update user
             $user->update([
-                'role' => $validated['role'], // Legacy field for backward compatibility
-                'current_role' => $validated['role'],
+                'role' => $role, // Legacy field for backward compatibility
+                'current_role' => $role,
                 'approval_status' => 'approved',
                 'approved_by' => Auth::id(),
                 'approved_at' => now(),
             ]);
 
-            // Assign programs to role-specific table
-            $this->assignPrograms($user, $validated['role'], $validated['programs']);
+            // Create role-specific record with appropriate data
+            $this->createRoleRecord($user, $role, $requestedProgramsData);
 
             // Create audit trail
             AuditTrail::create([
@@ -140,17 +156,31 @@ class UserManagementController extends Controller
                 'details' => json_encode([
                     'approved_user_id' => $user->id,
                     'approved_user_email' => $user->email,
-                    'assigned_role' => $validated['role'],
-                    'requested_programs' => json_decode($user->requested_programs),
-                    'final_programs' => $validated['programs'],
+                    'assigned_role' => $role,
+                    'program_data' => $requestedProgramsData,
                 ]),
             ]);
-
-            // Send email verification notification for approved user
-            $user->sendEmailVerificationNotification();
         });
 
-        return back()->with('success', "User {$user->name} approved with " . count($validated['programs']) . " programs assigned!");
+        // Send email verification notification outside transaction
+        // This ensures the user is approved even if email fails
+        $emailSent = true;
+        try {
+            $user->sendEmailVerificationNotification();
+        } catch (\Exception $e) {
+            $emailSent = false;
+            Log::error('Failed to send verification email after approval', [
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        if ($emailSent) {
+            return back()->with('success', "User {$user->name} approved successfully! Verification email sent.");
+        } else {
+            return back()->with('warning', "User {$user->name} approved, but verification email failed to send. Please ask the user to request a new verification link.");
+        }
     }
 
     /**
@@ -197,6 +227,45 @@ class UserManagementController extends Controller
     }
 
     /**
+     * Resend verification email to an approved user who hasn't verified yet
+     */
+    public function resendVerification(User $user)
+    {
+        // Only allow resending for approved users who haven't verified
+        if ($user->approval_status !== 'approved') {
+            return back()->with('error', 'Can only resend verification to approved users.');
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return back()->with('info', "{$user->name} has already verified their email.");
+        }
+
+        try {
+            $user->sendEmailVerificationNotification();
+
+            // Log the action
+            AuditTrail::create([
+                'id' => Str::uuid(),
+                'user_id' => Auth::id(),
+                'action' => 'verification_email_resent',
+                'details' => json_encode([
+                    'target_user_id' => $user->id,
+                    'target_user_email' => $user->email,
+                ]),
+            ]);
+
+            return back()->with('success', "Verification email resent to {$user->name}.");
+        } catch (\Exception $e) {
+            Log::error('Failed to resend verification email', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Failed to send verification email. Please try again.');
+        }
+    }
+
+    /**
      * Deactivate a user
      */
     public function deactivate(User $user)
@@ -222,7 +291,42 @@ class UserManagementController extends Controller
     }
 
     /**
-     * Assign programs to role-specific table
+     * Create role-specific record when approving user
+     */
+    private function createRoleRecord(User $user, string $role, ?array $requestedProgramsData): void
+    {
+        $roleData = [
+            'id' => Str::uuid(),
+            'user_id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+        ];
+
+        match($role) {
+            'academic_advisor' => AcademicAdvisor::create(array_merge($roleData, [
+                'program_groups' => is_string($requestedProgramsData)
+                    ? $requestedProgramsData
+                    : json_encode($requestedProgramsData),
+                'assigned_programs' => null, // Legacy field
+            ])),
+
+            'coordinator' => ProgramCoordinator::create(array_merge($roleData, [
+                'program_category' => $requestedProgramsData['category'] ?? null,
+                'program_codes' => null, // Legacy field
+            ])),
+
+            'resource_person' => ResourcePerson::create(array_merge($roleData, [
+                'assigned_program' => $requestedProgramsData['program'] ?? null,
+                'assigned_programs' => null, // Legacy field
+                'expertise_area' => null, // Legacy field
+            ])),
+
+            default => null,
+        };
+    }
+
+    /**
+     * Assign programs to role-specific table (for legacy updatePrograms method)
      */
     private function assignPrograms(User $user, string $role, array $programs): void
     {
@@ -258,5 +362,66 @@ class UserManagementController extends Controller
         };
 
         return $programs ? json_decode($programs, true) : [];
+    }
+
+    /**
+     * Get program data for approval - either modified by HEA or original request
+     */
+    private function getApprovalProgramData(Request $request, User $user, string $role): mixed
+    {
+        // If HEA didn't modify, return original requested data
+        if (!$request->has('modified_programs') || !$request->modified_programs) {
+            return $user->requested_programs;
+        }
+
+        // HEA modified the assignment - process based on role
+        return match($role) {
+            'academic_advisor' => $this->processAcademicAdvisorModification($request),
+            'coordinator' => $this->processCoordinatorModification($request),
+            'resource_person' => $this->processResourcePersonModification($request),
+            default => $user->requested_programs,
+        };
+    }
+
+    /**
+     * Process Academic Advisor program group modifications
+     */
+    private function processAcademicAdvisorModification(Request $request): array
+    {
+        $programGroups = $request->input('program_groups', []);
+
+        // Convert flat array to structured format: [{"program_code": "X", "group": "Y"}, ...]
+        $structured = [];
+        foreach ($programGroups as $groupCode) {
+            // Extract program code from group code (e.g., CDCS2301B -> CDCS230)
+            if (preg_match('/^(CDCS\d{3})/', $groupCode, $matches)) {
+                $structured[] = [
+                    'program_code' => $matches[1],
+                    'group' => $groupCode,
+                ];
+            }
+        }
+
+        return $structured;
+    }
+
+    /**
+     * Process Coordinator category modification
+     */
+    private function processCoordinatorModification(Request $request): array
+    {
+        return [
+            'category' => $request->input('program_category'),
+        ];
+    }
+
+    /**
+     * Process Resource Person program modification
+     */
+    private function processResourcePersonModification(Request $request): array
+    {
+        return [
+            'program' => $request->input('assigned_program'),
+        ];
     }
 }

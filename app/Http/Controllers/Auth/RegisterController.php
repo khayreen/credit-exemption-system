@@ -15,7 +15,10 @@ use App\Models\Campus;
 use App\Models\Program;
 use App\Mail\UserRegistrationConfirmationMail;
 use App\Mail\HeaRegistrationNotificationMail;
+use App\Mail\NewStaffRegistrationMail;
+use App\Notifications\NewStaffRegistrationNotification;
 use Illuminate\Foundation\Auth\RegistersUsers;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
@@ -42,8 +45,8 @@ class RegisterController extends Controller
         $faculties = Faculty::orderBy('name')->get();
         $campuses = Campus::orderBy('name')->get();
 
-        // Get only the 5 supported bachelor's degree programs
-        $supportedProgramCodes = ['CDCS230', 'CDCS251', 'CDCS253', 'CDCS255', 'CDCS266'];
+        // Get only the 5 supported bachelor's degree programs from config
+        $supportedProgramCodes = array_keys(config('programs.supported_programs'));
         $degreePrograms = Program::whereIn('code', $supportedProgramCodes)
             ->orderBy('code')
             ->get();
@@ -51,7 +54,18 @@ class RegisterController extends Controller
         // Get all programs for staff program assignment (AA/PC/RP)
         $allPrograms = Program::orderBy('code')->get();
 
-        return view('auth.register', compact('faculties', 'campuses', 'degreePrograms', 'allPrograms'));
+        // Get program groups and categories from config (for AA/PC registration)
+        $programGroups = config('programs.program_groups');
+        $coordinatorCategories = config('programs.coordinator_categories');
+
+        return view('auth.register', compact(
+            'faculties',
+            'campuses',
+            'degreePrograms',
+            'allPrograms',
+            'programGroups',
+            'coordinatorCategories'
+        ));
     }
 
     /**
@@ -69,30 +83,51 @@ class RegisterController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users',
             'password' => 'required|min:8|confirmed',
-            'requested_role' => 'required|in:student,academic_advisor,coordinator,resource_person,hea',
+            'requested_role' => 'required|in:student,academic_advisor,coordinator,resource_person,hea_personnel',
 
-            // Conditional fields
+            // Student conditional fields
             'matric_no' => 'required_if:requested_role,student',
             'program_id' => [
                 'required_if:requested_role,student',
                 'in:' . implode(',', $supportedProgramIds)
             ],
-            'faculty_id' => 'required_if:requested_role,academic_advisor,coordinator,resource_person',
-            'campus_id' => 'required_if:requested_role,academic_advisor,coordinator,resource_person',
 
-            // Program requests for AA/PC/RP
-            'requested_programs' => 'required_if:requested_role,academic_advisor,coordinator,resource_person|array|min:1',
-            'requested_programs.*' => 'exists:programs,code',
+            // Academic Advisor fields - programme-group assignments
+            'program_groups' => 'required_if:requested_role,academic_advisor|json',
+
+            // Program Coordinator fields - category selection
+            'program_category' => 'required_if:requested_role,coordinator|in:category_1,category_2',
+
+            // Resource Person fields - single program assignment
+            'degree_program' => 'required_if:requested_role,resource_person|in:CDCS230,CDCS251,CDCS253,CDCS255,CDCS266',
         ], [
             'program_id.in' => 'Please select one of the supported bachelor\'s degree programs (CDCS230, CDCS251, CDCS253, CDCS255, CDCS266).',
-            'requested_programs.required_if' => 'Please select at least one program you will manage.',
-            'requested_programs.min' => 'Please select at least one program.',
+            'program_groups.required_if' => 'Please select at least one programme-group assignment.',
+            'program_groups.json' => 'Invalid programme-group data format.',
+            'program_category.required_if' => 'Please select a program category.',
+            'program_category.in' => 'Invalid program category selected.',
+            'degree_program.required_if' => 'Please select a degree program.',
+            'degree_program.in' => 'Please select one of the supported degree programs.',
         ]);
 
         // Determine approval workflow based on role
         $approvalWorkflow = $this->determineApprovalWorkflow($validated['requested_role']);
 
         $user = DB::transaction(function() use ($validated, $approvalWorkflow) {
+            // Prepare requested_programs data based on role type
+            $requestedProgramsData = null;
+
+            if ($validated['requested_role'] === 'academic_advisor' && isset($validated['program_groups'])) {
+                // Store programme-group assignments for Academic Advisor
+                $requestedProgramsData = $validated['program_groups'];
+            } elseif ($validated['requested_role'] === 'coordinator' && isset($validated['program_category'])) {
+                // Store category selection for Program Coordinator
+                $requestedProgramsData = json_encode(['category' => $validated['program_category']]);
+            } elseif ($validated['requested_role'] === 'resource_person' && isset($validated['degree_program'])) {
+                // Store single program for Resource Person
+                $requestedProgramsData = json_encode(['program' => $validated['degree_program']]);
+            }
+
             // Create user
             $user = User::create([
                 'id' => Str::uuid(),
@@ -101,9 +136,7 @@ class RegisterController extends Controller
                 'password' => Hash::make($validated['password']),
                 'role' => $approvalWorkflow['current_role'] ?? 'pending', // Legacy field for backward compatibility
                 'requested_role' => $validated['requested_role'],
-                'requested_programs' => isset($validated['requested_programs'])
-                    ? json_encode($validated['requested_programs'])
-                    : null,
+                'requested_programs' => $requestedProgramsData,
                 'approval_status' => $approvalWorkflow['approval_status'],
                 'current_role' => $approvalWorkflow['current_role'],
                 'approved_at' => $approvalWorkflow['auto_approve'] ? now() : null,
@@ -148,7 +181,7 @@ class RegisterController extends Controller
                 'redirect_message' => 'Registration submitted! HEA personnel will review your application and program requests. You will receive an email once approved.',
             ],
 
-            'hea' => [
+            'hea_personnel' => [
                 'approval_status' => 'pending_admin',
                 'current_role' => null,
                 'auto_approve' => false,
@@ -159,7 +192,7 @@ class RegisterController extends Controller
     }
 
     /**
-     * Create role-specific records for auto-approved users
+     * Create role-specific records for auto-approved users or HEA-approved staff
      */
     private function createRoleRecord(User $user, string $role, array $data): void
     {
@@ -179,7 +212,32 @@ class RegisterController extends Controller
                 'intake_semester' => null, // Optional field, can be updated later
             ])),
 
-            // External lecturers don't register - they use token-based access
+            'academic_advisor' => AcademicAdvisor::create(array_merge($roleData, [
+                'name' => $user->name,
+                'email' => $user->email,
+                'program_groups' => $data['program_groups'] ?? null,
+                // Legacy field - can be derived from program_groups if needed
+                'assigned_programs' => null,
+            ])),
+
+            'coordinator' => ProgramCoordinator::create(array_merge($roleData, [
+                'name' => $user->name,
+                'email' => $user->email,
+                'program_category' => $data['program_category'] ?? null,
+                // Legacy field - can be set based on category if needed
+                'program_codes' => null,
+            ])),
+
+            'resource_person' => ResourcePerson::create(array_merge($roleData, [
+                'name' => $user->name,
+                'email' => $user->email,
+                'assigned_program' => $data['degree_program'] ?? null,
+                // Legacy fields
+                'assigned_programs' => null,
+                'expertise_area' => null,
+            ])),
+
+            // HEA and external lecturers handled separately
             default => null,
         };
     }
@@ -214,12 +272,85 @@ class RegisterController extends Controller
     }
 
     /**
-     * Send pending HEA approval email
+     * Send pending HEA approval email and notify HEA personnel
      */
     private function sendPendingHeaEmail(User $user): void
     {
-        Mail::to($user->email)->queue(new UserRegistrationConfirmationMail($user, 'pending_hea'));
-        // HEA will see this in their dashboard automatically
+        // Send confirmation email to the registering user (queued, may fail silently)
+        try {
+            Mail::to($user->email)->queue(new UserRegistrationConfirmationMail($user, 'pending_hea'));
+        } catch (\Exception $e) {
+            Log::error('Failed to queue confirmation email to registering user', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // Notify all HEA personnel
+        $heaPersonnel = User::where('current_role', 'hea_personnel')
+            ->where('approval_status', 'approved')
+            ->get();
+
+        if ($heaPersonnel->isEmpty()) {
+            Log::warning('No HEA personnel found to notify of new staff registration', [
+                'registered_user_id' => $user->id,
+            ]);
+            return;
+        }
+
+        // STEP 1: Always save database notifications first (guaranteed to work)
+        $notification = new NewStaffRegistrationNotification($user);
+        $databaseNotificationsSaved = 0;
+        $roleName = $this->formatRoleName($user->requested_role);
+
+        foreach ($heaPersonnel as $heaUser) {
+            try {
+                // Manually save to custom notifications table (has auto-increment id)
+                DB::table('notifications')->insert([
+                    'user_id' => $heaUser->id,
+                    'notifiable_type' => get_class($heaUser),
+                    'notifiable_id' => $heaUser->id,
+                    'type' => 'new_staff_registration',
+                    'title' => "New {$roleName} Registration",
+                    'message' => "New {$roleName} registration from {$user->name} ({$user->email})",
+                    'link' => '/hea/users/pending',
+                    'data' => json_encode($notification->toArray($heaUser)),
+                    'is_read' => false,
+                    'read_at' => null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $databaseNotificationsSaved++;
+            } catch (\Exception $e) {
+                Log::error('Failed to save database notification for HEA user', [
+                    'hea_user_id' => $heaUser->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        Log::info('Database notifications saved for HEA personnel', [
+            'registered_user_id' => $user->id,
+            'registered_user_email' => $user->email,
+            'requested_role' => $user->requested_role,
+            'hea_notified_count' => $databaseNotificationsSaved,
+            'total_hea_users' => $heaPersonnel->count(),
+        ]);
+
+        // STEP 2: Attempt to send email notifications (may fail due to SMTP issues)
+        foreach ($heaPersonnel as $heaUser) {
+            try {
+                // Send email using dedicated Mailable (database notification already saved above)
+                Mail::to($heaUser->email)->send(new NewStaffRegistrationMail($user, $heaUser));
+            } catch (\Exception $e) {
+                Log::warning('Failed to send email notification to HEA user (in-app notification already saved)', [
+                    'hea_user_id' => $heaUser->id,
+                    'hea_email' => $heaUser->email,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     /**
@@ -398,5 +529,19 @@ class RegisterController extends Controller
 
         $program = \App\Models\Program::find($programId);
         return $program ? $program->code : null;
+    }
+
+    /**
+     * Format role name for display
+     */
+    private function formatRoleName(string $role): string
+    {
+        return match($role) {
+            'academic_advisor' => 'Academic Advisor',
+            'coordinator' => 'Program Coordinator',
+            'resource_person' => 'Resource Person',
+            'hea_personnel' => 'HEA Personnel',
+            default => ucwords(str_replace('_', ' ', $role)),
+        };
     }
 }

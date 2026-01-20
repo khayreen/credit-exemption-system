@@ -371,6 +371,13 @@
                 </div>
             @endif
 
+            @if (session('info'))
+                <div class="alert alert-info d-flex align-items-center" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>
+                    {{ session('info') }}
+                </div>
+            @endif
+
             @if (session('warning'))
                 <div class="alert" style="background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e;" role="alert">
                     <i class="fas fa-exclamation-triangle me-2"></i>
@@ -466,6 +473,13 @@
                     </a>
                 </div>
             @endif
+
+            <!-- Registration Status Check -->
+            <div class="text-center mt-3">
+                <a href="{{ route('registration.status') }}" class="forgot-password">
+                    <i class="fas fa-search me-1"></i>Check Registration Status
+                </a>
+            </div>
 
             <!-- Back to Home for Mobile -->
             <div class="text-center mt-3 d-sm-none">

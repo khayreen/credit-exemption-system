@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\AccessLog;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,11 +21,26 @@ class CheckAdmin
             return redirect()->route('login')->with('error', 'Please login to access this page.');
         }
 
-        // Check if user's email matches the admin email
-        $adminEmail = config('app.admin_email');
+        $user = auth()->user();
 
-        if (auth()->user()->email !== $adminEmail) {
+        // Check if user has admin role
+        if ($user->current_role !== 'admin') {
+            // Log unauthorized access attempt
+            AccessLog::log(
+                $request->path(),
+                $request->method(),
+                'denied',
+                'User does not have admin role',
+                $user->id
+            );
+
             abort(403, 'Unauthorized. This page is only accessible by system administrators.');
+        }
+
+        // Check if account is locked
+        if ($user->isLocked()) {
+            auth()->logout();
+            return redirect()->route('login')->with('error', 'Your account has been locked. Please contact support.');
         }
 
         return $next($request);

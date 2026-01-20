@@ -22,7 +22,7 @@ class HeaApprovalController extends Controller
     public function index()
     {
         $pendingHeaUsers = User::where('approval_status', 'pending_admin')
-                              ->where('requested_role', 'hea')
+                              ->where('requested_role', 'hea_personnel')
                               ->orderBy('created_at', 'desc')
                               ->get();
 
@@ -34,15 +34,15 @@ class HeaApprovalController extends Controller
      */
     public function approve(Request $request, User $user)
     {
-        if ($user->approval_status !== 'pending_admin' || $user->requested_role !== 'hea') {
+        if ($user->approval_status !== 'pending_admin' || $user->requested_role !== 'hea_personnel') {
             return back()->withErrors(['error' => 'Invalid approval request.']);
         }
 
         DB::transaction(function() use ($user) {
             // Update user
             $user->update([
-                'role' => 'hea', // Legacy field for backward compatibility
-                'current_role' => 'hea',
+                'role' => 'hea_personnel', // Legacy field for backward compatibility
+                'current_role' => 'hea_personnel',
                 'approval_status' => 'approved',
                 'approved_by' => Auth::id(),
                 'approved_at' => now(),
@@ -117,14 +117,14 @@ class HeaApprovalController extends Controller
             abort(403, 'Invalid or expired approval link.');
         }
 
-        if ($user->approval_status !== 'pending_admin' || $user->requested_role !== 'hea') {
+        if ($user->approval_status !== 'pending_admin' || $user->requested_role !== 'hea_personnel') {
             abort(403, 'Invalid approval request.');
         }
 
         DB::transaction(function() use ($user) {
             $user->update([
-                'role' => 'hea', // Legacy field for backward compatibility
-                'current_role' => 'hea',
+                'role' => 'hea_personnel', // Legacy field for backward compatibility
+                'current_role' => 'hea_personnel',
                 'approval_status' => 'approved',
                 'approved_at' => now(),
             ]);

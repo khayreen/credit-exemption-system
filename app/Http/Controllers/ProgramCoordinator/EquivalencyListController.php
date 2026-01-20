@@ -28,27 +28,26 @@ class EquivalencyListController extends Controller
         $latestPublishedDate = null;
 
         foreach ($programs as $programCode) {
-            // Get current (latest) HEA-endorsed published list for this program
-            // ONLY shows lists that went through: Resource Person → HEA Endorsement → Published
+            // Get current (latest) published list for this program
+            // Handle both:
+            // 1. Legacy data: status = 'published' but published_at is NULL
+            // 2. HEA workflow: published_at IS NOT NULL (after proper endorsement)
             $current = EquivalencyList::where('program_code', $programCode)
-                ->where('status', 'published')
-                ->whereNotNull('endorsed_at') // CRITICAL: Only HEA-endorsed lists
+                ->where('category', 'internal') // CS110 internal lists
+                ->whereNull('source_institution')
+                ->where(function($q) {
+                    $q->where('status', 'published')
+                      ->orWhereNotNull('published_at');
+                })
                 ->with(['creator', 'publisher', 'endorsedBy', 'courseEquivalencies'])
-                ->orderByRaw('COALESCE(endorsed_at, created_at) DESC')
+                ->orderByRaw('COALESCE(published_at, created_at) DESC')
                 ->first();
 
-            // Get history (all other HEA-endorsed published lists except the latest)
-            $history = EquivalencyList::where('program_code', $programCode)
-                ->where('status', 'published')
-                ->whereNotNull('endorsed_at') // CRITICAL: Only HEA-endorsed lists
-                ->with(['creator', 'publisher', 'endorsedBy', 'courseEquivalencies'])
-                ->orderByRaw('COALESCE(endorsed_at, created_at) DESC')
-                ->when($current, function($query) use ($current) {
-                    return $query->where('id', '!=', $current->id);
-                })
-                ->get();
+            // Program Coordinators do NOT see historical/archived lists
+            // Only Resource Person and HEA can view archived lists
+            $history = collect(); // Empty collection
 
-            $count = ($current ? 1 : 0) + $history->count();
+            $count = $current ? 1 : 0;
             $totalPublished += $count;
 
             $programData[$programCode] = [
@@ -58,22 +57,18 @@ class EquivalencyListController extends Controller
                 'name' => $this->getProgramName($programCode),
             ];
 
-            // Track the program with the latest HEA-endorsed list to auto-expand
-            $currentEndorsedDate = $current ? ($current->endorsed_at ?: $current->created_at) : null;
-            if ($currentEndorsedDate && (!$latestPublishedDate || $currentEndorsedDate > $latestPublishedDate)) {
+            // Track the program with the latest published list to auto-expand
+            $currentDate = $current ? ($current->published_at ?? $current->created_at) : null;
+            if ($currentDate && (!$latestPublishedDate || $currentDate > $latestPublishedDate)) {
                 $latestPublishedProgram = $programCode;
-                $latestPublishedDate = $currentEndorsedDate;
+                $latestPublishedDate = $currentDate;
             }
         }
-
-        // Get pending mappings from Resource Persons
-        $pendingMappingsCount = PendingEquivalencyMapping::pending()->count();
 
         // Statistics (ONLY HEA-endorsed lists shown as "Published")
         $stats = [
             'total_published' => $totalPublished,
             'draft_lists' => EquivalencyList::draft()->count(),
-            'pending_mappings' => $pendingMappingsCount,
         ];
 
         // If no published lists exist, default to first program
@@ -370,7 +365,6 @@ class EquivalencyListController extends Controller
         // Get statistics
         $stats = [
             'total_drafts' => EquivalencyList::where('status', 'draft')->count(),
-            'pending_mappings' => PendingEquivalencyMapping::pending()->count(),
             'total_published' => EquivalencyList::where('status', 'published')->count(),
         ];
 
@@ -607,20 +601,14 @@ class EquivalencyListController extends Controller
      */
     public function viewAllCourseEquivalencies()
     {
-        // Get all programs that have course equivalencies
-        // Use LEFT JOIN to handle programs not in the programs table
-        $programs = DB::table('course_equivalencies')
-            ->join('equivalency_lists', 'course_equivalencies.equivalency_list_id', '=', 'equivalency_lists.id')
-            ->leftJoin('programs', 'course_equivalencies.program_code', '=', 'programs.code')
-            ->whereNotNull('course_equivalencies.program_code')
-            ->where('course_equivalencies.program_code', '!=', '')
-            ->select(
-                'course_equivalencies.program_code as code',
-                DB::raw('COALESCE(programs.name, course_equivalencies.program_code) as name')
-            )
-            ->distinct()
-            ->orderBy('course_equivalencies.program_code')
-            ->get();
+        // Get all supported programs from config (show all 5 degree programs)
+        $supportedPrograms = config('programs.supported_programs');
+        $programs = collect($supportedPrograms)->map(function($name, $code) {
+            return (object) [
+                'code' => $code,
+                'name' => $name,
+            ];
+        })->values();
 
         // Get all unique institutions from course equivalencies
         $institutions = CourseEquivalency::whereNotNull('diploma_institution')
@@ -746,5 +734,189 @@ class EquivalencyListController extends Controller
         $list->load(['creator', 'endorser', 'publisher', 'courseEquivalencies']);
 
         return view('student.course_equivalencies.pdf', compact('list'));
+    }
+
+    /**
+     * Store a new course equivalency (for "All Course Mappings" CRUD)
+     */
+    public function storeCourseEquivalency(Request $request)
+    {
+        $request->validate([
+            'program_code' => 'required|string|in:CDCS230,CDCS251,CDCS253,CDCS255,CDCS266',
+            'diploma_institution' => 'required|string|max:255',
+            'diploma_course_code' => 'required|string|max:50',
+            'diploma_course_name' => 'required|string|max:255',
+            'diploma_credit_hour' => 'required|numeric|min:1|max:10',
+            'degree_course_code' => 'required|string|max:50',
+            'degree_course_name' => 'required|string|max:255',
+            'degree_credit_hour' => 'required|numeric|min:1|max:10',
+            'match_percentage' => 'required|numeric|min:0|max:100',
+            'is_eligible' => 'required|boolean',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Get program name from database or use static mapping
+            $programNames = [
+                'CDCS230' => 'Bachelor of Computer Science (Hons.)',
+                'CDCS251' => 'Bachelor of Computer Science (Hons.) Netcentric Computing',
+                'CDCS253' => 'Bachelor of Computer Science (Hons.) Multimedia Computing',
+                'CDCS255' => 'Bachelor of Computer Science (Hons.) Computer Networking',
+                'CDCS266' => 'Bachelor of Information Systems (Hons.) Information Systems Engineering',
+            ];
+            $programName = $programNames[$request->program_code] ?? $request->program_code;
+
+            // Find or create an appropriate equivalency list for this mapping
+            $list = EquivalencyList::firstOrCreate(
+                [
+                    'program_code' => $request->program_code,
+                    'category' => strtoupper($request->diploma_institution) === 'CS110' ? 'internal' : 'external',
+                    'source_institution' => strtoupper($request->diploma_institution) === 'CS110' ? null : $request->diploma_institution,
+                    'status' => EquivalencyList::STATUS_DRAFT,
+                ],
+                [
+                    'program_name' => $programName,
+                    'semester' => now()->format('Y/Y') . '-' . (now()->month >= 7 ? '1' : '2'), // Auto-generate semester
+                    'academic_year' => now()->format('Y/Y'),
+                    'created_by_user_id' => Auth::id(),
+                    'total_equivalencies' => 0,
+                    'eligible_count' => 0,
+                ]
+            );
+
+            // Create the course equivalency
+            $equivalency = CourseEquivalency::create([
+                'equivalency_list_id' => $list->id,
+                'program_code' => $request->program_code,
+                'diploma_course_code' => strtoupper($request->diploma_course_code),
+                'diploma_course_name' => $request->diploma_course_name,
+                'diploma_credit_hour' => $request->diploma_credit_hour,
+                'diploma_institution' => $request->diploma_institution,
+                'degree_course_code' => strtoupper($request->degree_course_code),
+                'degree_course_name' => $request->degree_course_name,
+                'degree_credit_hour' => $request->degree_credit_hour,
+                'match_percentage' => $request->match_percentage,
+                'is_eligible' => $request->is_eligible,
+                'source' => 'manual', // Manually created by program coordinator
+                'is_published' => false, // Not published (only CS110 lists are published by HEA)
+                'approved_by_user_id' => Auth::id(), // Set approver to current user
+                'last_updated_by_user_id' => Auth::id(),
+                'last_updated_at' => now(),
+            ]);
+
+            // Update list statistics
+            $list->updateStatistics();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Course mapping added successfully!',
+                'mapping' => $equivalency
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to add mapping: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Show a specific course equivalency for editing (for "All Course Mappings" CRUD)
+     */
+    public function showCourseEquivalency(CourseEquivalency $mapping)
+    {
+        return response()->json([
+            'success' => true,
+            'mapping' => $mapping
+        ]);
+    }
+
+    /**
+     * Update an existing course equivalency (for "All Course Mappings" CRUD)
+     */
+    public function updateCourseEquivalency(Request $request, CourseEquivalency $mapping)
+    {
+        $request->validate([
+            'diploma_institution' => 'required|string|max:255',
+            'diploma_course_code' => 'required|string|max:50',
+            'diploma_course_name' => 'required|string|max:255',
+            'diploma_credit_hour' => 'required|numeric|min:1|max:10',
+            'degree_course_code' => 'required|string|max:50',
+            'degree_course_name' => 'required|string|max:255',
+            'degree_credit_hour' => 'required|numeric|min:1|max:10',
+            'match_percentage' => 'required|numeric|min:0|max:100',
+            'is_eligible' => 'required|boolean',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Update the course equivalency
+            $mapping->update([
+                'diploma_course_code' => strtoupper($request->diploma_course_code),
+                'diploma_course_name' => $request->diploma_course_name,
+                'diploma_credit_hour' => $request->diploma_credit_hour,
+                'diploma_institution' => $request->diploma_institution,
+                'degree_course_code' => strtoupper($request->degree_course_code),
+                'degree_course_name' => $request->degree_course_name,
+                'degree_credit_hour' => $request->degree_credit_hour,
+                'match_percentage' => $request->match_percentage,
+                'is_eligible' => $request->is_eligible,
+                'last_updated_by_user_id' => Auth::id(),
+                'last_updated_at' => now(),
+            ]);
+
+            // Update list statistics
+            $mapping->equivalencyList->updateStatistics();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Course mapping updated successfully!',
+                'mapping' => $mapping
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update mapping: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete a course equivalency (for "All Course Mappings" CRUD)
+     */
+    public function destroyCourseEquivalency(CourseEquivalency $mapping)
+    {
+        DB::beginTransaction();
+        try {
+            $list = $mapping->equivalencyList;
+
+            // Delete the mapping
+            $mapping->delete();
+
+            // Update list statistics
+            $list->updateStatistics();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Course mapping deleted successfully!'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete mapping: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

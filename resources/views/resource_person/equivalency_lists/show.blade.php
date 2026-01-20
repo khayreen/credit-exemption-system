@@ -23,7 +23,10 @@
             </p>
         </div>
         <div>
-            <a href="{{ route('resource_person.equivalency_lists.index') }}" class="btn btn-secondary">
+            <a href="{{ route('resource_person.equivalency_lists.pdf', $list) }}" class="btn btn-danger me-2" target="_blank">
+                <i class="fas fa-file-pdf"></i> View as PDF
+            </a>
+            <a href="{{ route('resource_person.equivalency_lists.published') }}" class="btn btn-secondary">
                 <i class="fas fa-arrow-left"></i> Back to Lists
             </a>
         </div>
@@ -205,13 +208,13 @@
     <div class="card mt-4">
         <div class="card-body">
             <h6 class="card-title">
-                <i class="fas fa-lightbulb me-2"></i>Want to propose a new course mapping?
+                <i class="fas fa-lightbulb me-2"></i>Want to manage course mappings?
             </h6>
             <p class="mb-3">
-                If you've evaluated a syllabus and identified a new course equivalency for this program, you can forward it to the Program Coordinator for review.
+                If you've evaluated a syllabus and need to add or edit course equivalencies for this program, use the "All Course Mappings" page.
             </p>
-            <a href="{{ route('resource_person.equivalency_mappings.create', ['program' => $list->program_code]) }}" class="btn btn-success">
-                <i class="fas fa-paper-plane me-2"></i>Forward New Mapping
+            <a href="{{ route('resource_person.course_equivalencies.view') }}" class="btn btn-success">
+                <i class="fas fa-exchange-alt me-2"></i>All Course Mappings
             </a>
         </div>
     </div>

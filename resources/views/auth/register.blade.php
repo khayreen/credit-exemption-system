@@ -385,7 +385,7 @@
                         <option value="resource_person" {{ old('requested_role') == 'resource_person' ? 'selected' : '' }}>
                             Resource Person
                         </option>
-                        <option value="hea" {{ old('requested_role') == 'hea' ? 'selected' : '' }}>
+                        <option value="hea_personnel" {{ old('requested_role') == 'hea_personnel' ? 'selected' : '' }}>
                             HEA Personnel
                         </option>
                     </select>
@@ -420,43 +420,111 @@
                     </div>
                 </div>
 
-                <!-- Staff Fields -->
-                <div id="staff-fields" style="display: none;">
+                <!-- Academic Advisor Fields -->
+                <div id="academic-advisor-fields" style="display: none;">
                     <div class="conditional-fields">
-                        <h6><i class="fas fa-chalkboard-teacher me-2"></i>Staff Information</h6>
+                        <h6><i class="fas fa-user-tie me-2"></i>Academic Advisor Information</h6>
 
                         <div class="mb-3">
-                            <label for="faculty_id" class="form-label">Faculty *</label>
-                            <select class="form-select" id="faculty_id" name="faculty_id">
-                                <option value="">Select Faculty</option>
-                                @foreach($faculties as $faculty)
-                                    <option value="{{ $faculty->id }}">{{ $faculty->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="campus_id" class="form-label">Campus *</label>
-                            <select class="form-select" id="campus_id" name="campus_id">
-                                <option value="">Select Campus</option>
-                                @foreach($campuses as $campus)
-                                    <option value="{{ $campus->id }}">{{ $campus->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="mb-0">
-                            <label for="requested_programs" class="form-label">
-                                Programs You Want to Manage *
-                            </label>
-                            <select class="form-select" id="requested_programs" name="requested_programs[]" multiple>
-                                @foreach($allPrograms as $program)
-                                    <option value="{{ $program->code }}">{{ $program->code }} - {{ $program->name }}</option>
-                                @endforeach
-                            </select>
-                            <small class="form-text">
-                                Search and select programs. HEA will review your request.
+                            <label class="form-label">Programme & Groups You Will Manage <span class="text-danger">*</span></label>
+                            <small class="form-text text-muted d-block mb-2">
+                                <i class="fas fa-info-circle me-1"></i>Select one or more programme-group combinations you wish to manage
                             </small>
+
+                            <!-- Selected Programme-Groups Display -->
+                            <div id="aa-selected-groups" class="mb-2" style="min-height: 36px; padding: 8px; border: 1px solid #dee2e6; border-radius: 0.375rem; background: #f8f9fa;">
+                                <small class="text-muted" id="aa-placeholder">No programme-groups selected</small>
+                            </div>
+
+                            <!-- Programme-Group Selection Cards (Dynamic from config) -->
+                            <div class="row g-2">
+                                @foreach($programGroups as $programCode => $programData)
+                                <div class="col-12">
+                                    <div class="card">
+                                        <div class="card-body py-2">
+                                            <div class="form-check">
+                                                <input class="form-check-input aa-program-check" type="checkbox" id="aa_prog_{{ $programCode }}" value="{{ $programCode }}">
+                                                <label class="form-check-label fw-bold" for="aa_prog_{{ $programCode }}">
+                                                    {{ $programCode }} - {{ $programData['name'] }}
+                                                </label>
+                                            </div>
+                                            <div class="ms-4 mt-2 aa-groups" id="aa_groups_{{ $programCode }}" style="display: none;">
+                                                <label class="form-label small">Select Groups:</label>
+                                                <div class="d-flex flex-wrap gap-2">
+                                                    @foreach($programData['groups'] as $group)
+                                                    <div class="form-check form-check-inline">
+                                                        <input class="form-check-input aa-group-check" type="checkbox" data-program="{{ $programCode }}" id="aa_group_{{ $group }}" value="{{ $group }}">
+                                                        <label class="form-check-label" for="aa_group_{{ $group }}">{{ $group }}</label>
+                                                    </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                @endforeach
+                            </div>
+
+                            <!-- Hidden Input for Form Submission -->
+                            <input type="hidden" name="program_groups" id="aa_program_groups" value="">
+                            <small class="form-text text-danger" id="aa-validation-error" style="display: none;">
+                                <i class="fas fa-exclamation-triangle me-1"></i>Please select at least one programme-group combination
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Program Coordinator Fields -->
+                <div id="program-coordinator-fields" style="display: none;">
+                    <div class="conditional-fields">
+                        <h6><i class="fas fa-users-cog me-2"></i>Program Coordinator Information</h6>
+
+                        <div class="mb-3">
+                            <label class="form-label">Program Category <span class="text-danger">*</span></label>
+                            <small class="form-text text-muted d-block mb-2">
+                                <i class="fas fa-info-circle me-1"></i>Select ONE category to coordinate
+                            </small>
+
+                            <!-- Program Categories (Dynamic from config) -->
+                            @foreach($coordinatorCategories as $categoryKey => $categoryData)
+                            <div class="card {{ !$loop->last ? 'mb-3' : '' }}">
+                                <div class="card-body">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="program_category" id="pc_{{ $categoryKey }}" value="{{ $categoryKey }}">
+                                        <label class="form-check-label fw-bold" for="pc_{{ $categoryKey }}">
+                                            {{ $categoryData['label'] }}: {{ $categoryData['description'] }}
+                                        </label>
+                                    </div>
+                                    <div class="ms-4 mt-2">
+                                        <small class="text-muted">
+                                            @foreach($categoryData['programs'] as $programCode)
+                                                <i class="fas fa-check-circle text-success me-1"></i>
+                                                <strong>{{ $programCode }}</strong> - {{ $programGroups[$programCode]['name'] ?? 'Unknown Program' }}
+                                                @if(!$loop->last)<br>@endif
+                                            @endforeach
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resource Person Fields -->
+                <div id="resource-person-fields" style="display: none;">
+                    <div class="conditional-fields">
+                        <h6><i class="fas fa-user-check me-2"></i>Resource Person Information</h6>
+
+                        <div class="mb-3">
+                            <label for="rp_degree_program" class="form-label">Degree Program to Support <span class="text-danger">*</span></label>
+                            <select class="form-select" id="rp_degree_program" name="degree_program">
+                                <option value="">-- Select Degree Program --</option>
+                                @foreach($programGroups as $programCode => $programData)
+                                <option value="{{ $programCode }}">{{ $programCode }} - {{ $programData['name'] }}</option>
+                                @endforeach
+                            </select>
+                            <small class="form-text text-muted">Select the degree program you will provide resource support for</small>
                         </div>
                     </div>
                 </div>
@@ -507,16 +575,82 @@
     document.addEventListener('DOMContentLoaded', function() {
         const roleSelect = document.getElementById('requested_role');
         const studentFields = document.getElementById('student-fields');
-        const staffFields = document.getElementById('staff-fields');
+        const academicAdvisorFields = document.getElementById('academic-advisor-fields');
+        const programCoordinatorFields = document.getElementById('program-coordinator-fields');
+        const resourcePersonFields = document.getElementById('resource-person-fields');
         const heaNote = document.getElementById('hea-note');
 
-        // Initialize Select2 for programs
-        $('#requested_programs').select2({
-            placeholder: 'Search and select programs...',
-            allowClear: true,
-            width: '100%',
-            theme: 'bootstrap-5'
+        // Academic Advisor - Programme-Group Selection Logic
+        document.querySelectorAll('.aa-program-check').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const program = this.value;
+                const groupsDiv = document.getElementById(`aa_groups_${program}`);
+
+                if (this.checked) {
+                    groupsDiv.style.display = 'block';
+                } else {
+                    groupsDiv.style.display = 'none';
+                    // Uncheck all groups
+                    document.querySelectorAll(`#aa_groups_${program} .aa-group-check`).forEach(gc => {
+                        gc.checked = false;
+                    });
+                }
+
+                updateAASelectedGroups();
+            });
         });
+
+        document.querySelectorAll('.aa-group-check').forEach(checkbox => {
+            checkbox.addEventListener('change', updateAASelectedGroups);
+        });
+
+        function updateAASelectedGroups() {
+            const selected = [];
+            const programGroupMap = {};
+
+            document.querySelectorAll('.aa-group-check:checked').forEach(checkbox => {
+                const program = checkbox.getAttribute('data-program');
+                const group = checkbox.value;
+
+                if (!programGroupMap[program]) {
+                    programGroupMap[program] = [];
+                }
+                programGroupMap[program].push(group);
+
+                selected.push({
+                    program_code: program,
+                    group: group
+                });
+            });
+
+            // Update display
+            const displayDiv = document.getElementById('aa-selected-groups');
+            const placeholder = document.getElementById('aa-placeholder');
+
+            if (selected.length > 0) {
+                placeholder.style.display = 'none';
+
+                let html = '';
+                for (const program in programGroupMap) {
+                    const groups = programGroupMap[program];
+                    html += `<span class="badge bg-primary me-1 mb-1">${program}: ${groups.join(', ')}</span>`;
+                }
+                displayDiv.innerHTML = html;
+            } else {
+                displayDiv.innerHTML = '<small class="text-muted" id="aa-placeholder">No programme-groups selected</small>';
+            }
+
+            // Update hidden input
+            document.getElementById('aa_program_groups').value = JSON.stringify(selected);
+
+            // Validation
+            const errorMsg = document.getElementById('aa-validation-error');
+            if (selected.length === 0) {
+                errorMsg.style.display = 'block';
+            } else {
+                errorMsg.style.display = 'none';
+            }
+        }
 
         // Role change handler
         roleSelect.addEventListener('change', function() {
@@ -524,7 +658,9 @@
 
             // Hide all conditional fields
             studentFields.style.display = 'none';
-            staffFields.style.display = 'none';
+            academicAdvisorFields.style.display = 'none';
+            programCoordinatorFields.style.display = 'none';
+            resourcePersonFields.style.display = 'none';
             heaNote.style.display = 'none';
 
             // Disable all conditional fields
@@ -532,7 +668,15 @@
                 el.disabled = true;
                 el.required = false;
             });
-            document.querySelectorAll('#staff-fields input, #staff-fields select').forEach(el => {
+            document.querySelectorAll('#academic-advisor-fields input, #academic-advisor-fields select').forEach(el => {
+                el.disabled = true;
+                el.required = false;
+            });
+            document.querySelectorAll('#program-coordinator-fields input, #program-coordinator-fields select').forEach(el => {
+                el.disabled = true;
+                el.required = false;
+            });
+            document.querySelectorAll('#resource-person-fields input, #resource-person-fields select').forEach(el => {
                 el.disabled = true;
                 el.required = false;
             });
@@ -544,13 +688,28 @@
                     el.disabled = false;
                     if (el.id !== 'program_id') el.required = true;
                 });
-            } else if (['academic_advisor', 'coordinator', 'resource_person'].includes(role)) {
-                staffFields.style.display = 'block';
-                document.querySelectorAll('#staff-fields input, #staff-fields select').forEach(el => {
+            } else if (role === 'academic_advisor') {
+                academicAdvisorFields.style.display = 'block';
+                document.querySelectorAll('#academic-advisor-fields input:not([type="checkbox"])').forEach(el => {
+                    el.disabled = false;
+                });
+                // Enable checkboxes
+                document.querySelectorAll('#academic-advisor-fields input[type="checkbox"]').forEach(el => {
+                    el.disabled = false;
+                });
+            } else if (role === 'coordinator') {
+                programCoordinatorFields.style.display = 'block';
+                document.querySelectorAll('#program-coordinator-fields input, #program-coordinator-fields select').forEach(el => {
                     el.disabled = false;
                     el.required = true;
                 });
-            } else if (role === 'hea') {
+            } else if (role === 'resource_person') {
+                resourcePersonFields.style.display = 'block';
+                document.querySelectorAll('#resource-person-fields input, #resource-person-fields select').forEach(el => {
+                    el.disabled = false;
+                    el.required = true;
+                });
+            } else if (role === 'hea_personnel') {
                 heaNote.style.display = 'block';
             }
         });

@@ -28,6 +28,8 @@ class HomeController extends Controller
 
         // Redirect based on user's current role
         switch ($user->current_role) {
+            case 'admin':
+                return redirect('/admin/dashboard');
             case 'student':
                 return redirect('/student/dashboard');
             case 'academic_advisor':

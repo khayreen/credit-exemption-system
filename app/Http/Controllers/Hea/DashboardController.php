@@ -8,7 +8,11 @@ use App\Models\ExemptionApplication;
 use App\Models\AuditTrail;
 use App\Models\SystemSetting;
 use App\Models\EquivalencyList;
+use App\Models\ResourcePerson;
+use App\Notifications\SemesterReminderNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
@@ -17,28 +21,71 @@ class DashboardController extends Controller
      */
     public function index()
     {
-        // Fetch only actionable and relevant statistics
+        // Fetch pending user approvals once - use for both count and display
+        $allPendingUserApprovals = User::where('approval_status', 'pending')
+            ->whereIn('requested_role', ['academic_advisor', 'coordinator', 'resource_person'])
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        // Fetch pending endorsements once - use for count and categorization
+        $allPendingEndorsements = EquivalencyList::with(['creator'])
+            ->pending()
+            ->orderBy('submitted_at', 'asc')
+            ->get();
+
+        // Build stats from already-fetched data where possible
         $stats = [
             'total_users' => User::count(),
             'pending_applications' => ExemptionApplication::whereNotIn('status', ['Completed', 'Rejected by HEA'])->count(),
-            'pending_endorsements' => EquivalencyList::pending()->count(),
-            'pending_internal' => EquivalencyList::pending()->where('category', 'internal')->count(),
-            'pending_external' => EquivalencyList::pending()->where('category', 'external')->count(),
+            'pending_endorsements' => $allPendingEndorsements->count(),
+            'pending_internal' => $allPendingEndorsements->where('category', 'internal')->count(),
+            'pending_external' => $allPendingEndorsements->where('category', 'external')->count(),
             'published_lists' => EquivalencyList::published()->count(),
-            'pending_user_approvals' => 0, // TODO: Fix approval_status column
+            'pending_user_approvals' => $allPendingUserApprovals->count(),
         ];
 
-        // Get recent pending endorsement submissions (top 5, prioritized by oldest first)
-        $pendingLists = EquivalencyList::with(['creator'])
-            ->pending()
-            ->orderBy('submitted_at', 'asc')
-            ->take(5)
+        // Take top 5 for display
+        $pendingLists = $allPendingEndorsements->take(5);
+        $pendingUserApprovals = $allPendingUserApprovals->take(5);
+
+        // Get notifications for current HEA user (single query with count)
+        $user = Auth::user();
+        $allUnreadNotifications = $user->unreadNotifications()
+            ->orderBy('created_at', 'desc')
             ->get();
+        $unreadNotifications = $allUnreadNotifications->take(10);
+        $unreadCount = $allUnreadNotifications->count();
 
-        // Get pending user approvals (top 5, prioritized by oldest first)
-        $pendingUserApprovals = collect(); // TODO: Fix approval_status column
+        return view('hea.dashboard', compact('stats', 'pendingLists', 'pendingUserApprovals', 'unreadNotifications', 'unreadCount'));
+    }
 
-        return view('hea.dashboard', compact('stats', 'pendingLists', 'pendingUserApprovals'));
+    /**
+     * Mark a notification as read.
+     */
+    public function markNotificationRead(Request $request, string $notificationId)
+    {
+        $user = Auth::user();
+        $notification = $user->notifications()->find($notificationId);
+
+        if ($notification) {
+            $notification->markAsRead();
+        }
+
+        if ($request->ajax()) {
+            return response()->json(['success' => true]);
+        }
+
+        return back();
+    }
+
+    /**
+     * Mark all notifications as read.
+     */
+    public function markAllNotificationsRead()
+    {
+        Auth::user()->unreadNotifications->markAsRead();
+
+        return back()->with('success', 'All notifications marked as read.');
     }
 
     /**
@@ -165,6 +212,130 @@ class DashboardController extends Controller
             return redirect()->route('hea.settings')->with('success', 'Settings updated successfully.');
         } catch (\Exception $e) {
             return redirect()->route('hea.settings')->with('error', 'Failed to update settings: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Show the semester reminder form.
+     */
+    public function showSemesterReminderForm()
+    {
+        // Get all Resource Persons with their assigned programs
+        $resourcePersons = ResourcePerson::with('user')
+            ->whereHas('user', function ($query) {
+                $query->where('approval_status', 'approved');
+            })
+            ->get();
+
+        // Get the current semester suggestion
+        $currentMonth = now()->month;
+        $currentYear = now()->year;
+
+        // Determine semester based on month
+        // March-August: Semester 2, September-February: Semester 1
+        if ($currentMonth >= 3 && $currentMonth <= 8) {
+            $semesterSuggestion = "Semester 2 {$currentYear}/{$currentYear}";
+        } else {
+            // For Sept-Dec, use current year / next year
+            // For Jan-Feb, use previous year / current year
+            if ($currentMonth >= 9) {
+                $semesterSuggestion = "Semester 1 {$currentYear}/" . ($currentYear + 1);
+            } else {
+                $semesterSuggestion = "Semester 1 " . ($currentYear - 1) . "/{$currentYear}";
+            }
+        }
+
+        return view('hea.semester_reminder', compact('resourcePersons', 'semesterSuggestion'));
+    }
+
+    /**
+     * Send semester reminders to Resource Persons.
+     */
+    public function sendSemesterReminders(Request $request)
+    {
+        $request->validate([
+            'semester' => 'required|string|max:50',
+            'resource_persons' => 'required|array|min:1',
+            'resource_persons.*' => 'exists:resource_persons,id',
+        ], [
+            'resource_persons.required' => 'Please select at least one Resource Person to send the reminder.',
+            'resource_persons.min' => 'Please select at least one Resource Person to send the reminder.',
+        ]);
+
+        $semester = $request->input('semester');
+        $selectedIds = $request->input('resource_persons');
+        $sender = Auth::user();
+
+        $sentCount = 0;
+        $failedCount = 0;
+        $errors = [];
+
+        foreach ($selectedIds as $rpId) {
+            try {
+                $resourcePerson = ResourcePerson::with('user')->find($rpId);
+
+                if (!$resourcePerson || !$resourcePerson->user) {
+                    $failedCount++;
+                    $errors[] = "Resource Person ID {$rpId} not found or has no associated user.";
+                    continue;
+                }
+
+                // Get assigned program
+                $assignedProgram = $resourcePerson->assigned_program;
+                if (!$assignedProgram && is_array($resourcePerson->assigned_programs)) {
+                    $assignedProgram = $resourcePerson->assigned_programs[0] ?? null;
+                }
+
+                if (!$assignedProgram) {
+                    $failedCount++;
+                    $errors[] = "{$resourcePerson->user->name} has no assigned program.";
+                    continue;
+                }
+
+                // Send the notification
+                $resourcePerson->user->notify(new SemesterReminderNotification(
+                    $semester,
+                    $assignedProgram,
+                    $sender
+                ));
+
+                $sentCount++;
+
+                // Log the action
+                AuditTrail::create([
+                    'user_id' => $sender->id,
+                    'action' => 'Sent Semester Reminder',
+                    'target_entity' => 'ResourcePerson',
+                    'target_id' => $resourcePerson->id,
+                    'details' => json_encode([
+                        'semester' => $semester,
+                        'program_code' => $assignedProgram,
+                        'recipient_name' => $resourcePerson->user->name,
+                        'recipient_email' => $resourcePerson->user->email,
+                    ]),
+                ]);
+
+            } catch (\Exception $e) {
+                $failedCount++;
+                $recipientName = isset($resourcePerson) && $resourcePerson->user ? $resourcePerson->user->name : 'Unknown';
+                $errors[] = "Failed to send to {$recipientName}: " . $e->getMessage();
+                Log::error("Failed to send semester reminder: " . $e->getMessage(), [
+                    'resource_person_id' => $rpId,
+                    'semester' => $semester,
+                ]);
+            }
+        }
+
+        // Build response message
+        if ($sentCount > 0 && $failedCount === 0) {
+            return redirect()->route('hea.semester_reminder')
+                ->with('success', "Successfully sent semester reminder to {$sentCount} Resource Person(s) for {$semester}.");
+        } elseif ($sentCount > 0 && $failedCount > 0) {
+            return redirect()->route('hea.semester_reminder')
+                ->with('warning', "Sent reminder to {$sentCount} Resource Person(s), but {$failedCount} failed. Errors: " . implode('; ', $errors));
+        } else {
+            return redirect()->route('hea.semester_reminder')
+                ->with('error', "Failed to send reminders. Errors: " . implode('; ', $errors));
         }
     }
 }

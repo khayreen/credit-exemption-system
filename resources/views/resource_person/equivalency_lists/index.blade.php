@@ -20,8 +20,8 @@
             @endif
         </div>
         <div>
-            <a href="{{ route('resource_person.equivalency_mappings.create') }}" class="btn btn-success">
-                <i class="fas fa-paper-plane"></i> Forward New Mapping
+            <a href="{{ route('resource_person.course_equivalencies.view') }}" class="btn btn-success">
+                <i class="fas fa-exchange-alt"></i> All Course Mappings
             </a>
         </div>
     </div>

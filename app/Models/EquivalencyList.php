@@ -252,6 +252,14 @@ class EquivalencyList extends Model
     }
 
     /**
+     * Get total mappings (alias for total_equivalencies)
+     */
+    public function getTotalMappingsAttribute(): int
+    {
+        return $this->total_equivalencies ?? 0;
+    }
+
+    /**
      * Get the status badge class
      */
     public function getStatusBadgeClassAttribute(): string

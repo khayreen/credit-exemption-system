@@ -22,7 +22,7 @@ class ApproveHeaUser extends Command
 
         $user = User::where('email', $email)
                     ->where('approval_status', 'pending_admin')
-                    ->where('requested_role', 'hea')
+                    ->where('requested_role', 'hea_personnel')
                     ->first();
 
         if (!$user) {
@@ -43,8 +43,8 @@ class ApproveHeaUser extends Command
         try {
             DB::transaction(function() use ($user) {
                 $user->update([
-                    'role' => 'hea', // Legacy field for backward compatibility
-                    'current_role' => 'hea',
+                    'role' => 'hea_personnel', // Legacy field for backward compatibility
+                    'current_role' => 'hea_personnel',
                     'approval_status' => 'approved',
                     'approved_at' => now(),
                 ]);

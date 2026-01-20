@@ -20,7 +20,7 @@
                 <i class="fas fa-arrow-left"></i> Back to Lists
             </a>
             @if($list->canBeEdited())
-                <a href="{{ route('resource_person.equivalency_lists.edit', $list) }}" class="btn btn-primary">
+                <a href="{{ route('resource_person.equivalency_lists.edit', $list->program_code) }}" class="btn btn-primary">
                     <i class="fas fa-edit"></i> Edit List
                 </a>
             @endif

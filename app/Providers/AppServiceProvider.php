@@ -17,6 +17,10 @@ use SendGrid\Mail\Mail as SendGridMail;
 // Import Observer
 use App\Models\CourseEquivalency;
 use App\Observers\CourseEquivalencyObserver;
+// Import for View Composer
+use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Auth;
+use App\Models\Notification;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -54,5 +58,25 @@ class AppServiceProvider extends ServiceProvider
 
         // Register observers for automatic statistics synchronization
         CourseEquivalency::observe(CourseEquivalencyObserver::class);
+
+        // Share notification data with the main layout
+        View::composer('layouts.app', function ($view) {
+            if (Auth::check()) {
+                $navNotifications = Notification::where('user_id', Auth::id())
+                    ->orderBy('created_at', 'desc')
+                    ->limit(5)
+                    ->get();
+
+                $navUnreadCount = Notification::where('user_id', Auth::id())
+                    ->where('is_read', false)
+                    ->count();
+
+                $view->with('navNotifications', $navNotifications);
+                $view->with('navUnreadCount', $navUnreadCount);
+            } else {
+                $view->with('navNotifications', collect());
+                $view->with('navUnreadCount', 0);
+            }
+        });
     }
 }

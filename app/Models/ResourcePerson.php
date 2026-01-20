@@ -17,7 +17,16 @@ class ResourcePerson extends Model
      */
     protected $table = 'resource_persons'; // Add this line
 
-    protected $fillable = ['user_id', 'staff_id', 'department', 'expertise_area', 'assigned_programs'];
+    protected $fillable = [
+        'user_id',
+        'staff_id',
+        'department',
+        'expertise_area',
+        'assigned_programs',
+        'assigned_program',
+        'name',
+        'email',
+    ];
 
     protected $casts = [
         'assigned_programs' => 'array',

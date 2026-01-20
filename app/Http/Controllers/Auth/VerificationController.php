@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Auth\VerifiesEmails;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\Auth;
 
 class VerificationController extends Controller
 {
@@ -48,15 +49,24 @@ class VerificationController extends Controller
             throw new AuthorizationException;
         }
 
+        // If someone else is logged in, log them out first
+        if (Auth::check() && Auth::id() !== $user->id) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+
         if ($user->hasVerifiedEmail()) {
-            return redirect($this->redirectPath())->with('verified', true);
+            return redirect($this->redirectPath())
+                ->with('info', 'Your email was already verified. Please login to continue.');
         }
 
         if ($user->markEmailAsVerified()) {
             event(new Verified($user));
         }
 
-        // Do NOT auto-login - redirect to login page
-        return redirect($this->redirectPath())->with('success', 'Your email has been verified! Please login to continue.');
+        // Redirect to login page with success message
+        return redirect($this->redirectPath())
+            ->with('success', 'Your email has been verified successfully! Please login to continue.');
     }
 }

@@ -14,6 +14,63 @@ use Illuminate\Support\Facades\Log;
 class EquivalencyRequestController extends Controller
 {
     /**
+     * Display the dedicated Equivalency Requests page
+     */
+    public function index()
+    {
+        $coordinator = Auth::user()->programCoordinator;
+
+        if (!$coordinator) {
+            abort(403, 'Program Coordinator profile not found.');
+        }
+
+        // Get all pending requests for this coordinator's programs
+        $requests = CourseEquivalencyRequest::whereIn('current_program_code', $coordinator->program_codes)
+            ->where('coordinator_decision', 'pending')
+            ->with(['student'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Group requests by diploma_course_code
+        $groupedRequests = $requests->groupBy('diploma_course_code');
+
+        // Get requests by status for statistics
+        $allRequests = CourseEquivalencyRequest::whereIn('current_program_code', $coordinator->program_codes)
+            ->with(['student'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Statistics
+        $stats = [
+            'pending' => $allRequests->where('coordinator_decision', 'pending')->count(),
+            'approved' => $allRequests->where('coordinator_decision', 'equivalent')->count(),
+            'rejected' => $allRequests->where('coordinator_decision', 'not_equivalent')->count(),
+            'forwarded' => $allRequests->where('coordinator_decision', 'forward_to_rp')->count(),
+            'unique_courses' => $groupedRequests->count(),
+        ];
+
+        // Program breakdown for filter
+        $programBreakdown = [];
+        foreach ($coordinator->program_codes as $programCode) {
+            $programRequests = $requests->where('current_program_code', $programCode);
+            $programBreakdown[$programCode] = [
+                'code' => $programCode,
+                'name' => $this->getProgramName($programCode),
+                'pending_count' => $programRequests->count(),
+                'grouped' => $programRequests->groupBy('diploma_course_code'),
+            ];
+        }
+
+        return view('program_coordinator.equivalency_requests.index', compact(
+            'groupedRequests',
+            'stats',
+            'coordinator',
+            'programBreakdown',
+            'requests'
+        ));
+    }
+
+    /**
      * Display the Program Coordinator dashboard with grouped requests
      */
     public function dashboard()
@@ -34,11 +91,6 @@ class EquivalencyRequestController extends Controller
         // Group requests by diploma_course_code
         $groupedRequests = $requests->groupBy('diploma_course_code');
 
-        // Get pending mappings from Resource Persons
-        $pendingMappings = \App\Models\PendingEquivalencyMapping::whereIn('program_code', $coordinator->program_codes)
-            ->where('status', 'pending')
-            ->count();
-
         // Get equivalency lists statistics
         $totalLists = \App\Models\EquivalencyList::whereIn('program_code', $coordinator->program_codes)->count();
         $draftLists = \App\Models\EquivalencyList::whereIn('program_code', $coordinator->program_codes)
@@ -57,7 +109,6 @@ class EquivalencyRequestController extends Controller
             'total_requests' => $requests->count(),
             'unique_courses' => $groupedRequests->count(),
             'programs_managed' => count($coordinator->program_codes),
-            'pending_mappings' => $pendingMappings,
             'total_lists' => $totalLists,
             'draft_lists' => $draftLists,
             'total_mappings' => $totalMappings,

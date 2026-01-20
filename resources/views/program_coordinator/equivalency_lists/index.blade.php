@@ -17,15 +17,6 @@
             <a href="{{ route('program_coordinator.course_equivalencies.view') }}" class="btn btn-info">
                 <i class="fas fa-search me-2"></i>Search All Course Mappings
             </a>
-            <a href="{{ route('program_coordinator.equivalency_lists.create') }}" class="btn btn-success ms-2">
-                <i class="fas fa-plus-circle me-2"></i>Create New List
-            </a>
-            <a href="{{ route('program_coordinator.pending_mappings.index') }}" class="btn btn-primary ms-2">
-                <i class="fas fa-inbox me-2"></i>Pending Mappings
-                @if($stats['pending_mappings'] > 0)
-                    <span class="badge bg-danger ms-1">{{ $stats['pending_mappings'] }}</span>
-                @endif
-            </a>
         </div>
     </div>
 
@@ -297,9 +288,6 @@
                             <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
                             <h5 class="text-muted">No Published Lists Yet</h5>
                             <p class="text-muted">No equivalency lists have been published for this program yet.</p>
-                            <a href="{{ route('program_coordinator.equivalency_lists.create') }}?program_code={{ $programCode }}" class="btn btn-primary mt-3">
-                                <i class="fas fa-plus-circle me-2"></i>Create First List for {{ $programCode }}
-                            </a>
                         </div>
                     @endif
                 </div>

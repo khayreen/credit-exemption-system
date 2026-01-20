@@ -107,6 +107,97 @@
     </div>
 </div>
 
+<!-- Notifications Section -->
+@if(isset($unreadNotifications) && $unreadCount > 0)
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-gradient text-white py-3 d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);">
+                <div class="d-flex align-items-center">
+                    <div class="notification-bell me-2">
+                        <i class="fas fa-bell fa-lg"></i>
+                        <span class="notification-badge">{{ $unreadCount }}</span>
+                    </div>
+                    <h5 class="mb-0">Notifications</h5>
+                </div>
+                <form action="{{ route('hea.notifications.mark-all-read') }}" method="POST" class="d-inline">
+                    @csrf
+                    <button type="submit" class="btn btn-sm btn-light">
+                        <i class="fas fa-check-double me-1"></i>Mark All Read
+                    </button>
+                </form>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    @foreach($unreadNotifications as $notification)
+                    @php
+                        $data = $notification->data;
+                        $timeAgo = $notification->created_at->diffForHumans();
+                    @endphp
+                    <div class="list-group-item notification-item d-flex align-items-start py-3">
+                        <div class="notification-icon me-3">
+                            @if(($data['type'] ?? '') === 'new_staff_registration')
+                                <div class="icon-circle bg-primary">
+                                    <i class="fas fa-user-plus text-white"></i>
+                                </div>
+                            @else
+                                <div class="icon-circle bg-info">
+                                    <i class="fas fa-bell text-white"></i>
+                                </div>
+                            @endif
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="mb-1 fw-semibold">{{ $data['message'] ?? 'New notification' }}</p>
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        @if(isset($data['role_display']))
+                                            <span class="badge bg-primary">{{ $data['role_display'] }}</span>
+                                        @endif
+                                        @if(isset($data['user_email']))
+                                            <small class="text-muted">
+                                                <i class="fas fa-envelope me-1"></i>{{ $data['user_email'] }}
+                                            </small>
+                                        @endif
+                                    </div>
+                                    @if(isset($data['program_info']) && $data['program_info'] !== 'Not specified')
+                                        <small class="text-muted d-block mt-1">
+                                            <i class="fas fa-graduation-cap me-1"></i>{{ $data['program_info'] }}
+                                        </small>
+                                    @endif
+                                </div>
+                                <div class="text-end ms-3">
+                                    <small class="text-muted d-block mb-2">{{ $timeAgo }}</small>
+                                    <form action="{{ route('hea.notifications.read', $notification->id) }}" method="POST" class="d-inline mark-read-form">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary" title="Mark as read">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                    </form>
+                                    @if(isset($data['action_url']))
+                                        <a href="{{ $data['action_url'] }}" class="btn btn-sm btn-primary ms-1" title="View">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @if($unreadCount > 10)
+            <div class="card-footer bg-light text-center">
+                <small class="text-muted">
+                    Showing 10 of {{ $unreadCount }} unread notifications
+                </small>
+            </div>
+            @endif
+        </div>
+    </div>
+</div>
+@endif
+
 <!-- Main Widgets Section -->
 <div class="row">
     <!-- Pending Endorsement Requests Section -->
@@ -260,16 +351,133 @@
                                 </small>
                             </div>
                         </div>
-                        <div class="d-flex gap-2 mt-2">
+                        <div class="d-flex gap-2 mt-2 flex-wrap">
+                            {{-- Quick Approve Button --}}
                             <form action="{{ route('hea.users.approve', $user) }}" method="POST" class="d-inline">
                                 @csrf
-                                <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Are you sure you want to approve {{ $user->name }} as {{ $roleLabel }}?')">
-                                    <i class="fas fa-check me-1"></i>Approve
+                                <button type="submit" class="btn btn-sm btn-success btn-action"
+                                        onclick="return confirm('✅ Approve {{ $user->name }} as {{ $roleLabel }}?\n\nThis will grant immediate access with their requested program assignments.')">
+                                    <i class="fas fa-check-circle me-1"></i>Approve
                                 </button>
                             </form>
-                            <a href="{{ route('hea.users.pending') }}" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-eye me-1"></i>View All
+
+                            {{-- Edit & Approve Button --}}
+                            <button type="button" class="btn btn-sm btn-warning text-dark btn-action"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#editModal{{ $user->id }}">
+                                <i class="fas fa-edit me-1"></i>Edit
+                            </button>
+
+                            {{-- Reject Button --}}
+                            <button type="button" class="btn btn-sm btn-outline-danger btn-action"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#rejectModal{{ $user->id }}">
+                                <i class="fas fa-times-circle me-1"></i>Reject
+                            </button>
+
+                            {{-- View All Link --}}
+                            <a href="{{ route('hea.users.pending') }}" class="btn btn-sm btn-outline-secondary btn-action">
+                                <i class="fas fa-list me-1"></i>View All
                             </a>
+                        </div>
+
+                        {{-- Edit Modal --}}
+                        <div class="modal fade" id="editModal{{ $user->id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header bg-warning text-dark">
+                                        <h5 class="modal-title">
+                                            <i class="fas fa-edit me-2"></i>Edit & Approve: {{ $user->name }}
+                                        </h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <form action="{{ route('hea.users.approve', $user) }}" method="POST">
+                                        @csrf
+                                        <div class="modal-body">
+                                            <div class="alert alert-info">
+                                                <i class="fas fa-info-circle me-2"></i>
+                                                <strong>Current Request:</strong><br>
+                                                <small class="text-muted">{{ $roleLabel }}</small><br>
+                                                @php
+                                                    $programData = is_string($user->requested_programs)
+                                                        ? json_decode($user->requested_programs, true)
+                                                        : $user->requested_programs;
+                                                @endphp
+                                                @if($user->requested_role === 'academic_advisor' && is_array($programData) && isset($programData[0]['program_code']))
+                                                    <div class="mt-2">
+                                                        @foreach($programData as $pg)
+                                                            <span class="badge bg-primary">{{ $pg['program_code'] }}: {{ $pg['group'] }}</span>
+                                                        @endforeach
+                                                    </div>
+                                                @elseif($user->requested_role === 'coordinator' && isset($programData['category']))
+                                                    <span class="badge bg-info mt-1">
+                                                        {{ $programData['category'] === 'category_1' ? 'Category 1: CDCS230, CDCS253' : 'Category 2: CDCS251, CDCS255, CDCS266' }}
+                                                    </span>
+                                                @elseif($user->requested_role === 'resource_person' && isset($programData['program']))
+                                                    <span class="badge bg-success mt-1">{{ $programData['program'] }}</span>
+                                                @endif
+                                            </div>
+
+                                            <p class="text-muted mb-3">
+                                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                                Edit functionality coming soon. For now, please approve or reject as-is.
+                                            </p>
+
+                                            <div class="alert alert-warning">
+                                                To modify program assignments, reject this request and ask the user to re-register with the correct information.
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-success">
+                                                <i class="fas fa-check-circle me-1"></i>Approve As-Is
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Reject Modal --}}
+                        <div class="modal fade" id="rejectModal{{ $user->id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header bg-danger text-white">
+                                        <h5 class="modal-title">
+                                            <i class="fas fa-times-circle me-2"></i>Reject Registration: {{ $user->name }}
+                                        </h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <form action="{{ route('hea.users.approve', $user) }}" method="POST">
+                                        @csrf
+                                        <input type="hidden" name="reject" value="1">
+                                        <div class="modal-body">
+                                            <div class="alert alert-warning">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                                You are about to reject the registration request from <strong>{{ $user->name }}</strong>.
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">
+                                                    Reason for Rejection: <span class="text-danger">*</span>
+                                                </label>
+                                                <textarea name="rejection_reason"
+                                                          class="form-control"
+                                                          rows="4"
+                                                          required
+                                                          placeholder="Please provide a clear reason for rejection (e.g., Invalid credentials, Duplicate account, Incorrect program selection, etc.)"></textarea>
+                                                <small class="text-muted">This reason will be sent to the user via email.</small>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-danger">
+                                                <i class="fas fa-times-circle me-1"></i>Confirm Rejection
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     @endforeach
@@ -387,6 +595,137 @@
 
 .icon-info {
     background-color: #17a2b8;
+}
+
+/* Action Button Styling */
+.btn-action {
+    font-weight: 600;
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.375rem;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    min-width: 80px;
+    text-align: center;
+}
+
+.btn-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn-action:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Success button - Green with subtle gradient */
+.btn-success.btn-action {
+    background: linear-gradient(135deg, #198754 0%, #157347 100%);
+    border: none;
+}
+
+.btn-success.btn-action:hover {
+    background: linear-gradient(135deg, #157347 0%, #146c43 100%);
+}
+
+/* Warning button - Amber/Orange for Edit */
+.btn-warning.btn-action {
+    background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
+    border: none;
+}
+
+.btn-warning.btn-action:hover {
+    background: linear-gradient(135deg, #ffb300 0%, #ffa000 100%);
+}
+
+/* Outline Danger button - Red border for destructive action */
+.btn-outline-danger.btn-action {
+    border-width: 2px;
+    font-weight: 600;
+}
+
+.btn-outline-danger.btn-action:hover {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+/* Secondary outline button */
+.btn-outline-secondary.btn-action {
+    border-width: 1.5px;
+}
+
+.btn-outline-secondary.btn-action:hover {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: white;
+}
+
+/* Modal styling enhancements */
+.modal-header.bg-warning {
+    border-bottom: 3px solid #ffb300;
+}
+
+.modal-header.bg-danger {
+    border-bottom: 3px solid #b02a37;
+}
+
+/* Notification Styles */
+.notification-bell {
+    position: relative;
+    display: inline-block;
+}
+
+.notification-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background-color: #ef4444;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 50%;
+    min-width: 18px;
+    text-align: center;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+.notification-item {
+    transition: background-color 0.2s ease;
+    border-left: 3px solid transparent;
+}
+
+.notification-item:hover {
+    background-color: #f8f9fa;
+    border-left-color: #6366f1;
+}
+
+.icon-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mark-read-form button:hover {
+    background-color: #198754 !important;
+    border-color: #198754 !important;
+    color: white !important;
 }
 </style>
 

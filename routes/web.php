@@ -24,6 +24,10 @@ if (app()->environment('local', 'staging')) {
 // Default Laravel auth routes, with email verification enabled
 Auth::routes(['verify' => true]);
 
+// Registration status check (public, no auth required)
+Route::get('registration/status', [App\Http\Controllers\Auth\RegistrationStatusController::class, 'showForm'])->name('registration.status');
+Route::post('registration/status', [App\Http\Controllers\Auth\RegistrationStatusController::class, 'checkStatus'])->name('registration.status.check');
+
 // Custom email verification routes
 Route::get('/email/verify', function (Illuminate\Http\Request $request) {
     // If already verified, redirect to home
@@ -66,6 +70,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/profile/request-program-change', [App\Http\Controllers\ProfileController::class, 'requestProgramChange'])->name('profile.requestProgramChange');
         Route::post('/profile/change-password', [App\Http\Controllers\ProfileController::class, 'changePassword'])->name('profile.changePassword');
 
+        // Notification Routes (available to all authenticated users)
+        Route::get('/notifications', [App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
+        Route::get('/notifications/{notification}/read', [App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.read');
+        Route::post('/notifications/mark-all-read', [App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
+        Route::get('/notifications/unread-count', [App\Http\Controllers\NotificationController::class, 'unreadCount'])->name('notifications.unread-count');
+        Route::get('/notifications/recent', [App\Http\Controllers\NotificationController::class, 'recent'])->name('notifications.recent');
+
         // Student-only routes
     Route::middleware(['role:student'])->prefix('student')->name('student.')->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Student\ApplicationController::class, 'dashboard'])->name('dashboard');
@@ -101,10 +112,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('course-equivalencies/{category}/{source?}', [App\Http\Controllers\Student\EquivalencyViewController::class, 'show'])->name('course_equivalencies.show');
 
         // Additional student resource routes
-        Route::get('terms', function () { return view('student.terms'); })->name('terms');
-        Route::get('faq', function () { return view('student.faq'); })->name('faq');
-        Route::get('help', function () { return view('student.help'); })->name('help');
-        Route::get('forms', function () { return view('student.forms'); })->name('forms');
+        Route::get('terms', [App\Http\Controllers\Student\ResourceController::class, 'terms'])->name('terms');
+        Route::get('faq', [App\Http\Controllers\Student\ResourceController::class, 'faq'])->name('faq');
+        Route::get('help', [App\Http\Controllers\Student\ResourceController::class, 'help'])->name('help');
+        Route::get('forms', [App\Http\Controllers\Student\ResourceController::class, 'forms'])->name('forms');
     });
 
     // Academic Advisor-only routes
@@ -152,33 +163,41 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Program Coordinator-only routes (NEW ARCHITECTURE)
     Route::middleware(['role:program_coordinator'])->prefix('program-coordinator')->name('program_coordinator.')->group(function () {
-        // Equivalency List Management (Full CRUD - Both PCs have EQUAL access to ALL lists)
+        // Equivalency List Management - View Published Lists Only
         Route::get('equivalency-lists', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'index'])->name('equivalency_lists.index');
-        Route::get('equivalency-lists/drafts', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'drafts'])->name('equivalency_lists.drafts');
-        Route::get('equivalency-lists/create', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'create'])->name('equivalency_lists.create');
-        Route::post('equivalency-lists', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'store'])->name('equivalency_lists.store');
-        Route::get('equivalency-lists/{list}', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'show'])->name('equivalency_lists.show');
-        Route::get('equivalency-lists/{list}/edit', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'edit'])->name('equivalency_lists.edit');
-        Route::post('equivalency-lists/{list}/publish', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'publish'])->name('equivalency_lists.publish');
-        Route::delete('equivalency-lists/{list}', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'destroy'])->name('equivalency_lists.destroy');
 
-        // Course Mapping Management
-        Route::post('equivalency-lists/{list}/mappings', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'addMapping'])->name('equivalency_lists.add_mapping');
-        Route::put('equivalency-lists/{list}/mappings/{mapping}', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'updateMapping'])->name('equivalency_lists.update_mapping');
-        Route::delete('equivalency-lists/{list}/mappings/{mapping}', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'deleteMapping'])->name('equivalency_lists.delete_mapping');
+        // REMOVED: Draft Management (PC only adds mappings via "All Course Mappings", doesn't manage lists)
+        // Route::get('equivalency-lists/drafts', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'drafts'])->name('equivalency_lists.drafts');
+        // Route::get('equivalency-lists/create', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'create'])->name('equivalency_lists.create');
+        // Route::post('equivalency-lists', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'store'])->name('equivalency_lists.store');
+        // Route::get('equivalency-lists/{list}', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'show'])->name('equivalency_lists.show');
+        // Route::get('equivalency-lists/{list}/edit', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'edit'])->name('equivalency_lists.edit');
+        // Route::delete('equivalency-lists/{list}', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'destroy'])->name('equivalency_lists.destroy');
+        // Route::post('equivalency-lists/{list}/mappings', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'addMapping'])->name('equivalency_lists.add_mapping');
+        // Route::put('equivalency-lists/{list}/mappings/{mapping}', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'updateMapping'])->name('equivalency_lists.update_mapping');
+        // Route::delete('equivalency-lists/{list}/mappings/{mapping}', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'deleteMapping'])->name('equivalency_lists.delete_mapping');
 
-        // Pending Mappings from Resource Persons
-        Route::get('pending-mappings', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'pendingMappings'])->name('pending_mappings.index');
-        Route::post('pending-mappings/{mapping}/add', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'addPendingMapping'])->name('pending_mappings.add');
-        Route::post('pending-mappings/{mapping}/reject', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'rejectPendingMapping'])->name('pending_mappings.reject');
+        // REMOVED: Pending Mappings from Resource Persons (now using direct CRUD in "All Course Mappings")
+        // Route::get('pending-mappings', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'pendingMappings'])->name('pending_mappings.index');
+        // Route::post('pending-mappings/{mapping}/add', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'addPendingMapping'])->name('pending_mappings.add');
+        // Route::post('pending-mappings/{mapping}/reject', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'rejectPendingMapping'])->name('pending_mappings.reject');
 
         // View All Course Equivalencies
         Route::get('course-equivalencies', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'viewAllCourseEquivalencies'])->name('course_equivalencies.view');
         Route::get('equivalency-lists/{list}/pdf', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'downloadListPdf'])->name('equivalency_lists.pdf');
         Route::get('api/existing-equivalencies', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'getExistingEquivalencies'])->name('api.existing_equivalencies');
 
-        // Old equivalency request routes (for backward compatibility if needed)
+        // Direct Course Equivalency CRUD (for "All Course Mappings" feature)
+        Route::post('course-equivalencies', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'storeCourseEquivalency'])->name('course_equivalencies.store');
+        Route::get('course-equivalencies/{mapping}', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'showCourseEquivalency'])->name('course_equivalencies.show');
+        Route::put('course-equivalencies/{mapping}', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'updateCourseEquivalency'])->name('course_equivalencies.update');
+        Route::delete('course-equivalencies/{mapping}', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'destroyCourseEquivalency'])->name('course_equivalencies.destroy');
+
+        // Dashboard
         Route::get('dashboard', [App\Http\Controllers\ProgramCoordinator\EquivalencyRequestController::class, 'dashboard'])->name('dashboard');
+
+        // Equivalency Requests Management
+        Route::get('equivalency-requests', [App\Http\Controllers\ProgramCoordinator\EquivalencyRequestController::class, 'index'])->name('equivalency_requests.index');
         Route::get('course/{diplomaCourseCode}', [App\Http\Controllers\ProgramCoordinator\EquivalencyRequestController::class, 'showCourseRequests'])->name('course_requests');
         Route::post('make-decision', [App\Http\Controllers\ProgramCoordinator\EquivalencyRequestController::class, 'makeDecision'])->name('make_decision');
         Route::post('forward-to-rp', [App\Http\Controllers\ProgramCoordinator\EquivalencyRequestController::class, 'forwardToRP'])->name('forward_to_rp');
@@ -226,6 +245,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Published Equivalency Lists - Program-based view (same UI as Academic Advisor)
         Route::get('equivalency-lists/published', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'viewPublishedEquivalencyLists'])->name('equivalency_lists.published');
 
+        // View specific equivalency list and PDF download
+        Route::get('equivalency-lists/{list}', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'showList'])->name('equivalency_lists.show');
+        Route::get('equivalency-lists/{list}/pdf', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'downloadPdf'])->name('equivalency_lists.pdf');
+
         // CS110 Internal Equivalency List Management (ONE continuous list per program)
         Route::get('cs110-lists', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'index'])->name('equivalency_lists.index');
         Route::get('cs110-lists/{programCode}/edit', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'edit'])->name('equivalency_lists.edit');
@@ -234,12 +257,38 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('cs110-lists/{programCode}/mappings/{mapping}', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'updateCourseMapping'])->name('equivalency_lists.update_mapping');
         Route::delete('cs110-lists/{programCode}/mappings/{mapping}', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'deleteMapping'])->name('equivalency_lists.delete_mapping');
 
-        // Course Mapping Forwarding (RP evaluates and forwards to PC for external workflow)
-        Route::get('mappings/create', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'createMapping'])->name('equivalency_mappings.create');
-        Route::post('mappings', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'storeMapping'])->name('equivalency_mappings.store');
-        Route::get('mappings/{mapping}', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'showMapping'])->name('equivalency_mappings.show');
-        Route::put('mappings/{mapping}', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'updateMapping'])->name('equivalency_mappings.update');
-        Route::delete('mappings/{mapping}', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'deletePendingMapping'])->name('equivalency_mappings.delete');
+        // View All Course Equivalencies (same as PC but with RP branding)
+        Route::get('course-equivalencies', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'viewAllCourseEquivalencies'])->name('course_equivalencies.view');
+        Route::get('api/existing-equivalencies', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'getExistingEquivalencies'])->name('api.existing_equivalencies');
+
+        // Direct Course Equivalency CRUD (for "All Course Mappings" feature)
+        Route::post('course-equivalencies', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'storeCourseEquivalency'])->name('course_equivalencies.store');
+        Route::get('course-equivalencies/{mapping}', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'showCourseEquivalency'])->name('course_equivalencies.show');
+        Route::put('course-equivalencies/{mapping}', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'updateCourseEquivalency'])->name('course_equivalencies.update');
+        Route::delete('course-equivalencies/{mapping}', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'destroyCourseEquivalency'])->name('course_equivalencies.destroy');
+
+        // Degree Course Syllabi Management
+        Route::get('syllabi', [App\Http\Controllers\ResourcePerson\SyllabusController::class, 'index'])->name('syllabi.index');
+        Route::get('syllabi/create', [App\Http\Controllers\ResourcePerson\SyllabusController::class, 'create'])->name('syllabi.create');
+        Route::post('syllabi', [App\Http\Controllers\ResourcePerson\SyllabusController::class, 'store'])->name('syllabi.store');
+        Route::get('syllabi/{syllabus}/edit', [App\Http\Controllers\ResourcePerson\SyllabusController::class, 'edit'])->name('syllabi.edit');
+        Route::put('syllabi/{syllabus}', [App\Http\Controllers\ResourcePerson\SyllabusController::class, 'update'])->name('syllabi.update');
+        Route::delete('syllabi/{syllabus}', [App\Http\Controllers\ResourcePerson\SyllabusController::class, 'destroy'])->name('syllabi.destroy');
+        Route::get('syllabi/{syllabus}/pdf', [App\Http\Controllers\ResourcePerson\SyllabusController::class, 'viewPdf'])->name('syllabi.view_pdf');
+
+        // Syllabus Comparison (for equivalency request review)
+        Route::get('equivalency-requests/{request}/compare', [App\Http\Controllers\ResourcePerson\SyllabusController::class, 'compare'])->name('equivalency_requests.compare');
+
+        // Syllabus API endpoints (for AJAX)
+        Route::get('api/syllabi/similar', [App\Http\Controllers\ResourcePerson\SyllabusController::class, 'apiGetSimilarCourses'])->name('api.syllabi.similar');
+        Route::get('api/syllabi/{courseCode}', [App\Http\Controllers\ResourcePerson\SyllabusController::class, 'apiGetSyllabus'])->name('api.syllabi.get');
+
+        // REMOVED: Course Mapping Forwarding (now using direct CRUD in "All Course Mappings")
+        // Route::get('mappings/create', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'createMapping'])->name('equivalency_mappings.create');
+        // Route::post('mappings', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'storeMapping'])->name('equivalency_mappings.store');
+        // Route::get('mappings/{mapping}', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'showMapping'])->name('equivalency_mappings.show');
+        // Route::put('mappings/{mapping}', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'updateMapping'])->name('equivalency_mappings.update');
+        // Route::delete('mappings/{mapping}', [App\Http\Controllers\ResourcePerson\EquivalencyListController::class, 'deletePendingMapping'])->name('equivalency_mappings.delete');
     });
 
         // External Lecturer-only routes
@@ -274,6 +323,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('users/{user}/programs', [App\Http\Controllers\Hea\UserManagementController::class, 'managePrograms'])->name('users.programs.manage');
         Route::post('users/{user}/programs', [App\Http\Controllers\Hea\UserManagementController::class, 'updatePrograms'])->name('users.programs.update');
         Route::post('users/{user}/deactivate', [App\Http\Controllers\Hea\UserManagementController::class, 'deactivate'])->name('users.deactivate');
+        Route::post('users/{user}/resend-verification', [App\Http\Controllers\Hea\UserManagementController::class, 'resendVerification'])->name('users.resend-verification');
+
+        // Notification Routes
+        Route::post('notifications/{notification}/read', [App\Http\Controllers\Hea\DashboardController::class, 'markNotificationRead'])->name('notifications.read');
+        Route::post('notifications/mark-all-read', [App\Http\Controllers\Hea\DashboardController::class, 'markAllNotificationsRead'])->name('notifications.mark-all-read');
+
+        // Semester Reminder Routes (for notifying Resource Persons)
+        Route::get('semester-reminder', [App\Http\Controllers\Hea\DashboardController::class, 'showSemesterReminderForm'])->name('semester_reminder');
+        Route::post('semester-reminder/send', [App\Http\Controllers\Hea\DashboardController::class, 'sendSemesterReminders'])->name('semester_reminder.send');
 
         // Equivalency List Endorsement & Publication (HEA Workflow)
         Route::get('equivalency-lists/pending', [App\Http\Controllers\Hea\EquivalencyListController::class, 'pending'])->name('equivalency_lists.pending');
@@ -300,11 +358,69 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('api/existing-equivalencies', [App\Http\Controllers\Hea\EquivalencyListController::class, 'getExistingEquivalencies'])->name('api.existing_equivalencies');
     });
 
-    // System Administrator-only routes (for HEA approval)
+    // System Administrator-only routes
     Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function () {
+        // Dashboard
+        Route::get('dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
+
+        // HEA Approval
         Route::get('hea-approvals', [App\Http\Controllers\Admin\HeaApprovalController::class, 'index'])->name('hea.approvals');
         Route::post('hea/{user}/approve', [App\Http\Controllers\Admin\HeaApprovalController::class, 'approve'])->name('hea.approve');
         Route::post('hea/{user}/reject', [App\Http\Controllers\Admin\HeaApprovalController::class, 'reject'])->name('hea.reject');
+
+        // Security Monitoring
+        Route::get('security/login-attempts', [App\Http\Controllers\Admin\SecurityController::class, 'loginAttempts'])->name('security.login-attempts');
+        Route::get('security/sessions', [App\Http\Controllers\Admin\SecurityController::class, 'activeSessions'])->name('security.sessions');
+        Route::delete('security/sessions/{sessionId}', [App\Http\Controllers\Admin\SecurityController::class, 'terminateSession'])->name('security.sessions.terminate');
+        Route::post('security/sessions/user/{user}', [App\Http\Controllers\Admin\SecurityController::class, 'terminateUserSessions'])->name('security.sessions.terminate-user');
+        Route::get('security/locked-accounts', [App\Http\Controllers\Admin\SecurityController::class, 'lockedAccounts'])->name('security.locked-accounts');
+        Route::post('security/accounts/{user}/unlock', [App\Http\Controllers\Admin\SecurityController::class, 'unlockAccount'])->name('security.accounts.unlock');
+        Route::post('security/accounts/{user}/lock', [App\Http\Controllers\Admin\SecurityController::class, 'lockAccount'])->name('security.accounts.lock');
+        Route::get('security/access-logs', [App\Http\Controllers\Admin\SecurityController::class, 'accessLogs'])->name('security.access-logs');
+        Route::get('security/security-events', [App\Http\Controllers\Admin\SecurityController::class, 'securityEvents'])->name('security.security-events');
+        Route::get('security/users', [App\Http\Controllers\Admin\SecurityController::class, 'allUsers'])->name('security.all-users');
+
+        // Content Management - Terms & Conditions
+        Route::get('content/terms', [App\Http\Controllers\Admin\ContentController::class, 'termsIndex'])->name('content.terms.index');
+        Route::get('content/terms/create', [App\Http\Controllers\Admin\ContentController::class, 'termsCreate'])->name('content.terms.create');
+        Route::post('content/terms', [App\Http\Controllers\Admin\ContentController::class, 'termsStore'])->name('content.terms.store');
+        Route::get('content/terms/{terms}/edit', [App\Http\Controllers\Admin\ContentController::class, 'termsEdit'])->name('content.terms.edit');
+        Route::put('content/terms/{terms}', [App\Http\Controllers\Admin\ContentController::class, 'termsUpdate'])->name('content.terms.update');
+        Route::post('content/terms/{terms}/set-current', [App\Http\Controllers\Admin\ContentController::class, 'termsSetCurrent'])->name('content.terms.set-current');
+        Route::delete('content/terms/{terms}', [App\Http\Controllers\Admin\ContentController::class, 'termsDestroy'])->name('content.terms.destroy');
+
+        // Content Management - Announcements
+        Route::get('content/announcements', [App\Http\Controllers\Admin\ContentController::class, 'announcementsIndex'])->name('content.announcements.index');
+        Route::get('content/announcements/create', [App\Http\Controllers\Admin\ContentController::class, 'announcementsCreate'])->name('content.announcements.create');
+        Route::post('content/announcements', [App\Http\Controllers\Admin\ContentController::class, 'announcementsStore'])->name('content.announcements.store');
+        Route::get('content/announcements/{announcement}/edit', [App\Http\Controllers\Admin\ContentController::class, 'announcementsEdit'])->name('content.announcements.edit');
+        Route::put('content/announcements/{announcement}', [App\Http\Controllers\Admin\ContentController::class, 'announcementsUpdate'])->name('content.announcements.update');
+        Route::delete('content/announcements/{announcement}', [App\Http\Controllers\Admin\ContentController::class, 'announcementsDestroy'])->name('content.announcements.destroy');
+        Route::post('content/announcements/{announcement}/toggle', [App\Http\Controllers\Admin\ContentController::class, 'announcementsToggle'])->name('content.announcements.toggle');
+
+        // Content Management - FAQ
+        Route::get('content/faq', [App\Http\Controllers\Admin\ContentController::class, 'faqIndex'])->name('content.faq.index');
+        Route::get('content/faq/create', [App\Http\Controllers\Admin\ContentController::class, 'faqCreate'])->name('content.faq.create');
+        Route::post('content/faq', [App\Http\Controllers\Admin\ContentController::class, 'faqStore'])->name('content.faq.store');
+        Route::get('content/faq/{faq}/edit', [App\Http\Controllers\Admin\ContentController::class, 'faqEdit'])->name('content.faq.edit');
+        Route::put('content/faq/{faq}', [App\Http\Controllers\Admin\ContentController::class, 'faqUpdate'])->name('content.faq.update');
+        Route::delete('content/faq/{faq}', [App\Http\Controllers\Admin\ContentController::class, 'faqDestroy'])->name('content.faq.destroy');
+
+        // Content Management - Help Articles
+        Route::get('content/help', [App\Http\Controllers\Admin\ContentController::class, 'helpIndex'])->name('content.help.index');
+        Route::get('content/help/create', [App\Http\Controllers\Admin\ContentController::class, 'helpCreate'])->name('content.help.create');
+        Route::post('content/help', [App\Http\Controllers\Admin\ContentController::class, 'helpStore'])->name('content.help.store');
+        Route::get('content/help/{article}/edit', [App\Http\Controllers\Admin\ContentController::class, 'helpEdit'])->name('content.help.edit');
+        Route::put('content/help/{article}', [App\Http\Controllers\Admin\ContentController::class, 'helpUpdate'])->name('content.help.update');
+        Route::delete('content/help/{article}', [App\Http\Controllers\Admin\ContentController::class, 'helpDestroy'])->name('content.help.destroy');
+
+        // Content Management - Contact Settings
+        Route::get('content/contact', [App\Http\Controllers\Admin\ContentController::class, 'contactIndex'])->name('content.contact.index');
+        Route::get('content/contact/create', [App\Http\Controllers\Admin\ContentController::class, 'contactCreate'])->name('content.contact.create');
+        Route::post('content/contact', [App\Http\Controllers\Admin\ContentController::class, 'contactStore'])->name('content.contact.store');
+        Route::get('content/contact/{contact}/edit', [App\Http\Controllers\Admin\ContentController::class, 'contactEdit'])->name('content.contact.edit');
+        Route::put('content/contact/{contact}', [App\Http\Controllers\Admin\ContentController::class, 'contactUpdate'])->name('content.contact.update');
+        Route::delete('content/contact/{contact}', [App\Http\Controllers\Admin\ContentController::class, 'contactDestroy'])->name('content.contact.destroy');
     });
 });
 

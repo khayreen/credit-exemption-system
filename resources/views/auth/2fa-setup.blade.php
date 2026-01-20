@@ -407,7 +407,7 @@
             </div>
 
             <!-- Form -->
-            <form method="POST" action="{{ route('2fa.setup.verify') }}">
+            <form method="POST" action="{{ route('2fa.setup.verify') }}" id="otpForm" autocomplete="off">
                 @csrf
 
                 <!-- Step 1: Install App -->
@@ -472,16 +472,17 @@
                                id="one_time_password"
                                name="one_time_password"
                                pattern="[0-9]{6}"
+                               autocomplete="off"
                                required>
 
                         <!-- Visible OTP boxes -->
                         <div class="otp-container">
-                            <input type="text" class="otp-input @error('one_time_password') is-invalid @enderror" maxlength="1" pattern="[0-9]" inputmode="numeric" data-index="0" autofocus>
-                            <input type="text" class="otp-input @error('one_time_password') is-invalid @enderror" maxlength="1" pattern="[0-9]" inputmode="numeric" data-index="1">
-                            <input type="text" class="otp-input @error('one_time_password') is-invalid @enderror" maxlength="1" pattern="[0-9]" inputmode="numeric" data-index="2">
-                            <input type="text" class="otp-input @error('one_time_password') is-invalid @enderror" maxlength="1" pattern="[0-9]" inputmode="numeric" data-index="3">
-                            <input type="text" class="otp-input @error('one_time_password') is-invalid @enderror" maxlength="1" pattern="[0-9]" inputmode="numeric" data-index="4">
-                            <input type="text" class="otp-input @error('one_time_password') is-invalid @enderror" maxlength="1" pattern="[0-9]" inputmode="numeric" data-index="5">
+                            <input type="text" class="otp-input @error('one_time_password') is-invalid @enderror" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off" data-index="0" autofocus>
+                            <input type="text" class="otp-input @error('one_time_password') is-invalid @enderror" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off" data-index="1">
+                            <input type="text" class="otp-input @error('one_time_password') is-invalid @enderror" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off" data-index="2">
+                            <input type="text" class="otp-input @error('one_time_password') is-invalid @enderror" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off" data-index="3">
+                            <input type="text" class="otp-input @error('one_time_password') is-invalid @enderror" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off" data-index="4">
+                            <input type="text" class="otp-input @error('one_time_password') is-invalid @enderror" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off" data-index="5">
                         </div>
 
                         @error('one_time_password')
@@ -523,6 +524,7 @@
     // OTP Input Handler
     const otpInputs = document.querySelectorAll('.otp-input');
     const hiddenInput = document.getElementById('one_time_password');
+    const otpForm = document.getElementById('otpForm');
 
     otpInputs.forEach((input, index) => {
         // Handle input event
@@ -543,6 +545,12 @@
         input.addEventListener('keydown', function(e) {
             if (e.key === 'Backspace' && !this.value && index > 0) {
                 otpInputs[index - 1].focus();
+            }
+            // Handle Enter key to submit form
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                updateHiddenInput();
+                otpForm.submit();
             }
         });
 
@@ -570,6 +578,23 @@
         const otpValue = Array.from(otpInputs).map(input => input.value).join('');
         hiddenInput.value = otpValue;
     }
+
+    // CRITICAL: Update hidden input BEFORE form submission to prevent race condition
+    otpForm.addEventListener('submit', function(e) {
+        updateHiddenInput();
+
+        // Validate that we have 6 digits
+        if (hiddenInput.value.length !== 6) {
+            e.preventDefault();
+            alert('Please enter all 6 digits of your verification code.');
+            return false;
+        }
+    });
+
+    // Also update on page load in case of browser autofill
+    document.addEventListener('DOMContentLoaded', function() {
+        updateHiddenInput();
+    });
     </script>
 </body>
 </html>

@@ -17,12 +17,6 @@
             <a href="{{ route('program_coordinator.equivalency_lists.index') }}" class="btn btn-info">
                 <i class="fas fa-clipboard-list me-2"></i>Published Lists
             </a>
-            <a href="{{ route('program_coordinator.pending_mappings.index') }}" class="btn btn-warning ms-2">
-                <i class="fas fa-inbox me-2"></i>Pending Mappings
-                @if($stats['pending_mappings'] > 0)
-                    <span class="badge bg-danger ms-1">{{ $stats['pending_mappings'] }}</span>
-                @endif
-            </a>
             <a href="{{ route('program_coordinator.equivalency_lists.create') }}" class="btn btn-success ms-2">
                 <i class="fas fa-plus-circle me-2"></i>Create New List
             </a>
@@ -31,7 +25,7 @@
 
     <!-- Statistics -->
     <div class="row mb-4">
-        <div class="col-md-4">
+        <div class="col-md-6">
             <div class="card bg-warning text-dark">
                 <div class="card-body">
                     <h3 class="mb-0">{{ $stats['total_drafts'] }}</h3>
@@ -39,19 +33,11 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-6">
             <div class="card bg-primary text-white">
                 <div class="card-body">
                     <h3 class="mb-0">{{ $stats['total_published'] }}</h3>
                     <p class="mb-0">Published Lists</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card bg-info text-white">
-                <div class="card-body">
-                    <h3 class="mb-0">{{ $stats['pending_mappings'] }}</h3>
-                    <p class="mb-0">Pending Mappings</p>
                 </div>
             </div>
         </div>

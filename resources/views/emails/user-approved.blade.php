@@ -23,7 +23,7 @@
         <div class="content">
             <p>Dear {{ $user->name }},</p>
 
-            @if($role === 'hea')
+            @if($role === 'hea_personnel')
                 <p>Congratulations! Your HEA Personnel account has been approved by the system administrator.</p>
             @else
                 <p>Congratulations! Your account has been approved by HEA personnel.</p>

@@ -150,6 +150,9 @@ class TwoFactorController extends Controller
         ]);
 
         if (!session()->has('2fa_user_id')) {
+            \Log::warning('2FA Login: Session does not have 2fa_user_id', [
+                'session_id' => session()->getId(),
+            ]);
             return redirect()->route('login')->withErrors(['email' => 'Session expired. Please login again.']);
         }
 
@@ -157,19 +160,41 @@ class TwoFactorController extends Controller
         $user = \App\Models\User::find($userId);
 
         if (!$user) {
+            \Log::warning('2FA Login: User not found', ['user_id' => $userId]);
             session()->forget('2fa_user_id');
             return redirect()->route('login')->withErrors(['email' => 'User not found.']);
         }
 
         $google2fa = new Google2FA();
-        $otp = $request->one_time_password;
+        $otp = trim($request->one_time_password); // Trim any whitespace
+
+        // Debug logging for verification
+        \Log::info('2FA Login Verification Attempt', [
+            'user_email' => $user->email,
+            'entered_code' => $otp,
+            'entered_code_length' => strlen($otp),
+            'server_time' => time(),
+            'expected_code' => $google2fa->getCurrentOtp($user->google2fa_secret),
+            'secret_exists' => !empty($user->google2fa_secret),
+            'secret_length' => strlen($user->google2fa_secret ?? ''),
+        ]);
 
         // Verify OTP with time window tolerance (8 = 4 minutes before/after)
         $valid = $google2fa->verifyKey($user->google2fa_secret, $otp, 8);
 
         if (!$valid) {
+            \Log::warning('2FA Login Verification Failed', [
+                'user_email' => $user->email,
+                'entered_code' => $otp,
+                'expected_code' => $google2fa->getCurrentOtp($user->google2fa_secret),
+                'server_timestamp' => $google2fa->getTimestamp(),
+            ]);
             return back()->withErrors(['one_time_password' => 'The verification code is incorrect.']);
         }
+
+        \Log::info('2FA Login Verification Success', [
+            'user_email' => $user->email,
+        ]);
 
         // Login successful
         session()->forget('2fa_user_id');

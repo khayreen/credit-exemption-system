@@ -836,20 +836,14 @@ class EquivalencyListController extends Controller
      */
     public function viewAllCourseEquivalencies()
     {
-        // Get all programs that have course equivalencies
-        // Use LEFT JOIN to handle programs not in the programs table
-        $programs = DB::table('course_equivalencies')
-            ->join('equivalency_lists', 'course_equivalencies.equivalency_list_id', '=', 'equivalency_lists.id')
-            ->leftJoin('programs', 'course_equivalencies.program_code', '=', 'programs.code')
-            ->whereNotNull('course_equivalencies.program_code')
-            ->where('course_equivalencies.program_code', '!=', '')
-            ->select(
-                'course_equivalencies.program_code as code',
-                DB::raw('COALESCE(programs.name, course_equivalencies.program_code) as name')
-            )
-            ->distinct()
-            ->orderBy('course_equivalencies.program_code')
-            ->get();
+        // Get all supported programs from config (show all 5 degree programs)
+        $supportedPrograms = config('programs.supported_programs');
+        $programs = collect($supportedPrograms)->map(function($name, $code) {
+            return (object) [
+                'code' => $code,
+                'name' => $name,
+            ];
+        })->values();
 
         return view('hea.course_equivalencies.view', compact('programs'));
     }

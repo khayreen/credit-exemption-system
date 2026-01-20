@@ -10,11 +10,11 @@
         </p>
     </div>
     <div>
-        <a href="{{ route('resource_person.course_equivalencies.manage') }}" class="btn btn-info me-2">
-            <i class="fas fa-exchange-alt"></i> General Mappings
+        <a href="{{ route('resource_person.course_equivalencies.view') }}" class="btn btn-info me-2">
+            <i class="fas fa-exchange-alt"></i> All Course Mappings
         </a>
-        <a href="{{ route('resource_person.equivalency_mappings.create') }}" class="btn btn-primary">
-            <i class="fas fa-paper-plane"></i> Forward Mapping
+        <a href="{{ route('resource_person.equivalency_lists.index') }}" class="btn btn-primary">
+            <i class="fas fa-list-alt"></i> My CS110 Lists
         </a>
     </div>
 </div>
@@ -185,7 +185,7 @@
                                                             @endif
                                                         </td>
                                                         <td class="text-end">
-                                                            <a href="{{ route('program_coordinator.equivalency_lists.show', $list) }}" class="btn btn-sm btn-outline-primary" title="View">
+                                                            <a href="{{ route('resource_person.equivalency_lists.show', $list) }}" class="btn btn-sm btn-outline-primary" title="View">
                                                                 <i class="fas fa-eye"></i> View
                                                             </a>
                                                         </td>
@@ -283,7 +283,7 @@
                                                             @endif
                                                         </td>
                                                         <td class="text-end">
-                                                            <a href="{{ route('program_coordinator.equivalency_lists.show', $list) }}" class="btn btn-sm btn-outline-primary" title="View">
+                                                            <a href="{{ route('resource_person.equivalency_lists.show', $list) }}" class="btn btn-sm btn-outline-primary" title="View">
                                                                 <i class="fas fa-eye"></i> View
                                                             </a>
                                                         </td>

@@ -4,296 +4,570 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Email Verification - UiTM Credit Exemption System</title>
-    
-    <!-- Fonts -->
+
+    <!-- Fonts - IBM Plex Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
+
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
+
     <style>
         :root {
             --uitm-primary: #1e3a8a;
-            --uitm-secondary: #3b82f6;
-            --uitm-accent: #f59e0b;
-            --uitm-dark: #1f2937;
-            --uitm-light: #f8fafc;
+            --uitm-primary-800: #1e293b;
             --uitm-red: #dc2626;
+            --uitm-amber: #f59e0b;
+            --neutral-900: #171717;
+            --neutral-700: #404040;
+            --neutral-500: #737373;
+            --neutral-400: #a3a3a3;
+            --neutral-200: #e5e5e5;
+            --neutral-100: #f5f5f5;
+            --neutral-50: #fafafa;
         }
-        
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), 
-                        url('https://malaysiabangkit.com/wp-content/uploads/2024/11/UITM-pelajar.jpg');
+            font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--neutral-50);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .page-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            min-height: 100vh;
+        }
+
+        .image-panel {
+            position: relative;
+            background: url('https://malaysiabangkit.com/wp-content/uploads/2024/11/UITM-pelajar.jpg');
             background-size: cover;
             background-position: center;
-            background-attachment: fixed;
-            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 2.5rem;
+            overflow: hidden;
+        }
+
+        .image-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.92) 0%, rgba(23, 23, 23, 0.88) 100%);
+            z-index: 1;
+        }
+
+        .image-pattern {
+            position: absolute;
+            inset: 0;
+            opacity: 0.07;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: 2;
+        }
+
+        .image-content {
+            position: relative;
+            z-index: 3;
+            color: white;
+        }
+
+        .brand-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .brand-logo {
+            width: 48px;
+            height: 48px;
+            background: var(--uitm-amber);
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 1.25rem;
+            color: var(--neutral-900);
         }
-        
-        .verify-container {
+
+        .brand-text {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .brand-text .accent {
+            color: var(--uitm-red);
+        }
+
+        .image-hero {
             position: relative;
-            z-index: 2;
-            width: 100%;
-            max-width: 500px;
-            padding: 1rem;
+            z-index: 3;
+            max-width: 480px;
         }
-        
-        .verify-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 24px;
-            box-shadow: 0 32px 64px rgba(0, 0, 0, 0.1);
+
+        .image-hero-eyebrow {
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--uitm-amber);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .image-hero-eyebrow::before {
+            content: '';
+            width: 24px;
+            height: 2px;
+            background: var(--uitm-amber);
+        }
+
+        .image-hero-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            line-height: 1.15;
+            margin-bottom: 1.25rem;
+            color: white;
+        }
+
+        .image-hero-desc {
+            font-size: 1rem;
+            line-height: 1.7;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .image-footer {
+            position: relative;
+            z-index: 3;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .image-footer-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .image-footer-badge i {
+            color: var(--uitm-amber);
+        }
+
+        .form-panel {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
             padding: 3rem;
-            transition: all 0.3s ease;
-            text-align: center;
+            background: white;
+            position: relative;
         }
-        
-        .verify-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.15);
+
+        .form-container {
+            width: 100%;
+            max-width: 440px;
+            margin: 0 auto;
         }
-        
-        .logo-section {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        
-        .logo {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, var(--uitm-primary), var(--uitm-secondary));
-            border-radius: 16px;
+
+        .back-link {
+            position: absolute;
+            top: 2rem;
+            left: 2rem;
             display: inline-flex;
             align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 2rem;
-            font-weight: 700;
-            box-shadow: 0 16px 32px rgba(30, 58, 138, 0.3);
-            margin-bottom: 1rem;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--neutral-500);
+            text-decoration: none;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            transition: all 0.2s ease;
         }
-        
-        .verify-title {
-            color: var(--uitm-dark);
+
+        .back-link:hover {
+            color: var(--uitm-primary);
+            background: var(--neutral-100);
+        }
+
+        .form-header {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .form-icon {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, var(--uitm-primary), #3b82f6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            box-shadow: 0 8px 24px rgba(30, 58, 138, 0.25);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .form-icon i {
+            font-size: 2.5rem;
+            color: white;
+        }
+
+        .form-eyebrow {
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--uitm-primary);
+            margin-bottom: 0.75rem;
+        }
+
+        .form-title {
             font-size: 1.75rem;
             font-weight: 700;
+            color: var(--neutral-900);
             margin-bottom: 0.5rem;
         }
-        
-        .verify-subtitle {
-            color: var(--uitm-secondary);
-            font-size: 1rem;
-            font-weight: 500;
-            margin-bottom: 2rem;
-        }
-        
-        .verify-description {
-            color: #6b7280;
-            font-size: 1rem;
+
+        .form-subtitle {
+            font-size: 0.9rem;
+            color: var(--neutral-500);
             line-height: 1.6;
-            margin-bottom: 2rem;
         }
-        
-        .email-icon-container {
-            background: linear-gradient(135deg, #eff6ff, #dbeafe);
-            border-radius: 16px;
-            padding: 2rem;
-            margin: 2rem 0;
-            border: 2px solid #bfdbfe;
+
+        .alert-custom {
+            border-radius: 8px;
+            border: none;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
-        
-        .email-icon {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, var(--uitm-secondary), var(--uitm-primary));
+
+        .alert-success-custom {
+            background: #ecfdf5;
+            color: #065f46;
+            border-left: 3px solid #10b981;
+        }
+
+        .email-status-card {
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.05), rgba(59, 130, 246, 0.05));
+            border: 2px solid rgba(30, 58, 138, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .email-status-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--uitm-amber), #fbbf24);
             border-radius: 50%;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-size: 2rem;
             margin-bottom: 1rem;
-            animation: pulse 2s infinite;
         }
-        
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.05);
-            }
-            100% {
-                transform: scale(1);
-            }
-        }
-        
-        .alert {
-            border-radius: 12px;
-            border: none;
-            margin-bottom: 1.5rem;
-            padding: 1rem;
-            font-weight: 500;
-        }
-        
-        .alert-success {
-            background: linear-gradient(135deg, #d1fae5, #a7f3d0);
-            color: #065f46;
-        }
-        
-        .btn-resend {
-            background: linear-gradient(135deg, var(--uitm-primary), var(--uitm-secondary));
+
+        .email-status-icon i {
+            font-size: 1.5rem;
             color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            font-size: 1rem;
-            font-weight: 600;
-            border-radius: 12px;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 24px rgba(30, 58, 138, 0.3);
-            display: inline-block;
-            margin-top: 1rem;
         }
-        
-        .btn-resend:hover {
-            color: white;
-            transform: translateY(-1px);
-            box-shadow: 0 12px 32px rgba(30, 58, 138, 0.4);
-        }
-        
-        .btn-resend:focus {
-            color: white;
-            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
-        }
-        
-        .back-home {
-            position: absolute;
-            top: 2rem;
-            left: 2rem;
-            color: white;
-            text-decoration: none;
-            font-weight: 500;
+
+        .email-status-text {
             font-size: 0.9rem;
+            color: var(--neutral-700);
+            line-height: 1.6;
+        }
+
+        .email-status-text strong {
+            color: var(--uitm-primary);
+        }
+
+        .instructions-box {
+            background: var(--neutral-50);
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .instructions-box h6 {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--uitm-primary);
+            margin-bottom: 0.75rem;
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            transition: all 0.3s ease;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            backdrop-filter: blur(10px);
         }
-        
-        .back-home:hover {
+
+        .instructions-box ol {
+            margin: 0;
+            padding-left: 1.25rem;
+            font-size: 0.85rem;
+            color: var(--neutral-600);
+        }
+
+        .instructions-box li {
+            margin-bottom: 0.5rem;
+            line-height: 1.5;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            font-family: inherit;
+            letter-spacing: 0.025em;
+            text-transform: uppercase;
             color: white;
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateX(-2px);
+            background: var(--uitm-primary);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
         }
-        
-        .instruction-text {
-            color: #4b5563;
-            font-size: 1rem;
-            line-height: 1.6;
-            margin-bottom: 1.5rem;
+
+        .btn-submit:hover {
+            background: var(--uitm-primary-800);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
         }
-        
-        @media (max-width: 576px) {
-            .verify-card {
-                padding: 2rem;
-                margin: 1rem;
+
+        .form-divider {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .form-divider::before,
+        .form-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--neutral-200);
+        }
+
+        .form-divider-text {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--neutral-400);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .secondary-link {
+            text-align: center;
+        }
+
+        .secondary-link a {
+            font-size: 0.875rem;
+            color: var(--neutral-600);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .secondary-link a:hover {
+            color: var(--uitm-primary);
+        }
+
+        .secondary-link strong {
+            color: var(--uitm-primary);
+            font-weight: 600;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-fade-in-up {
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        .delay-1 { animation-delay: 0.1s; opacity: 0; }
+        .delay-2 { animation-delay: 0.2s; opacity: 0; }
+        .delay-3 { animation-delay: 0.3s; opacity: 0; }
+
+        @media (max-width: 1024px) {
+            .page-wrapper {
+                grid-template-columns: 1fr;
             }
-            
-            .back-home {
+
+            .image-panel {
+                display: none;
+            }
+
+            .form-panel {
+                min-height: 100vh;
+                padding: 2rem;
+            }
+
+            .back-link {
                 position: relative;
                 top: auto;
                 left: auto;
-                margin-bottom: 1rem;
-                display: inline-flex;
+                margin-bottom: 2rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .form-panel {
+                padding: 1.5rem;
+            }
+
+            .form-title {
+                font-size: 1.5rem;
+            }
+
+            .form-container {
+                max-width: 100%;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Back to Home -->
-    <a href="{{ url('/') }}" class="back-home d-none d-sm-flex">
-        <i class="fas fa-arrow-left"></i>
-        Back to Home
-    </a>
+    <div class="page-wrapper">
+        <!-- Left Panel - Image -->
+        <div class="image-panel">
+            <div class="image-overlay"></div>
+            <div class="image-pattern"></div>
 
-    <!-- Verify Container -->
-    <div class="verify-container">
-        <div class="verify-card">
-            <!-- Logo Section -->
-            <div class="logo-section">
-                <div class="logo">
-                    <i class="fas fa-envelope-open"></i>
-                </div>
-                <h1 class="verify-title">Verify Your Email</h1>
-                <p class="verify-subtitle">UiTM Credit Exemption System</p>
-            </div>
-
-            <!-- Email Icon -->
-            <div class="email-icon-container">
-                <div class="email-icon">
-                    <i class="fas fa-paper-plane"></i>
-                </div>
-                <div class="instruction-text">
-                    <strong>Check your email!</strong><br>
-                    We've sent a verification link to your email address.
+            <div class="image-content">
+                <div class="brand-header">
+                    <div class="brand-logo">
+                        <i class="fas fa-university"></i>
+                    </div>
+                    <div class="brand-text">
+                        UiTM<span class="accent">CES</span>
+                    </div>
                 </div>
             </div>
 
-            <!-- Success Message -->
-            @if (session('resent'))
-                <div class="alert alert-success d-flex align-items-center" role="alert">
-                    <i class="fas fa-check-circle me-2"></i>
-                    {{ __('A fresh verification link has been sent to your email address.') }}
-                </div>
-            @endif
-
-            <!-- Instructions -->
-            <div class="verify-description">
-                {{ __('Before proceeding, please check your email for a verification link.') }}
-                {{ __('If you did not receive the email') }}, click the button below to request another.
+            <div class="image-hero">
+                <div class="image-hero-eyebrow">Account Verification</div>
+                <h1 class="image-hero-title">Verify Your Email Address</h1>
+                <p class="image-hero-desc">
+                    We've sent a verification link to your email. Please check your inbox and click the link to activate your account and access all features.
+                </p>
             </div>
 
-            <!-- Resend Form -->
-            <form method="POST" action="{{ route('verification.resend') }}">
-                @csrf
-                <button type="submit" class="btn-resend">
-                    <i class="fas fa-redo me-2"></i>
-                    {{ __('Resend Verification Email') }}
-                </button>
-            </form>
+            <div class="image-footer">
+                <div class="image-footer-badge">
+                    <i class="fas fa-envelope-open-text"></i>
+                    <span>Check Your Inbox</span>
+                </div>
+                <div class="image-footer-badge">
+                    <i class="fas fa-clock"></i>
+                    <span>Link Valid 24h</span>
+                </div>
+            </div>
+        </div>
 
-            <!-- Back to Home for Mobile -->
-            <div class="text-center mt-3 d-sm-none">
-                <a href="{{ url('/') }}" class="back-home">
-                    <i class="fas fa-arrow-left"></i>
-                    Back to Home
-                </a>
+        <!-- Right Panel - Content -->
+        <div class="form-panel">
+            <a href="{{ url('/') }}" class="back-link">
+                <i class="fas fa-arrow-left"></i>
+                Back to Home
+            </a>
+
+            <div class="form-container">
+                <div class="form-header animate-fade-in-up">
+                    <div class="form-icon">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div class="form-eyebrow">Almost There</div>
+                    <h1 class="form-title">Verify Your Email</h1>
+                    <p class="form-subtitle">Please verify your email address to continue</p>
+                </div>
+
+                @if (session('resent'))
+                    <div class="alert-custom alert-success-custom animate-fade-in-up delay-1">
+                        <i class="fas fa-check-circle"></i>
+                        <span>{{ __('A fresh verification link has been sent to your email address.') }}</span>
+                    </div>
+                @endif
+
+                <div class="email-status-card animate-fade-in-up delay-1">
+                    <div class="email-status-icon">
+                        <i class="fas fa-paper-plane"></i>
+                    </div>
+                    <div class="email-status-text">
+                        <strong>Check your email!</strong><br>
+                        We've sent a verification link to your registered email address.
+                    </div>
+                </div>
+
+                <div class="instructions-box animate-fade-in-up delay-2">
+                    <h6><i class="fas fa-info-circle"></i>Next Steps</h6>
+                    <ol>
+                        <li>Open your email inbox</li>
+                        <li>Look for an email from UiTM CES</li>
+                        <li>Click the verification link in the email</li>
+                        <li>Return here to log in</li>
+                    </ol>
+                </div>
+
+                <p class="text-center text-muted animate-fade-in-up delay-2" style="font-size: 0.875rem; margin-bottom: 1.5rem;">
+                    {{ __('If you did not receive the email') }}, click the button below to request another.
+                </p>
+
+                <form method="POST" action="{{ route('verification.resend') }}" class="animate-fade-in-up delay-2">
+                    @csrf
+                    <button type="submit" class="btn-submit">
+                        <i class="fas fa-redo"></i>
+                        {{ __('Resend Verification Email') }}
+                    </button>
+                </form>
+
+                <div class="form-divider animate-fade-in-up delay-3">
+                    <span class="form-divider-text">Or</span>
+                </div>
+
+                <div class="secondary-link animate-fade-in-up delay-3">
+                    <a href="{{ route('login') }}">
+                        Already verified? <strong>Sign In</strong>
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

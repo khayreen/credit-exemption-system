@@ -46,7 +46,7 @@ class NewStaffRegistrationMail extends Mailable
     {
         return match($role) {
             'academic_advisor' => 'Academic Advisor',
-            'coordinator' => 'Program Coordinator',
+            'program_coordinator' => 'Program Coordinator',
             'resource_person' => 'Resource Person',
             default => ucwords(str_replace('_', ' ', $role)),
         };
@@ -67,7 +67,7 @@ class NewStaffRegistrationMail extends Mailable
 
         return match($this->registeredUser->requested_role) {
             'academic_advisor' => $this->formatAcademicAdvisorPrograms($requestedPrograms),
-            'coordinator' => $this->formatCoordinatorCategory($requestedPrograms),
+            'program_coordinator' => $this->formatCoordinatorCategory($requestedPrograms),
             'resource_person' => $requestedPrograms['program'] ?? 'Not specified',
             default => 'Not specified',
         };

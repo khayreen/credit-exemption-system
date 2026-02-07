@@ -1,81 +1,772 @@
 @extends('layouts.app')
 
+@push('styles')
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --uitm-primary: #1e3a8a;
+        --uitm-primary-dark: #1e293b;
+        --uitm-primary-light: #3b82f6;
+        --uitm-red: #dc2626;
+        --uitm-amber: #f59e0b;
+        --uitm-green: #10b981;
+        --neutral-900: #171717;
+        --neutral-800: #262626;
+        --neutral-700: #404040;
+        --neutral-600: #525252;
+        --neutral-500: #737373;
+        --neutral-400: #a3a3a3;
+        --neutral-300: #d4d4d4;
+        --neutral-200: #e5e5e5;
+        --neutral-100: #f5f5f5;
+        --neutral-50: #fafafa;
+    }
+
+    body {
+        font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+        background: var(--neutral-100);
+    }
+
+    .terms-container {
+        width: 100%;
+        padding: 0 1rem;
+    }
+
+    /* Page Header */
+    .page-header {
+        position: relative;
+        background: linear-gradient(135deg, var(--uitm-primary) 0%, var(--uitm-primary-dark) 100%);
+        border-radius: 16px;
+        padding: 2.5rem;
+        color: white;
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+
+    .page-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image:
+            linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+        background-size: 32px 32px;
+        pointer-events: none;
+    }
+
+    .page-header::after {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(circle, rgba(245, 158, 11, 0.15) 0%, transparent 70%);
+        pointer-events: none;
+    }
+
+    .page-header-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .page-header .eyebrow {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--uitm-amber);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .page-header .eyebrow::before {
+        content: '';
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background: var(--uitm-amber);
+        border-radius: 2px;
+    }
+
+    .page-header h1 {
+        font-family: 'IBM Plex Sans', sans-serif;
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.025em;
+    }
+
+    .page-header p {
+        font-size: 1rem;
+        color: rgba(255, 255, 255, 0.85);
+        margin-bottom: 0;
+        max-width: 600px;
+    }
+
+    .header-illustration {
+        position: absolute;
+        right: 2rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 6rem;
+        opacity: 0.1;
+    }
+
+    /* Quick Navigation */
+    .nav-card {
+        background: white;
+        border: 2px solid var(--neutral-200);
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .nav-title {
+        font-family: 'IBM Plex Sans', sans-serif;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--neutral-700);
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .nav-title i {
+        color: var(--uitm-primary);
+    }
+
+    .nav-link-card {
+        display: flex;
+        align-items: center;
+        padding: 0.6rem 0.8rem;
+        background: var(--neutral-50);
+        border: 2px solid var(--neutral-200);
+        border-radius: 8px;
+        color: var(--neutral-700);
+        text-decoration: none;
+        font-family: 'IBM Plex Sans', sans-serif;
+        font-weight: 500;
+        font-size: 0.8rem;
+        transition: all 0.2s ease;
+    }
+
+    .nav-link-card:hover {
+        background: linear-gradient(135deg, var(--uitm-primary) 0%, var(--uitm-primary-dark) 100%);
+        border-color: transparent;
+        color: white;
+        transform: translateY(-1px);
+    }
+
+    .nav-link-card i {
+        margin-right: 0.4rem;
+        font-size: 0.75rem;
+    }
+
+    /* Update Alert */
+    .update-alert {
+        background: linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, rgba(14, 165, 233, 0.05) 100%);
+        border: 2px solid #0ea5e9;
+        border-left-width: 4px;
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.5rem;
+        color: var(--neutral-700);
+        font-size: 0.9rem;
+    }
+
+    .update-alert i {
+        color: #0ea5e9;
+    }
+
+    /* Terms Card */
+    .terms-card {
+        background: white;
+        border: 2px solid var(--neutral-200);
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+
+    .terms-card-header {
+        display: flex;
+        align-items: center;
+        padding: 1.5rem;
+        background: var(--neutral-50);
+        border-bottom: 2px solid var(--neutral-200);
+    }
+
+    .icon-badge {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        color: white;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+
+    .icon-badge.primary { background: linear-gradient(135deg, var(--uitm-primary) 0%, var(--uitm-primary-dark) 100%); }
+    .icon-badge.green { background: linear-gradient(135deg, var(--uitm-green) 0%, #059669 100%); }
+    .icon-badge.amber { background: linear-gradient(135deg, var(--uitm-amber) 0%, #d97706 100%); }
+    .icon-badge.info { background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); }
+    .icon-badge.pink { background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); }
+    .icon-badge.cyan { background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); }
+    .icon-badge.orange { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); }
+
+    .terms-card-header h3 {
+        font-family: 'IBM Plex Sans', sans-serif;
+        color: var(--neutral-800);
+        font-weight: 700;
+        font-size: 1.15rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .terms-card-header p {
+        color: var(--neutral-500);
+        font-size: 0.85rem;
+        margin-bottom: 0;
+    }
+
+    .terms-card-body {
+        padding: 1.5rem;
+    }
+
+    /* Content Styles */
+    .lead-text {
+        font-size: 1rem;
+        color: var(--neutral-700);
+        line-height: 1.7;
+        margin-bottom: 1.25rem;
+    }
+
+    .section-subtitle {
+        font-family: 'IBM Plex Sans', sans-serif;
+        color: var(--neutral-800);
+        font-weight: 700;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+        font-size: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--neutral-200);
+    }
+
+    .section-subtitle i {
+        color: var(--uitm-primary);
+    }
+
+    .styled-list {
+        list-style: none;
+        padding-left: 0;
+    }
+
+    .styled-list li {
+        padding-left: 1.75rem;
+        margin-bottom: 0.75rem;
+        color: var(--neutral-600);
+        line-height: 1.6;
+        position: relative;
+        font-size: 0.9rem;
+    }
+
+    .styled-list li::before {
+        content: "\f00c";
+        font-family: "Font Awesome 6 Free";
+        font-weight: 900;
+        position: absolute;
+        left: 0;
+        color: var(--uitm-green);
+        font-size: 0.75rem;
+    }
+
+    /* Info & Warning Boxes */
+    .info-box {
+        background: linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(14, 165, 233, 0.03) 100%);
+        border-left: 4px solid #0ea5e9;
+        border-radius: 10px;
+        padding: 1.25rem;
+        margin: 1.25rem 0;
+    }
+
+    .info-box h6 {
+        font-family: 'IBM Plex Sans', sans-serif;
+        color: #0369a1;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .info-box p, .info-box ol {
+        color: #0c4a6e;
+        margin-bottom: 0;
+        line-height: 1.6;
+        font-size: 0.9rem;
+    }
+
+    .warning-box {
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(245, 158, 11, 0.03) 100%);
+        border-left: 4px solid var(--uitm-amber);
+        border-radius: 10px;
+        padding: 1.25rem;
+        margin: 1.25rem 0;
+    }
+
+    .warning-box h6 {
+        font-family: 'IBM Plex Sans', sans-serif;
+        color: #92400e;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .warning-box ul {
+        margin-bottom: 0;
+        padding-left: 1.25rem;
+    }
+
+    .warning-box li {
+        color: #78350f;
+        margin-bottom: 0.35rem;
+        font-size: 0.85rem;
+    }
+
+    /* Criteria Cards */
+    .criteria-card {
+        background: white;
+        border: 2px solid var(--neutral-200);
+        border-radius: 12px;
+        padding: 1.25rem;
+        text-align: center;
+        height: 100%;
+        transition: all 0.2s ease;
+    }
+
+    .criteria-card:hover {
+        border-color: var(--uitm-primary);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .criteria-number {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, var(--uitm-primary) 0%, var(--uitm-primary-dark) 100%);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin: 0 auto 0.75rem;
+    }
+
+    .criteria-card h6 {
+        font-family: 'IBM Plex Sans', sans-serif;
+        color: var(--neutral-800);
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .criteria-card p {
+        color: var(--neutral-600);
+        font-size: 0.8rem;
+        margin-bottom: 0.75rem;
+        line-height: 1.5;
+    }
+
+    .criteria-badge {
+        display: inline-block;
+        padding: 0.4rem 0.8rem;
+        background: linear-gradient(135deg, rgba(30, 58, 138, 0.1) 0%, rgba(30, 58, 138, 0.05) 100%);
+        color: var(--uitm-primary);
+        border-radius: 16px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    /* Timeline Cards */
+    .timeline-card {
+        background: white;
+        border: 2px solid var(--neutral-200);
+        border-radius: 10px;
+        padding: 1rem;
+        text-align: center;
+        height: 100%;
+    }
+
+    .timeline-step {
+        width: 36px;
+        height: 36px;
+        background: linear-gradient(135deg, var(--uitm-primary) 0%, var(--uitm-primary-dark) 100%);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 700;
+        margin: 0 auto 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .timeline-card strong {
+        display: block;
+        font-family: 'IBM Plex Sans', sans-serif;
+        color: var(--neutral-800);
+        font-size: 0.85rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .timeline-card p {
+        color: var(--neutral-500);
+        font-size: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .time-badge {
+        display: inline-block;
+        padding: 0.2rem 0.6rem;
+        background: var(--neutral-100);
+        color: var(--neutral-600);
+        border-radius: 10px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+
+    /* Document Items */
+    .document-item {
+        display: flex;
+        align-items: start;
+        padding: 1rem;
+        background: var(--neutral-50);
+        border: 2px solid var(--neutral-200);
+        border-radius: 10px;
+    }
+
+    .document-item i {
+        font-size: 1.5rem;
+        color: var(--uitm-primary);
+        margin-right: 0.75rem;
+        flex-shrink: 0;
+    }
+
+    .document-item strong {
+        display: block;
+        font-family: 'IBM Plex Sans', sans-serif;
+        color: var(--neutral-800);
+        font-size: 0.9rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .document-item p {
+        color: var(--neutral-600);
+        font-size: 0.8rem;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    /* Security Items */
+    .security-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        background: var(--neutral-50);
+        border: 2px solid var(--neutral-200);
+        border-radius: 10px;
+    }
+
+    .security-item i {
+        width: 42px;
+        height: 42px;
+        background: linear-gradient(135deg, var(--uitm-primary) 0%, var(--uitm-primary-dark) 100%);
+        color: white;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        margin-right: 0.75rem;
+        flex-shrink: 0;
+    }
+
+    .security-item strong {
+        display: block;
+        font-family: 'IBM Plex Sans', sans-serif;
+        color: var(--neutral-800);
+        font-size: 0.85rem;
+        margin-bottom: 0.2rem;
+    }
+
+    .security-item p {
+        color: var(--neutral-500);
+        font-size: 0.75rem;
+        margin: 0;
+    }
+
+    /* Contact Cards */
+    .contact-card {
+        display: flex;
+        align-items: start;
+        padding: 1.25rem;
+        background: white;
+        border: 2px solid var(--neutral-200);
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        height: 100%;
+    }
+
+    .contact-card:hover {
+        border-color: var(--uitm-primary);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .contact-icon {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, var(--uitm-primary) 0%, var(--uitm-primary-dark) 100%);
+        color: white;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+
+    .contact-card h6 {
+        font-family: 'IBM Plex Sans', sans-serif;
+        color: var(--neutral-800);
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+        font-size: 0.95rem;
+    }
+
+    .contact-card .text-muted {
+        font-size: 0.8rem;
+    }
+
+    .contact-card a {
+        color: var(--uitm-primary);
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+
+    /* Acknowledgment Card */
+    .acknowledgment-card {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.03) 100%);
+        border: 2px solid var(--uitm-green);
+        border-radius: 12px;
+        padding: 2rem;
+        margin-top: 2rem;
+    }
+
+    .acknowledgment-card h4 {
+        font-family: 'IBM Plex Sans', sans-serif;
+        color: var(--neutral-800);
+        font-weight: 700;
+        margin-bottom: 0.75rem;
+        font-size: 1.1rem;
+    }
+
+    .acknowledgment-card p {
+        color: var(--neutral-600);
+        font-size: 0.95rem;
+        line-height: 1.7;
+        margin-bottom: 0;
+    }
+
+    /* Back Button */
+    .btn-back {
+        background: linear-gradient(135deg, var(--uitm-primary) 0%, var(--uitm-primary-dark) 100%);
+        border: none;
+        color: white;
+        font-family: 'IBM Plex Sans', sans-serif;
+        font-weight: 600;
+        font-size: 0.9rem;
+        padding: 0.875rem 2rem;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-back:hover {
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
+    }
+
+    /* Scroll to Top Button */
+    .scroll-to-top-btn {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, var(--uitm-primary) 0%, var(--uitm-primary-dark) 100%);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        font-size: 1.25rem;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(20px);
+        transition: all 0.3s ease;
+    }
+
+    .scroll-to-top-btn.show {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+
+    .scroll-to-top-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 16px rgba(30, 58, 138, 0.4);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .page-header {
+            padding: 2rem 1.5rem;
+            text-align: center;
+        }
+
+        .page-header h1 {
+            font-size: 1.5rem;
+        }
+
+        .header-illustration {
+            display: none;
+        }
+
+        .terms-card-header {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .icon-badge {
+            margin-right: 0;
+            margin-bottom: 0.75rem;
+        }
+
+        .terms-card-body {
+            padding: 1.25rem;
+        }
+
+        .nav-link-card {
+            font-size: 0.75rem;
+            padding: 0.5rem 0.6rem;
+        }
+
+        .scroll-to-top-btn {
+            bottom: 20px;
+            right: 20px;
+            width: 45px;
+            height: 45px;
+            font-size: 1.1rem;
+        }
+    }
+
+    @media print {
+        .page-header, .nav-link-card, .btn-back, .scroll-to-top-btn {
+            display: none;
+        }
+
+        .terms-card {
+            box-shadow: none;
+            border: 1px solid #ccc;
+            page-break-inside: avoid;
+        }
+    }
+</style>
+@endpush
+
 @section('content')
 <div class="terms-container">
-    <!-- Header Section -->
-    <div class="terms-header">
-        <div class="row align-items-center">
-            <div class="col-lg-9">
-                <h1 class="terms-title">Terms & Conditions</h1>
-                <p class="terms-subtitle">
-                    <i class="fas fa-university me-2"></i>
-                    UiTM Credit Exemption Management System
-                </p>
-                <p class="terms-description">
-                    Please read these terms and conditions carefully before using our credit exemption services.
-                </p>
-            </div>
-            <div class="col-lg-3 text-end">
-                <div class="terms-illustration">
-                    <i class="fas fa-file-contract"></i>
-                </div>
-            </div>
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="page-header-content">
+            <div class="eyebrow">Legal Information</div>
+            <h1><i class="fas fa-file-contract me-2"></i>Terms & Conditions</h1>
+            <p>Please read these terms and conditions carefully before using our credit exemption services.</p>
+        </div>
+        <div class="header-illustration">
+            <i class="fas fa-file-contract"></i>
         </div>
     </div>
 
     <!-- Quick Navigation -->
-    <div class="card mb-4" style="border-radius: 16px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
-        <div class="card-body" style="padding: 1.5rem;">
-            <h5 class="mb-3" style="color: #2d3748; font-weight: 600;">
-                <i class="fas fa-list-ul me-2" style="color: #667eea;"></i>Quick Navigation
-            </h5>
-            <div class="row g-2">
-                <div class="col-md-3 col-6">
-                    <a href="#section-1" class="nav-link-card">
-                        <i class="fas fa-info-circle"></i> Overview
-                    </a>
-                </div>
-                <div class="col-md-3 col-6">
-                    <a href="#section-2" class="nav-link-card">
-                        <i class="fas fa-check-circle"></i> Eligibility
-                    </a>
-                </div>
-                <div class="col-md-3 col-6">
-                    <a href="#section-3" class="nav-link-card">
-                        <i class="fas fa-file-upload"></i> Application
-                    </a>
-                </div>
-                <div class="col-md-3 col-6">
-                    <a href="#section-4" class="nav-link-card">
-                        <i class="fas fa-graduation-cap"></i> Academic Policy
-                    </a>
-                </div>
-                <div class="col-md-3 col-6">
-                    <a href="#section-5" class="nav-link-card">
-                        <i class="fas fa-balance-scale"></i> Rights
-                    </a>
-                </div>
-                <div class="col-md-3 col-6">
-                    <a href="#section-6" class="nav-link-card">
-                        <i class="fas fa-shield-alt"></i> Privacy
-                    </a>
-                </div>
-                <div class="col-md-3 col-6">
-                    <a href="#section-7" class="nav-link-card">
-                        <i class="fas fa-exclamation-triangle"></i> Disclaimer
-                    </a>
-                </div>
-                <div class="col-md-3 col-6">
-                    <a href="#section-8" class="nav-link-card">
-                        <i class="fas fa-phone-alt"></i> Contact
-                    </a>
-                </div>
+    <div class="nav-card">
+        <h5 class="nav-title">
+            <i class="fas fa-list-ul"></i>Quick Navigation
+        </h5>
+        <div class="row g-2">
+            <div class="col-md-3 col-6">
+                <a href="#section-1" class="nav-link-card">
+                    <i class="fas fa-info-circle"></i> Overview
+                </a>
+            </div>
+            <div class="col-md-3 col-6">
+                <a href="#section-2" class="nav-link-card">
+                    <i class="fas fa-check-circle"></i> Eligibility
+                </a>
+            </div>
+            <div class="col-md-3 col-6">
+                <a href="#section-3" class="nav-link-card">
+                    <i class="fas fa-file-upload"></i> Application
+                </a>
+            </div>
+            <div class="col-md-3 col-6">
+                <a href="#section-4" class="nav-link-card">
+                    <i class="fas fa-graduation-cap"></i> Academic Policy
+                </a>
+            </div>
+            <div class="col-md-3 col-6">
+                <a href="#section-5" class="nav-link-card">
+                    <i class="fas fa-balance-scale"></i> Rights
+                </a>
+            </div>
+            <div class="col-md-3 col-6">
+                <a href="#section-6" class="nav-link-card">
+                    <i class="fas fa-shield-alt"></i> Privacy
+                </a>
+            </div>
+            <div class="col-md-3 col-6">
+                <a href="#section-7" class="nav-link-card">
+                    <i class="fas fa-exclamation-triangle"></i> Disclaimer
+                </a>
+            </div>
+            <div class="col-md-3 col-6">
+                <a href="#section-8" class="nav-link-card">
+                    <i class="fas fa-phone-alt"></i> Contact
+                </a>
             </div>
         </div>
     </div>
 
     <!-- Last Updated -->
-    <div class="alert alert-info mb-4" style="border-radius: 12px; border-left: 4px solid #38b2ac;">
+    <div class="update-alert">
         <i class="fas fa-calendar-check me-2"></i>
         <strong>Last Updated:</strong> December 27, 2025 | <strong>Effective Date:</strong> Semester I 2025/2026
     </div>
@@ -83,12 +774,12 @@
     <!-- Section 1: Overview -->
     <div class="terms-card" id="section-1">
         <div class="terms-card-header">
-            <div class="icon-badge bg-primary">
+            <div class="icon-badge primary">
                 <i class="fas fa-info-circle"></i>
             </div>
             <div>
                 <h3>1. Overview & Acceptance</h3>
-                <p class="mb-0">Understanding the credit exemption system</p>
+                <p>Understanding the credit exemption system</p>
             </div>
         </div>
         <div class="terms-card-body">
@@ -111,12 +802,12 @@
     <!-- Section 2: Eligibility Criteria -->
     <div class="terms-card" id="section-2">
         <div class="terms-card-header">
-            <div class="icon-badge bg-success">
+            <div class="icon-badge green">
                 <i class="fas fa-check-circle"></i>
             </div>
             <div>
                 <h3>2. Eligibility Criteria</h3>
-                <p class="mb-0">Requirements for credit exemption qualification</p>
+                <p>Requirements for credit exemption qualification</p>
             </div>
         </div>
         <div class="terms-card-body">
@@ -128,7 +819,7 @@
                         <div class="criteria-number">1</div>
                         <h6>Course Match</h6>
                         <p>Diploma course must be listed in the approved equivalency database for your degree program</p>
-                        <span class="criteria-badge"><i class="fas fa-book"></i> HEA Approved</span>
+                        <span class="criteria-badge"><i class="fas fa-book me-1"></i> HEA Approved</span>
                     </div>
                 </div>
                 <div class="col-md-4">
@@ -136,7 +827,7 @@
                         <div class="criteria-number">2</div>
                         <h6>Grade Requirement</h6>
                         <p>Minimum grade of <strong>C (2.00 GPA)</strong> or higher in the diploma course</p>
-                        <span class="criteria-badge"><i class="fas fa-chart-line"></i> C or Above</span>
+                        <span class="criteria-badge"><i class="fas fa-chart-line me-1"></i> C or Above</span>
                     </div>
                 </div>
                 <div class="col-md-4">
@@ -144,14 +835,14 @@
                         <div class="criteria-number">3</div>
                         <h6>Equivalency Match</h6>
                         <p>Course content similarity must be <strong>>80%</strong> as determined by HEA assessment</p>
-                        <span class="criteria-badge"><i class="fas fa-percentage"></i> >80% Match</span>
+                        <span class="criteria-badge"><i class="fas fa-percentage me-1"></i> >80% Match</span>
                     </div>
                 </div>
             </div>
 
             <div class="warning-box">
                 <h6><i class="fas fa-exclamation-triangle me-2"></i>Important Notice</h6>
-                <ul class="mb-0">
+                <ul>
                     <li>Grades below C (including C-, D+, D, F) do <strong>not qualify</strong> for exemption</li>
                     <li>Courses not listed in the HEA-endorsed equivalency database require special review by Academic Advisors and Resource Persons</li>
                     <li>External institution courses (non-UiTM) undergo additional verification processes</li>
@@ -164,12 +855,12 @@
     <!-- Section 3: Application Process -->
     <div class="terms-card" id="section-3">
         <div class="terms-card-header">
-            <div class="icon-badge bg-warning">
+            <div class="icon-badge amber">
                 <i class="fas fa-file-upload"></i>
             </div>
             <div>
                 <h3>3. Application Procedures & Responsibilities</h3>
-                <p class="mb-0">Student obligations and submission requirements</p>
+                <p>Student obligations and submission requirements</p>
             </div>
         </div>
         <div class="terms-card-body">
@@ -214,12 +905,12 @@
     <!-- Section 4: Academic Policies -->
     <div class="terms-card" id="section-4">
         <div class="terms-card-header">
-            <div class="icon-badge bg-info">
+            <div class="icon-badge info">
                 <i class="fas fa-graduation-cap"></i>
             </div>
             <div>
                 <h3>4. Academic Policies & Regulations</h3>
-                <p class="mb-0">University regulations governing credit exemptions</p>
+                <p>University regulations governing credit exemptions</p>
             </div>
         </div>
         <div class="terms-card-body">
@@ -235,7 +926,7 @@
 
             <h6 class="section-subtitle"><i class="fas fa-clock me-2"></i>Processing Timeline</h6>
             <div class="row g-3 mb-3">
-                <div class="col-md-3">
+                <div class="col-md-3 col-6">
                     <div class="timeline-card">
                         <div class="timeline-step">1</div>
                         <strong>Submission</strong>
@@ -243,7 +934,7 @@
                         <span class="time-badge">Day 0</span>
                     </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 col-6">
                     <div class="timeline-card">
                         <div class="timeline-step">2</div>
                         <strong>Academic Advisor</strong>
@@ -251,7 +942,7 @@
                         <span class="time-badge">3-5 days</span>
                     </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 col-6">
                     <div class="timeline-card">
                         <div class="timeline-step">3</div>
                         <strong>Resource Person</strong>
@@ -259,7 +950,7 @@
                         <span class="time-badge">5-10 days</span>
                     </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 col-6">
                     <div class="timeline-card">
                         <div class="timeline-step">4</div>
                         <strong>HEA Approval</strong>
@@ -268,19 +959,19 @@
                     </div>
                 </div>
             </div>
-            <p class="text-muted small"><i class="fas fa-info-circle me-1"></i>Timelines are estimates and may vary depending on application volume and complexity. Peak periods (start of semester) may experience longer processing times.</p>
+            <p class="text-muted small"><i class="fas fa-info-circle me-1"></i>Timelines are estimates and may vary depending on application volume and complexity.</p>
         </div>
     </div>
 
     <!-- Section 5: Student Rights & Appeal -->
     <div class="terms-card" id="section-5">
         <div class="terms-card-header">
-            <div class="icon-badge" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+            <div class="icon-badge pink">
                 <i class="fas fa-balance-scale"></i>
             </div>
             <div>
                 <h3>5. Student Rights & Appeal Process</h3>
-                <p class="mb-0">Your rights and recourse options</p>
+                <p>Your rights and recourse options</p>
             </div>
         </div>
         <div class="terms-card-body">
@@ -295,7 +986,7 @@
 
             <div class="info-box">
                 <h6><i class="fas fa-redo me-2"></i>Appeal Procedure</h6>
-                <ol class="mb-0">
+                <ol>
                     <li>Submit a written appeal to your Academic Advisor within <strong>14 days</strong> of receiving the decision</li>
                     <li>Provide supporting evidence (updated syllabus, course descriptions, lecturer recommendations)</li>
                     <li>Appeals are reviewed by a panel consisting of the Program Coordinator, Resource Person, and HEA representative</li>
@@ -308,12 +999,12 @@
     <!-- Section 6: Data Privacy & Security -->
     <div class="terms-card" id="section-6">
         <div class="terms-card-header">
-            <div class="icon-badge" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+            <div class="icon-badge cyan">
                 <i class="fas fa-shield-alt"></i>
             </div>
             <div>
                 <h3>6. Data Privacy & Security</h3>
-                <p class="mb-0">How we protect your information</p>
+                <p>How we protect your information</p>
             </div>
         </div>
         <div class="terms-card-body">
@@ -367,7 +1058,7 @@
 
             <div class="warning-box">
                 <h6><i class="fas fa-user-secret me-2"></i>Your Privacy Responsibilities</h6>
-                <ul class="mb-0">
+                <ul>
                     <li>Keep your login credentials and 2FA codes confidential</li>
                     <li>Do not share your account with others</li>
                     <li>Log out after each session, especially on shared computers</li>
@@ -382,12 +1073,12 @@
     <!-- Section 7: Disclaimer & Limitations -->
     <div class="terms-card" id="section-7">
         <div class="terms-card-header">
-            <div class="icon-badge" style="background: linear-gradient(135deg, #fa709a, #fee140);">
+            <div class="icon-badge orange">
                 <i class="fas fa-exclamation-triangle"></i>
             </div>
             <div>
                 <h3>7. Disclaimer & Limitations</h3>
-                <p class="mb-0">Important legal information</p>
+                <p>Important legal information</p>
             </div>
         </div>
         <div class="terms-card-body">
@@ -402,20 +1093,20 @@
 
             <div class="info-box">
                 <h6><i class="fas fa-scroll me-2"></i>Governing Law</h6>
-                <p class="mb-0">These terms and conditions are governed by the laws of Malaysia and UiTM Academic Regulations. Any disputes shall be resolved in accordance with UiTM's established grievance procedures.</p>
+                <p>These terms and conditions are governed by the laws of Malaysia and UiTM Academic Regulations. Any disputes shall be resolved in accordance with UiTM's established grievance procedures.</p>
             </div>
         </div>
     </div>
 
     <!-- Section 8: Contact Information -->
-    <div class="terms-card contact-section" id="section-8">
+    <div class="terms-card" id="section-8">
         <div class="terms-card-header">
-            <div class="icon-badge" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+            <div class="icon-badge primary">
                 <i class="fas fa-phone-alt"></i>
             </div>
             <div>
                 <h3>8. Contact & Support</h3>
-                <p class="mb-0">Get help with your credit exemption application</p>
+                <p>Get help with your credit exemption application</p>
             </div>
         </div>
         <div class="terms-card-body">
@@ -442,7 +1133,7 @@
                         <div>
                             <h6>Higher Education Authority (HEA)</h6>
                             <p class="text-muted mb-1">For policy inquiries and final approvals</p>
-                            <p class="mb-0"><strong>hea@uitm.edu.my</strong></p>
+                            <p class="mb-0"><a href="mailto:hea@uitm.edu.my">hea@uitm.edu.my</a></p>
                         </div>
                     </div>
                 </div>
@@ -454,7 +1145,7 @@
                         <div>
                             <h6>Technical Support</h6>
                             <p class="text-muted mb-1">For system issues and login problems</p>
-                            <p class="mb-0"><strong>helpdesk@uitm.edu.my</strong></p>
+                            <p class="mb-0"><a href="mailto:helpdesk@uitm.edu.my">helpdesk@uitm.edu.my</a></p>
                         </div>
                     </div>
                 </div>
@@ -467,7 +1158,7 @@
                             <h6>Academic Calendar</h6>
                             <p class="text-muted mb-1">Check important dates and deadlines</p>
                             <p class="mb-0">
-                                <a href="https://hea.uitm.edu.my/index.php/calendars/academic-calendar" target="_blank" style="color: #667eea; font-weight: 600;">
+                                <a href="https://hea.uitm.edu.my/index.php/calendars/academic-calendar" target="_blank">
                                     View Calendar <i class="fas fa-external-link-alt ms-1"></i>
                                 </a>
                             </p>
@@ -481,22 +1172,20 @@
     <!-- Acknowledgment Section -->
     <div class="acknowledgment-card">
         <div class="d-flex align-items-start">
-            <div style="font-size: 3rem; color: #48bb78; margin-right: 1.5rem;">
+            <div style="font-size: 2.5rem; color: var(--uitm-green); margin-right: 1.25rem;">
                 <i class="fas fa-check-circle"></i>
             </div>
             <div style="flex: 1;">
-                <h4 style="color: #2d3748; font-weight: 700; margin-bottom: 1rem;">Acknowledgment of Terms</h4>
-                <p style="color: #4a5568; font-size: 1.1rem; line-height: 1.7; margin-bottom: 0;">
-                    By continuing to use the UiTM Credit Exemption Management System, you acknowledge that you have read, understood, and agreed to these terms and conditions. If you do not agree with any part of these terms, please refrain from using the system and contact your Academic Advisor for alternative procedures.
-                </p>
+                <h4>Acknowledgment of Terms</h4>
+                <p>By continuing to use the UiTM Credit Exemption Management System, you acknowledge that you have read, understood, and agreed to these terms and conditions. If you do not agree with any part of these terms, please refrain from using the system and contact your Academic Advisor for alternative procedures.</p>
             </div>
         </div>
     </div>
 
     <!-- Back to Dashboard Button -->
     <div class="text-center mt-4 mb-5">
-        <a href="{{ route('student.dashboard') }}" class="btn btn-lg" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 12px; padding: 1rem 3rem; font-weight: 600; border: none; box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3); transition: all 0.3s ease;">
-            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+        <a href="{{ route('student.dashboard') }}" class="btn-back">
+            <i class="fas fa-arrow-left"></i>Back to Dashboard
         </a>
     </div>
 </div>
@@ -505,548 +1194,10 @@
 <button id="scrollToTopBtn" class="scroll-to-top-btn" aria-label="Scroll to top">
     <i class="fas fa-arrow-up"></i>
 </button>
+@endsection
 
-<style>
-/* Terms Container */
-.terms-container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 0 1rem;
-}
-
-/* Header Section */
-.terms-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 20px;
-    padding: 3rem;
-    color: white;
-    margin-bottom: 2rem;
-    box-shadow: 0 20px 40px rgba(102, 126, 234, 0.15);
-}
-
-.terms-title {
-    font-size: 2.75rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-}
-
-.terms-subtitle {
-    font-size: 1.25rem;
-    margin-bottom: 1rem;
-    opacity: 0.95;
-}
-
-.terms-description {
-    font-size: 1.15rem;
-    line-height: 1.6;
-    opacity: 0.9;
-}
-
-.terms-illustration {
-    font-size: 6rem;
-    opacity: 0.2;
-    text-align: center;
-}
-
-/* Quick Navigation */
-.nav-link-card {
-    display: flex;
-    align-items: center;
-    padding: 0.75rem 1rem;
-    background: #f8fafc;
-    border-radius: 10px;
-    color: #4a5568;
-    text-decoration: none;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    border: 2px solid transparent;
-}
-
-.nav-link-card:hover {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(102, 126, 234, 0.3);
-}
-
-.nav-link-card i {
-    margin-right: 0.5rem;
-    font-size: 1rem;
-}
-
-/* Terms Cards */
-.terms-card {
-    background: white;
-    border-radius: 20px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.08);
-    margin-bottom: 2rem;
-    overflow: hidden;
-    border: 1px solid #e2e8f0;
-}
-
-.terms-card-header {
-    display: flex;
-    align-items: center;
-    padding: 2rem;
-    background: linear-gradient(135deg, #f7fafc, #edf2f7);
-    border-bottom: 2px solid #e2e8f0;
-}
-
-.icon-badge {
-    width: 60px;
-    height: 60px;
-    border-radius: 15px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.75rem;
-    color: white;
-    margin-right: 1.5rem;
-    flex-shrink: 0;
-}
-
-.icon-badge.bg-primary { background: linear-gradient(135deg, #667eea, #764ba2); }
-.icon-badge.bg-success { background: linear-gradient(135deg, #48bb78, #38a169); }
-.icon-badge.bg-warning { background: linear-gradient(135deg, #ed8936, #dd6b20); }
-.icon-badge.bg-info { background: linear-gradient(135deg, #38b2ac, #319795); }
-
-.terms-card-header h3 {
-    color: #2d3748;
-    font-weight: 700;
-    font-size: 1.5rem;
-    margin-bottom: 0.25rem;
-}
-
-.terms-card-header p {
-    color: #718096;
-    font-size: 0.95rem;
-}
-
-.terms-card-body {
-    padding: 2.5rem;
-}
-
-/* Content Styles */
-.lead-text {
-    font-size: 1.15rem;
-    color: #2d3748;
-    line-height: 1.8;
-    margin-bottom: 1.5rem;
-    font-weight: 500;
-}
-
-.section-subtitle {
-    color: #2d3748;
-    font-weight: 700;
-    margin-top: 2rem;
-    margin-bottom: 1rem;
-    font-size: 1.2rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid #e2e8f0;
-}
-
-.styled-list {
-    list-style: none;
-    padding-left: 0;
-}
-
-.styled-list li {
-    padding-left: 2rem;
-    margin-bottom: 1rem;
-    color: #4a5568;
-    line-height: 1.7;
-    position: relative;
-}
-
-.styled-list li::before {
-    content: "\f00c";
-    font-family: "Font Awesome 6 Free";
-    font-weight: 900;
-    position: absolute;
-    left: 0;
-    color: #48bb78;
-    font-size: 0.9rem;
-}
-
-/* Info & Warning Boxes */
-.info-box {
-    background: linear-gradient(135deg, #ebf8ff, #e6fffa);
-    border-left: 4px solid #38b2ac;
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin: 1.5rem 0;
-}
-
-.info-box h6 {
-    color: #2c7a7b;
-    font-weight: 700;
-    margin-bottom: 0.75rem;
-}
-
-.info-box p {
-    color: #234e52;
-    margin-bottom: 0;
-    line-height: 1.7;
-}
-
-.warning-box {
-    background: linear-gradient(135deg, #fffbeb, #fef3c7);
-    border-left: 4px solid #f59e0b;
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin: 1.5rem 0;
-}
-
-.warning-box h6 {
-    color: #92400e;
-    font-weight: 700;
-    margin-bottom: 0.75rem;
-}
-
-.warning-box ul {
-    margin-bottom: 0;
-    padding-left: 1.5rem;
-}
-
-.warning-box li {
-    color: #78350f;
-    margin-bottom: 0.5rem;
-}
-
-/* Criteria Cards */
-.criteria-card {
-    background: white;
-    border: 2px solid #e2e8f0;
-    border-radius: 15px;
-    padding: 1.5rem;
-    text-align: center;
-    height: 100%;
-    transition: all 0.3s ease;
-}
-
-.criteria-card:hover {
-    border-color: #667eea;
-    transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(102, 126, 234, 0.15);
-}
-
-.criteria-number {
-    width: 50px;
-    height: 50px;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin: 0 auto 1rem;
-}
-
-.criteria-card h6 {
-    color: #2d3748;
-    font-weight: 700;
-    margin-bottom: 0.75rem;
-}
-
-.criteria-card p {
-    color: #718096;
-    font-size: 0.95rem;
-    margin-bottom: 1rem;
-    line-height: 1.6;
-}
-
-.criteria-badge {
-    display: inline-block;
-    padding: 0.5rem 1rem;
-    background: linear-gradient(135deg, #f0f4ff, #e8eeff);
-    color: #667eea;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
-/* Timeline Cards */
-.timeline-card {
-    background: white;
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 1.25rem;
-    text-align: center;
-    height: 100%;
-}
-
-.timeline-step {
-    width: 40px;
-    height: 40px;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    margin: 0 auto 0.75rem;
-}
-
-.timeline-card strong {
-    display: block;
-    color: #2d3748;
-    font-size: 1rem;
-    margin-bottom: 0.5rem;
-}
-
-.timeline-card p {
-    color: #718096;
-    font-size: 0.9rem;
-    margin-bottom: 0.75rem;
-}
-
-.time-badge {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    background: #edf2f7;
-    color: #4a5568;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-
-/* Document Items */
-.document-item {
-    display: flex;
-    align-items: start;
-    padding: 1.25rem;
-    background: #f8fafc;
-    border-radius: 12px;
-    border: 2px solid #e2e8f0;
-}
-
-.document-item i {
-    font-size: 2rem;
-    color: #667eea;
-    margin-right: 1rem;
-    flex-shrink: 0;
-    margin-top: 0.25rem;
-}
-
-.document-item strong {
-    display: block;
-    color: #2d3748;
-    font-size: 1.05rem;
-    margin-bottom: 0.5rem;
-}
-
-.document-item p {
-    color: #718096;
-    font-size: 0.95rem;
-    margin: 0;
-    line-height: 1.6;
-}
-
-/* Security Items */
-.security-item {
-    display: flex;
-    align-items: center;
-    padding: 1.25rem;
-    background: #f8fafc;
-    border-radius: 12px;
-    border: 2px solid #e2e8f0;
-}
-
-.security-item i {
-    width: 50px;
-    height: 50px;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    margin-right: 1rem;
-    flex-shrink: 0;
-}
-
-.security-item strong {
-    display: block;
-    color: #2d3748;
-    font-size: 1rem;
-    margin-bottom: 0.25rem;
-}
-
-.security-item p {
-    color: #718096;
-    font-size: 0.9rem;
-    margin: 0;
-}
-
-/* Contact Cards */
-.contact-card {
-    display: flex;
-    align-items: start;
-    padding: 1.5rem;
-    background: white;
-    border: 2px solid #e2e8f0;
-    border-radius: 15px;
-    transition: all 0.3s ease;
-    height: 100%;
-}
-
-.contact-card:hover {
-    border-color: #667eea;
-    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.1);
-    transform: translateY(-3px);
-}
-
-.contact-icon {
-    width: 60px;
-    height: 60px;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.75rem;
-    margin-right: 1.25rem;
-    flex-shrink: 0;
-}
-
-.contact-card h6 {
-    color: #2d3748;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-    font-size: 1.1rem;
-}
-
-/* Acknowledgment Card */
-.acknowledgment-card {
-    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-    border: 2px solid #86efac;
-    border-radius: 20px;
-    padding: 2.5rem;
-    margin-top: 3rem;
-}
-
-/* Contact Section Special Styling */
-.contact-section {
-    background: linear-gradient(135deg, #f7fafc, #edf2f7);
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .terms-header {
-        padding: 2rem 1.5rem;
-        text-align: center;
-    }
-
-    .terms-title {
-        font-size: 2rem;
-    }
-
-    .terms-illustration {
-        font-size: 4rem;
-        margin-top: 1rem;
-    }
-
-    .terms-card-header {
-        flex-direction: column;
-        text-align: center;
-    }
-
-    .icon-badge {
-        margin-right: 0;
-        margin-bottom: 1rem;
-    }
-
-    .terms-card-body {
-        padding: 1.5rem;
-    }
-
-    .nav-link-card {
-        font-size: 0.9rem;
-        padding: 0.6rem 0.8rem;
-    }
-}
-
-/* Scroll to Top Button */
-.scroll-to-top-btn {
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    width: 55px;
-    height: 55px;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    border: none;
-    border-radius: 50%;
-    font-size: 1.5rem;
-    cursor: pointer;
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-    z-index: 1000;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(20px);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.scroll-to-top-btn.show {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-}
-
-.scroll-to-top-btn:hover {
-    background: linear-gradient(135deg, #5a67d8, #6b46c1);
-    transform: translateY(-5px);
-    box-shadow: 0 12px 35px rgba(102, 126, 234, 0.5);
-}
-
-.scroll-to-top-btn:active {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
-}
-
-.scroll-to-top-btn i {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-}
-
-/* Print Styles */
-@media print {
-    .terms-header,
-    .nav-link-card,
-    .btn,
-    .scroll-to-top-btn {
-        display: none;
-    }
-
-    .terms-card {
-        box-shadow: none;
-        border: 1px solid #ccc;
-        page-break-inside: avoid;
-    }
-}
-
-/* Mobile Responsive for Scroll Button */
-@media (max-width: 768px) {
-    .scroll-to-top-btn {
-        bottom: 20px;
-        right: 20px;
-        width: 50px;
-        height: 50px;
-        font-size: 1.3rem;
-    }
-}
-</style>
-
+@push('scripts')
 <script>
-// Scroll to Top Functionality
 document.addEventListener('DOMContentLoaded', function() {
     const scrollToTopBtn = document.getElementById('scrollToTopBtn');
 
@@ -1075,7 +1226,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const targetElement = document.querySelector(targetId);
 
             if (targetElement) {
-                const offsetTop = targetElement.offsetTop - 20; // 20px offset from top
+                const offsetTop = targetElement.offsetTop - 20;
                 window.scrollTo({
                     top: offsetTop,
                     behavior: 'smooth'
@@ -1085,4 +1236,4 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-@endsection
+@endpush

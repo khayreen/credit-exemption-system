@@ -3,72 +3,420 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Already Submitted - UiTM Credit Exemption</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>Already Submitted - UiTM Credit Exemption System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <style>
-        .info-header {
-            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        :root {
+            --uitm-primary: #1e3a8a;
+            --uitm-primary-dark: #1e2d5b;
+            --uitm-primary-light: #dbeafe;
+            --uitm-amber: #f59e0b;
+            --uitm-green: #10b981;
+            --uitm-green-light: #d1fae5;
+            --slate-50: #f8fafc;
+            --slate-100: #f1f5f9;
+            --slate-200: #e2e8f0;
+            --slate-400: #94a3b8;
+            --slate-500: #64748b;
+            --slate-600: #475569;
+            --slate-700: #334155;
+            --slate-800: #1e293b;
+            --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'IBM Plex Mono', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--slate-100);
+            min-height: 100vh;
+            color: var(--slate-700);
+        }
+
+        /* ========== PAGE HEADER ========== */
+        .page-header {
+            background: linear-gradient(135deg, var(--uitm-primary) 0%, var(--uitm-primary-dark) 100%);
+            position: relative;
+            padding: 2.5rem 0;
+            overflow: hidden;
+        }
+
+        .page-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 24px 24px;
+            pointer-events: none;
+        }
+
+        .page-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--uitm-amber), var(--uitm-green), var(--uitm-amber));
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+        }
+
+        .eyebrow-text {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--uitm-amber);
+            margin-bottom: 0.75rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
             color: white;
-            padding: 3rem 0;
+            margin: 0 0 0.5rem 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
         }
-        .card-custom {
-            border: none;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+
+        .page-title i {
+            font-size: 1.75rem;
         }
+
+        .page-subtitle {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+            margin: 0;
+        }
+
+        /* ========== MAIN CONTENT ========== */
+        .main-content {
+            padding: 3rem 0 4rem;
+        }
+
+        /* ========== INFO CARD ========== */
+        .info-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(30, 58, 138, 0.1);
+            border: 1px solid var(--slate-200);
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .info-icon-wrapper {
+            padding: 3rem 2rem 2rem;
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.08) 0%, rgba(30, 58, 138, 0.02) 100%);
+        }
+
         .info-icon {
-            font-size: 4rem;
-            color: #17a2b8;
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, var(--uitm-primary) 0%, var(--uitm-primary-dark) 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            box-shadow: 0 8px 24px rgba(30, 58, 138, 0.3);
+            position: relative;
+        }
+
+        .info-icon i {
+            font-size: 3rem;
+            color: white;
+        }
+
+        .info-icon .check-badge {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 32px;
+            height: 32px;
+            background: var(--uitm-green);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid white;
+        }
+
+        .info-icon .check-badge i {
+            font-size: 0.875rem;
+        }
+
+        .info-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--uitm-primary);
+            margin-bottom: 0.75rem;
+        }
+
+        .info-message {
+            font-size: 1.0625rem;
+            color: var(--slate-600);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        /* ========== DETAILS SECTION ========== */
+        .details-section {
+            padding: 2rem;
+            border-top: 1px solid var(--slate-200);
+        }
+
+        .submission-details-card {
+            background: var(--uitm-green-light);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        .submission-details-title {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--uitm-green);
             margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        @media (max-width: 576px) {
+            .details-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.125rem;
+        }
+
+        .detail-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--slate-500);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .detail-value {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--slate-800);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.25rem 0.75rem;
+            background: var(--uitm-green);
+            color: white;
+            border-radius: 20px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+        }
+
+        .status-badge i {
+            font-size: 0.6875rem;
+        }
+
+        /* ========== NEXT STEPS CARD ========== */
+        .next-steps-card {
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.08) 0%, rgba(30, 58, 138, 0.04) 100%);
+            border: 1px solid rgba(30, 58, 138, 0.15);
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            text-align: left;
+        }
+
+        .next-steps-card-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--uitm-primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .next-steps-card-icon i {
+            color: white;
+            font-size: 1rem;
+        }
+
+        .next-steps-card-content h6 {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--uitm-primary);
+            margin-bottom: 0.375rem;
+        }
+
+        .next-steps-card-content p {
+            font-size: 0.875rem;
+            color: var(--slate-600);
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        /* ========== FOOTER ========== */
+        .card-footer-info {
+            padding: 1.5rem 2rem;
+            background: var(--slate-50);
+            border-top: 1px solid var(--slate-200);
+        }
+
+        .card-footer-info p {
+            font-size: 0.8125rem;
+            color: var(--slate-500);
+            margin: 0;
+            text-align: center;
+        }
+
+        /* ========== ANIMATIONS ========== */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .info-card {
+            animation: fadeInUp 0.6s ease forwards;
         }
     </style>
 </head>
-<body class="bg-light">
-    <div class="info-header">
+<body>
+    <!-- Page Header -->
+    <header class="page-header">
         <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-md-8 text-center">
-                    <h1><i class="fas fa-university me-3"></i>UiTM Credit Exemption System</h1>
-                    <p class="lead mb-0">Submission Already Completed</p>
-                </div>
+            <div class="header-content">
+                <div class="eyebrow-text">UiTM Credit Exemption System</div>
+                <h1 class="page-title">
+                    <i class="fas fa-file-check"></i>
+                    Submission Already Completed
+                </h1>
+                <p class="page-subtitle">This syllabus has already been submitted</p>
             </div>
         </div>
-    </div>
+    </header>
 
-    <div class="container py-5">
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <div class="card card-custom">
-                    <div class="card-body p-5 text-center">
-                        <i class="fas fa-check-circle info-icon"></i>
-                        <h2 class="text-info mb-4">Submission Already Completed</h2>
-                        <p class="lead">This syllabus has already been submitted and cannot be submitted again.</p>
-                        
-                        <div class="alert alert-success">
-                            <h6><i class="fas fa-info-circle me-2"></i>Submission Details:</h6>
-                            <div class="text-start">
-                                <p><strong>Submitted by:</strong> {{ $request->external_lecturer_name ?? 'External Lecturer' }}</p>
-                                <p><strong>Submission Date:</strong> {{ $request->submitted_at ? $request->submitted_at->format('M d, Y H:i') : 'N/A' }}</p>
-                                <p><strong>Status:</strong> <span class="badge bg-success">Submitted</span></p>
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+
+                    <div class="info-card">
+                        <!-- Info Icon Section -->
+                        <div class="info-icon-wrapper">
+                            <div class="info-icon">
+                                <i class="fas fa-file-alt"></i>
+                                <div class="check-badge">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                            </div>
+                            <h2 class="info-title">Submission Already Completed</h2>
+                            <p class="info-message">
+                                This syllabus has already been submitted and cannot be submitted again using this link.
+                            </p>
+                        </div>
+
+                        <!-- Details Section -->
+                        <div class="details-section">
+                            <div class="submission-details-card">
+                                <div class="submission-details-title">
+                                    <i class="fas fa-clipboard-check"></i>
+                                    Previous Submission Details
+                                </div>
+                                <div class="details-grid">
+                                    <div class="detail-item">
+                                        <span class="detail-label">Submitted By</span>
+                                        <span class="detail-value">{{ $request->external_lecturer_name ?? 'External Lecturer' }}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">Submission Date</span>
+                                        <span class="detail-value">{{ $request->submitted_at ? $request->submitted_at->format('M d, Y H:i') : 'N/A' }}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">Status</span>
+                                        <span class="detail-value">
+                                            <span class="status-badge">
+                                                <i class="fas fa-check"></i>
+                                                Submitted
+                                            </span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="next-steps-card">
+                                <div class="next-steps-card-icon">
+                                    <i class="fas fa-forward"></i>
+                                </div>
+                                <div class="next-steps-card-content">
+                                    <h6>What's Next</h6>
+                                    <p>Your syllabus submission has been received and is being reviewed by the Resource Person. The credit exemption evaluation process will continue accordingly. No further action is required from your side.</p>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="alert alert-info">
-                            <h6><i class="fas fa-lightbulb me-2"></i>What's next:</h6>
-                            <p class="mb-0">Your syllabus submission has been received and is being reviewed by the Resource Person. The credit exemption evaluation process will continue accordingly.</p>
+                        <!-- Footer -->
+                        <div class="card-footer-info">
+                            <p>If you need to make changes to your submission or have questions, please contact the UiTM Credit Exemption Office.</p>
                         </div>
-
-                        <hr class="my-4">
-                        <small class="text-muted">
-                            If you need to make changes to your submission or have questions, please contact the UiTM Credit Exemption Office.
-                        </small>
                     </div>
+
                 </div>
             </div>
         </div>
-    </div>
+    </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

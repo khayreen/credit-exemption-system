@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasColumn('resource_persons', 'assigned_programs')) {
+            return; // Already added by earlier migration
+        }
         Schema::table('resource_persons', function (Blueprint $table) {
             $table->json('assigned_programs')->nullable()->after('expertise_area');
         });

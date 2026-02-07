@@ -63,7 +63,6 @@ class User extends Authenticatable implements MustVerifyEmail
     // --- Role Relationships ---
     public function student() { return $this->hasOne(Student::class); }
     public function academicAdvisor() { return $this->hasOne(AcademicAdvisor::class); }
-    public function coordinator() { return $this->hasOne(Coordinator::class); }
     public function programCoordinator() { return $this->hasOne(ProgramCoordinator::class); }
     public function resourcePerson() { return $this->hasOne(ResourcePerson::class); }
     public function heaPersonnel() { return $this->hasOne(HeaPersonnel::class); }
@@ -296,7 +295,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
         return match($this->requested_role) {
             UserRole::ACADEMIC_ADVISOR->value => $this->formatAcademicAdvisorPrograms($programs),
-            UserRole::COORDINATOR->value => $this->formatCoordinatorCategory($programs),
+            UserRole::PROGRAM_COORDINATOR->value => $this->formatProgramCoordinatorCategory($programs),
             UserRole::RESOURCE_PERSON->value => $programs['program'] ?? 'Not specified',
             default => 'Not specified',
         };
@@ -323,7 +322,7 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * Format Program Coordinator category for display
      */
-    private function formatCoordinatorCategory(array $data): string
+    private function formatProgramCoordinatorCategory(array $data): string
     {
         $category = $data['category'] ?? null;
 

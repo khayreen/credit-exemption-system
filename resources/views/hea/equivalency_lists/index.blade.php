@@ -263,7 +263,7 @@
                     <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
                     <h6>Published Lists</h6>
                     <p class="text-muted small mb-3">View archive of all published equivalency lists</p>
-                    <a href="{{ route('hea.equivalency_lists.published') }}" class="btn btn-sm btn-success">
+                    <a href="{{ route('hea.equivalency_lists.published_view') }}" class="btn btn-sm btn-success">
                         View Published ({{ $stats['published'] }})
                     </a>
                 </div>

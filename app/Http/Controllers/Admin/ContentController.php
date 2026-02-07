@@ -167,7 +167,7 @@ class ContentController extends Controller
             'all' => 'All Users',
             'student' => 'Students',
             'academic_advisor' => 'Academic Advisors',
-            'coordinator' => 'Program Coordinators',
+            'program_coordinator' => 'Program Coordinators',
             'resource_person' => 'Resource Persons',
             'hea_personnel' => 'HEA Personnel',
         ];
@@ -211,7 +211,7 @@ class ContentController extends Controller
             'all' => 'All Users',
             'student' => 'Students',
             'academic_advisor' => 'Academic Advisors',
-            'coordinator' => 'Program Coordinators',
+            'program_coordinator' => 'Program Coordinators',
             'resource_person' => 'Resource Persons',
             'hea_personnel' => 'HEA Personnel',
         ];

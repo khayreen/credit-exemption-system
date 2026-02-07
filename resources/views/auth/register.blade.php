@@ -1007,7 +1007,7 @@
                                     <option value="">Select your role</option>
                                     <option value="student" {{ old('requested_role') == 'student' ? 'selected' : '' }}>Student</option>
                                     <option value="academic_advisor" {{ old('requested_role') == 'academic_advisor' ? 'selected' : '' }}>Academic Advisor</option>
-                                    <option value="coordinator" {{ old('requested_role') == 'coordinator' ? 'selected' : '' }}>Program Coordinator</option>
+                                    <option value="program_coordinator" {{ old('requested_role') == 'program_coordinator' ? 'selected' : '' }}>Program Coordinator</option>
                                     <option value="resource_person" {{ old('requested_role') == 'resource_person' ? 'selected' : '' }}>Resource Person</option>
                                     <option value="hea_personnel" {{ old('requested_role') == 'hea_personnel' ? 'selected' : '' }}>HEA Personnel</option>
                                 </select>
@@ -1345,7 +1345,7 @@
                 document.querySelectorAll('#academic-advisor-fields input[type="checkbox"]').forEach(el => {
                     el.disabled = false;
                 });
-            } else if (role === 'coordinator') {
+            } else if (role === 'program_coordinator') {
                 programCoordinatorFields.style.display = 'block';
                 document.querySelectorAll('#program-coordinator-fields input, #program-coordinator-fields select').forEach(el => {
                     el.disabled = false;

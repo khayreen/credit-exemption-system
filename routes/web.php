@@ -11,6 +11,11 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// Test route for 403 error page (for security testing screenshots)
+Route::get('/test-403', function () {
+    abort(403, 'Unauthorized. This page is only accessible by system administrators.');
+});
+
 // Email template preview (only available in local/staging environments)
 if (app()->environment('local', 'staging')) {
     Route::get('/preview-email', function () {
@@ -48,11 +53,9 @@ Route::get('/2fa', [LoginSecurityController::class, 'show2faForm'])->name('2fa.i
 Route::get('/2fa/verify', function () { return view('google2fa.verify'); })->name('2fa.verify');
 Route::post('/2fa/verify', [LoginSecurityController::class, 'verify2fa'])->name('2fa.verify.post');
 
-// 2FA Setup routes (requires auth only - email verification is checked in LoginController)
-Route::middleware(['auth'])->group(function () {
-    Route::get('/2fa/setup', [App\Http\Controllers\Auth\TwoFactorController::class, 'showSetup'])->name('2fa.setup');
-    Route::post('/2fa/setup/verify', [App\Http\Controllers\Auth\TwoFactorController::class, 'verify'])->name('2fa.setup.verify');
-});
+// 2FA Setup routes (session-based - user is NOT authenticated during setup)
+Route::get('/2fa/setup', [App\Http\Controllers\Auth\TwoFactorController::class, 'showSetup'])->name('2fa.setup');
+Route::post('/2fa/setup/verify', [App\Http\Controllers\Auth\TwoFactorController::class, 'verify'])->name('2fa.setup.verify');
 
 // 2FA Login routes (no auth middleware - user is logging in)
 Route::get('/2fa/login', [App\Http\Controllers\Auth\TwoFactorController::class, 'showLogin'])->name('2fa.login');
@@ -141,27 +144,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // My Students
         Route::get('my-students', [App\Http\Controllers\AcademicAdvisor\ApplicationController::class, 'myStudents'])->name('my_students');
+
+        // Pending Re-evaluations (applications affected by new equivalency mappings)
+        Route::get('reevaluations', [App\Http\Controllers\AcademicAdvisor\ReevaluationController::class, 'index'])->name('reevaluations.index');
+        Route::get('reevaluations/{reevaluation}', [App\Http\Controllers\AcademicAdvisor\ReevaluationController::class, 'show'])->name('reevaluations.show');
+        Route::post('reevaluations/{reevaluation}/approve', [App\Http\Controllers\AcademicAdvisor\ReevaluationController::class, 'approve'])->name('reevaluations.approve');
+        Route::post('reevaluations/{reevaluation}/reject', [App\Http\Controllers\AcademicAdvisor\ReevaluationController::class, 'reject'])->name('reevaluations.reject');
+        Route::post('reevaluations/bulk-approve', [App\Http\Controllers\AcademicAdvisor\ReevaluationController::class, 'bulkApprove'])->name('reevaluations.bulk_approve');
+        Route::post('reevaluations/bulk-reject', [App\Http\Controllers\AcademicAdvisor\ReevaluationController::class, 'bulkReject'])->name('reevaluations.bulk_reject');
+        Route::post('reevaluations/approve-by-equivalency', [App\Http\Controllers\AcademicAdvisor\ReevaluationController::class, 'approveByEquivalency'])->name('reevaluations.approve_by_equivalency');
     });
 
-    // Coordinator-only routes
-    Route::middleware(['role:coordinator'])->prefix('coordinator')->name('coordinator.')->group(function () {
-        Route::get('dashboard', [App\Http\Controllers\Coordinator\ApplicationController::class, 'index'])->name('dashboard');
-        Route::get('application/{application}', [App\Http\Controllers\Coordinator\ApplicationController::class, 'show'])->name('application.show');
-        
-        // New routes for the dedicated equivalency page
-        Route::get('application/{application}/subject/{subject}/equivalency', [App\Http\Controllers\Coordinator\ApplicationController::class, 'createEquivalency'])->name('equivalency.create');
-        Route::post('application/{application}/subject/{subject}/equivalency', [App\Http\Controllers\Coordinator\ApplicationController::class, 'storeEquivalency'])->name('equivalency.store');
-    
-        // Routes to handle subject actions
-        Route::post('subject/{subject}/forward', [App\Http\Controllers\Coordinator\ApplicationController::class, 'forwardSubject'])->name('subject.forward');
-        Route::post('subject/{subject}/reject', [App\Http\Controllers\Coordinator\ApplicationController::class, 'rejectSubject'])->name('subject.reject');
-        
-        // Course Equivalencies View (Read-only)
-        Route::get('course-equivalencies', [App\Http\Controllers\Coordinator\ApplicationController::class, 'viewCourseEquivalencies'])->name('course_equivalencies.view');
-        Route::get('api/existing-equivalencies', [App\Http\Controllers\Coordinator\ApplicationController::class, 'getExistingEquivalencies'])->name('api.existing_equivalencies');
-    });
-
-    // Program Coordinator-only routes (NEW ARCHITECTURE)
+    // Program Coordinator-only routes
     Route::middleware(['role:program_coordinator'])->prefix('program-coordinator')->name('program_coordinator.')->group(function () {
         // Equivalency List Management - View Published Lists Only
         Route::get('equivalency-lists', [App\Http\Controllers\ProgramCoordinator\EquivalencyListController::class, 'index'])->name('equivalency_lists.index');
@@ -201,6 +195,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('course/{diplomaCourseCode}', [App\Http\Controllers\ProgramCoordinator\EquivalencyRequestController::class, 'showCourseRequests'])->name('course_requests');
         Route::post('make-decision', [App\Http\Controllers\ProgramCoordinator\EquivalencyRequestController::class, 'makeDecision'])->name('make_decision');
         Route::post('forward-to-rp', [App\Http\Controllers\ProgramCoordinator\EquivalencyRequestController::class, 'forwardToRP'])->name('forward_to_rp');
+
+        // Transcript Validation - Reject requests not in student's transcript
+        Route::post('reject-not-in-transcript', [App\Http\Controllers\ProgramCoordinator\EquivalencyRequestController::class, 'rejectNotInTranscript'])->name('reject_not_in_transcript');
+        Route::post('bulk-reject-not-in-transcript', [App\Http\Controllers\ProgramCoordinator\EquivalencyRequestController::class, 'bulkRejectNotInTranscript'])->name('bulk_reject_not_in_transcript');
+
+        // Decision History
+        Route::get('history', [App\Http\Controllers\ProgramCoordinator\EquivalencyRequestController::class, 'history'])->name('history');
+        Route::get('request/{id}', [App\Http\Controllers\ProgramCoordinator\EquivalencyRequestController::class, 'showRequest'])->name('show_request');
     });
 
         // Resource Person-only routes
@@ -311,6 +313,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Hea\DashboardController::class, 'index'])->name('dashboard');
         Route::get('users', [App\Http\Controllers\Hea\DashboardController::class, 'users'])->name('users.index');
         Route::get('applications', [App\Http\Controllers\Hea\DashboardController::class, 'applications'])->name('applications.index');
+        Route::post('applications/{application}/send-reminder', [App\Http\Controllers\Hea\DashboardController::class, 'sendApplicationReminder'])->name('applications.send_reminder');
+        Route::get('applications/{application}/assigned-advisor', [App\Http\Controllers\Hea\DashboardController::class, 'getAssignedAdvisor'])->name('applications.assigned_advisor');
         Route::get('logs', [App\Http\Controllers\Hea\DashboardController::class, 'logs'])->name('logs.index');
         Route::get('settings', [App\Http\Controllers\Hea\DashboardController::class, 'settings'])->name('settings');
         Route::patch('settings', [App\Http\Controllers\Hea\DashboardController::class, 'updateSettings'])->name('settings.update');
@@ -343,9 +347,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('equivalency-lists/grouped', [App\Http\Controllers\Hea\EquivalencyListController::class, 'viewGrouped'])->name('equivalency_lists.grouped');
         Route::get('equivalency-lists', [App\Http\Controllers\Hea\EquivalencyListController::class, 'index'])->name('equivalency_lists.index');
         Route::get('equivalency-lists/drafts', [App\Http\Controllers\Hea\EquivalencyListController::class, 'drafts'])->name('equivalency_lists.drafts');
-        Route::get('equivalency-lists/published', [App\Http\Controllers\Hea\EquivalencyListController::class, 'published'])->name('equivalency_lists.published');
 
-        // Published Equivalency Lists - Program-based view (same UI as Academic Advisor)
+        // Published Equivalency Lists - Program-based view
         Route::get('equivalency-lists/published-view', [App\Http\Controllers\Hea\EquivalencyListController::class, 'viewPublishedEquivalencyLists'])->name('equivalency_lists.published_view');
         Route::get('equivalency-lists/statistics', [App\Http\Controllers\Hea\EquivalencyListController::class, 'statistics'])->name('equivalency_lists.statistics');
         Route::delete('equivalency-lists/{list}', [App\Http\Controllers\Hea\EquivalencyListController::class, 'destroy'])->name('equivalency_lists.destroy');
@@ -356,6 +359,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // All Course Mappings View
         Route::get('course-equivalencies', [App\Http\Controllers\Hea\EquivalencyListController::class, 'viewAllCourseEquivalencies'])->name('course_equivalencies.view');
         Route::get('api/existing-equivalencies', [App\Http\Controllers\Hea\EquivalencyListController::class, 'getExistingEquivalencies'])->name('api.existing_equivalencies');
+
+        // Program Group Configuration
+        Route::get('program-groups', [App\Http\Controllers\Hea\ProgramGroupController::class, 'index'])->name('program_groups.index');
+        Route::post('program-groups/save', [App\Http\Controllers\Hea\ProgramGroupController::class, 'saveConfiguration'])->name('program_groups.save');
+        Route::get('program-groups/assignments', [App\Http\Controllers\Hea\ProgramGroupController::class, 'assignments'])->name('program_groups.assignments');
+
+        // Staff Assignment Edit (for Coordinators and Resource Persons only - AAs use Program Groups)
+        Route::get('staff-assignments/{user}/edit', [App\Http\Controllers\Hea\StaffAssignmentController::class, 'edit'])->name('staff_assignments.edit');
+        Route::patch('staff-assignments/{user}', [App\Http\Controllers\Hea\StaffAssignmentController::class, 'update'])->name('staff_assignments.update');
     });
 
     // System Administrator-only routes

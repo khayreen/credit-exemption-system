@@ -30,7 +30,9 @@ return new class extends Migration
 
             // Update status to only allow: draft, published, archived
             // Note: Existing 'submitted', 'under_review', 'endorsed', 'rejected' will be migrated to 'draft'
-            \DB::statement("ALTER TABLE `equivalency_lists` MODIFY COLUMN `status` ENUM('draft', 'published', 'archived') NOT NULL DEFAULT 'draft'");
+            if (\DB::connection()->getDriverName() !== 'sqlite') {
+                \DB::statement("ALTER TABLE `equivalency_lists` MODIFY COLUMN `status` ENUM('draft', 'published', 'archived') NOT NULL DEFAULT 'draft'");
+            }
 
             // Migrate existing statuses to new statuses
             \DB::statement("UPDATE `equivalency_lists` SET `status` = 'draft' WHERE `status` NOT IN ('published')");
@@ -56,7 +58,9 @@ return new class extends Migration
             $table->text('endorsement_notes')->nullable();
 
             // Restore original status enum
-            \DB::statement("ALTER TABLE `equivalency_lists` MODIFY COLUMN `status` ENUM('draft', 'submitted', 'under_review', 'endorsed', 'published', 'rejected') NOT NULL DEFAULT 'draft'");
+            if (\DB::connection()->getDriverName() !== 'sqlite') {
+                \DB::statement("ALTER TABLE `equivalency_lists` MODIFY COLUMN `status` ENUM('draft', 'submitted', 'under_review', 'endorsed', 'published', 'rejected') NOT NULL DEFAULT 'draft'");
+            }
         });
     }
 };

@@ -337,7 +337,7 @@ class ApplicationController extends Controller
                         'exemption_application_id' => $application->id,
                         'original_filename' => $transcriptFile->getClientOriginalName(),
                         'file_path' => $filePath,
-                        'digital_signature' => (string) 'PENDING_IMPLEMENTATION', // Placeholder until digital signature is implemented
+                        'digital_signature' => $fileHash, // SHA256 hash for document integrity verification
                         'file_hash' => $fileHash,
                         'ocr_status' => 'pending'
                     ]);

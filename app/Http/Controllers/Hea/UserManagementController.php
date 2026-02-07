@@ -26,19 +26,19 @@ class UserManagementController extends Controller
     public function index()
     {
         $pendingCount = User::where('approval_status', 'pending')
-                           ->whereIn('requested_role', ['academic_advisor', 'coordinator', 'resource_person'])
+                           ->whereIn('requested_role', ['academic_advisor', 'program_coordinator', 'resource_person'])
                            ->count();
 
         $approvedCount = User::where('approval_status', 'approved')
-                            ->whereIn('current_role', ['academic_advisor', 'coordinator', 'resource_person'])
+                            ->whereIn('current_role', ['academic_advisor', 'program_coordinator', 'resource_person'])
                             ->count();
 
         $rejectedCount = User::where('approval_status', 'rejected')
-                            ->whereIn('requested_role', ['academic_advisor', 'coordinator', 'resource_person'])
+                            ->whereIn('requested_role', ['academic_advisor', 'program_coordinator', 'resource_person'])
                             ->count();
 
-        $totalCount = User::whereIn('requested_role', ['academic_advisor', 'coordinator', 'resource_person'])
-                         ->orWhereIn('current_role', ['academic_advisor', 'coordinator', 'resource_person'])
+        $totalCount = User::whereIn('requested_role', ['academic_advisor', 'program_coordinator', 'resource_person'])
+                         ->orWhereIn('current_role', ['academic_advisor', 'program_coordinator', 'resource_person'])
                          ->count();
 
         return view('hea.users.index', compact('pendingCount', 'approvedCount', 'rejectedCount', 'totalCount'));
@@ -50,7 +50,7 @@ class UserManagementController extends Controller
     public function pending()
     {
         $pendingUsers = User::where('approval_status', 'pending')
-                           ->whereIn('requested_role', ['academic_advisor', 'coordinator', 'resource_person'])
+                           ->whereIn('requested_role', ['academic_advisor', 'program_coordinator', 'resource_person'])
                            ->orderBy('created_at', 'desc')
                            ->get();
 
@@ -76,7 +76,7 @@ class UserManagementController extends Controller
     public function active()
     {
         $activeUsers = User::where('approval_status', 'approved')
-                          ->whereIn('current_role', ['academic_advisor', 'coordinator', 'resource_person'])
+                          ->whereIn('current_role', ['academic_advisor', 'program_coordinator', 'resource_person'])
                           ->with(['academicAdvisor', 'programCoordinator', 'resourcePerson'])
                           ->orderBy('name')
                           ->get();
@@ -310,7 +310,7 @@ class UserManagementController extends Controller
                 'assigned_programs' => null, // Legacy field
             ])),
 
-            'coordinator' => ProgramCoordinator::create(array_merge($roleData, [
+            'program_coordinator' => ProgramCoordinator::create(array_merge($roleData, [
                 'program_category' => $requestedProgramsData['category'] ?? null,
                 'program_codes' => null, // Legacy field
             ])),
@@ -337,7 +337,7 @@ class UserManagementController extends Controller
                 ['user_id' => $user->id],
                 ['id' => $user->academicAdvisor->id ?? Str::uuid(), 'assigned_programs' => $programsJson]
             ),
-            'coordinator' => ProgramCoordinator::updateOrCreate(
+            'program_coordinator' => ProgramCoordinator::updateOrCreate(
                 ['user_id' => $user->id],
                 ['id' => $user->programCoordinator->id ?? Str::uuid(), 'assigned_programs' => $programsJson]
             ),
@@ -356,7 +356,7 @@ class UserManagementController extends Controller
     {
         $programs = match($user->current_role) {
             'academic_advisor' => $user->academicAdvisor?->assigned_programs,
-            'coordinator' => $user->programCoordinator?->assigned_programs,
+            'program_coordinator' => $user->programCoordinator?->assigned_programs,
             'resource_person' => $user->resourcePerson?->assigned_programs,
             default => null,
         };
@@ -377,7 +377,7 @@ class UserManagementController extends Controller
         // HEA modified the assignment - process based on role
         return match($role) {
             'academic_advisor' => $this->processAcademicAdvisorModification($request),
-            'coordinator' => $this->processCoordinatorModification($request),
+            'program_coordinator' => $this->processCoordinatorModification($request),
             'resource_person' => $this->processResourcePersonModification($request),
             default => $user->requested_programs,
         };

@@ -9,6 +9,7 @@ use App\Models\CourseEquivalency;
 use App\Models\CourseEquivalencyRequest;
 use App\Models\ExternalLecturerRequest;
 use App\Models\Program;
+use App\Services\ReevaluationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -44,12 +45,14 @@ class ApplicationController extends Controller
         }
 
         // Get equivalency requests forwarded by Program Coordinators or pending review
+        // Exclude already-processed requests (approved/rejected)
         if (empty($assignedPrograms)) {
             $equivalencyRequests = CourseEquivalencyRequest::where(function($query) {
                     $query->where('coordinator_decision', 'forward_to_rp')
                           ->orWhere('status', 'pending')
                           ->orWhere('status', 'under_review');
                 })
+                ->whereNotIn('status', ['approved', 'rejected'])
                 ->with('student.user', 'coordinator', 'externalLecturerRequest')
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -59,6 +62,7 @@ class ApplicationController extends Controller
                           ->orWhere('status', 'pending')
                           ->orWhere('status', 'under_review');
                 })
+                ->whereNotIn('status', ['approved', 'rejected'])
                 ->whereIn('current_program_code', $assignedPrograms)
                 ->with('student.user', 'coordinator', 'externalLecturerRequest')
                 ->orderBy('created_at', 'desc')
@@ -250,6 +254,9 @@ class ApplicationController extends Controller
         // Update the subject's status to Rejected
         $subject->status = 'Rejected by Resource Person';
         $subject->save();
+
+        // Send notification to student about the rejection
+        $this->sendSubjectDecisionNotification($subject, 'Not Equivalent');
 
         return redirect()->route('resource_person.dashboard')->with('success', 'Subject ' . $subject->course_code . ' has been rejected.');
     }
@@ -550,6 +557,7 @@ class ApplicationController extends Controller
             ]);
 
             // If equivalent, automatically create course equivalency
+            $reevaluationResult = null;
             if ($request->decision === 'Equivalent') {
                 // Find the degree course to get its name
                 $degreeCourse = Course::where('code', $request->degree_course_code)->first();
@@ -561,7 +569,7 @@ class ApplicationController extends Controller
                     ->first();
 
                 if (!$existingEquivalency) {
-                    CourseEquivalency::create([
+                    $newEquivalency = CourseEquivalency::create([
                         'diploma_course_code' => $subject->course_code,
                         'diploma_course_name' => $subject->course_name,
                         'diploma_credit_hour' => $subject->credit_hour,
@@ -572,6 +580,13 @@ class ApplicationController extends Controller
                         'program_code' => $programCode,
                         'notes' => 'Created by Resource Person ' . Auth::user()->name . ' (OCR extracted: ' . ($subject->extraction_method == 'ocr' ? 'Yes' : 'No') . ')'
                     ]);
+
+                    // Process retroactive re-evaluations for affected applications
+                    // This notifies Academic Advisors about applications that may now qualify
+                    $reevaluationService = new ReevaluationService();
+                    $reevaluationResult = $reevaluationService->processNewEquivalency($newEquivalency);
+
+                    Log::info('Retroactive re-evaluation processed for subject finding', $reevaluationResult);
                 }
             }
 
@@ -601,9 +616,17 @@ class ApplicationController extends Controller
 
             DB::commit();
 
+            // Send notification to student about the decision
+            $this->sendSubjectDecisionNotification($subject, $request->decision);
+
             $message = $request->decision === 'Equivalent'
                 ? 'Course marked as equivalent and equivalency created automatically for ' . $subject->course_code
                 : 'Course marked as not equivalent for ' . $subject->course_code;
+
+            // Add re-evaluation info to success message
+            if ($reevaluationResult && $reevaluationResult['reevaluations_created'] > 0) {
+                $message .= " Additionally, {$reevaluationResult['reevaluations_created']} existing application(s) have been flagged for Academic Advisor review.";
+            }
 
             return redirect()->route('resource_person.dashboard')->with('success', $message);
 
@@ -630,14 +653,22 @@ class ApplicationController extends Controller
         $assignedPrograms = $resourcePerson->assigned_programs ?? [];
 
         // Get equivalency requests forwarded by Program Coordinators or pending review
+        // Exclude already-processed requests (approved/rejected)
         if (empty($assignedPrograms)) {
             $requests = CourseEquivalencyRequest::where(function($query) {
                     $query->where('coordinator_decision', 'forward_to_rp')
                           ->orWhere('status', 'pending')
                           ->orWhere('status', 'under_review');
                 })
+                ->whereNotIn('status', ['approved', 'rejected'])
                 ->with('student.user', 'reviewer', 'coordinator', 'externalLecturerRequest')
                 ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Get decided requests (approved/rejected) for decision history
+            $decidedRequests = CourseEquivalencyRequest::whereIn('status', ['approved', 'rejected'])
+                ->with('student.user', 'reviewer.user', 'coordinator', 'externalLecturerRequest')
+                ->orderBy('reviewed_at', 'desc')
                 ->get();
         } else {
             $requests = CourseEquivalencyRequest::where(function($query) {
@@ -645,15 +676,30 @@ class ApplicationController extends Controller
                           ->orWhere('status', 'pending')
                           ->orWhere('status', 'under_review');
                 })
+                ->whereNotIn('status', ['approved', 'rejected'])
                 ->whereIn('current_program_code', $assignedPrograms)
                 ->with('student.user', 'reviewer', 'coordinator', 'externalLecturerRequest')
                 ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Get decided requests (approved/rejected) for decision history
+            $decidedRequests = CourseEquivalencyRequest::whereIn('status', ['approved', 'rejected'])
+                ->whereIn('current_program_code', $assignedPrograms)
+                ->with('student.user', 'reviewer.user', 'coordinator', 'externalLecturerRequest')
+                ->orderBy('reviewed_at', 'desc')
                 ->get();
         }
 
         // Group requests by unique equivalency combination (diploma + suggested degree + program)
         // This ensures RP reviews each unique equivalency ONCE, not per student
         $groupedByEquivalency = $requests->groupBy(function($request) {
+            return $request->diploma_course_code . '|' .
+                   $request->suggested_degree_course_code . '|' .
+                   $request->current_program_code;
+        });
+
+        // Group decided requests by unique equivalency combination
+        $groupedDecidedByEquivalency = $decidedRequests->groupBy(function($request) {
             return $request->diploma_course_code . '|' .
                    $request->suggested_degree_course_code . '|' .
                    $request->current_program_code;
@@ -666,7 +712,22 @@ class ApplicationController extends Controller
             return $coordinatorRequests->groupBy('current_program_code');
         });
 
-        return view('resource_person.equivalency_requests.index', compact('requests', 'groupedRequests', 'groupedByEquivalency'));
+        // Calculate stats for decided requests
+        $decisionStats = [
+            'total' => $groupedDecidedByEquivalency->count(),
+            'approved' => $groupedDecidedByEquivalency->filter(fn($group) => $group->first()->status === 'approved')->count(),
+            'rejected' => $groupedDecidedByEquivalency->filter(fn($group) => $group->first()->status === 'rejected')->count(),
+            'students_affected' => $decidedRequests->count(),
+        ];
+
+        return view('resource_person.equivalency_requests.index', compact(
+            'requests',
+            'groupedRequests',
+            'groupedByEquivalency',
+            'decidedRequests',
+            'groupedDecidedByEquivalency',
+            'decisionStats'
+        ));
     }
 
     /**
@@ -740,6 +801,7 @@ class ApplicationController extends Controller
             }
 
             // Create course equivalency record ONCE for this equivalency (if approved)
+            $reevaluationResult = null;
             if ($decision === 'approved') {
                 $existingEquivalency = CourseEquivalency::where('diploma_course_code', strtoupper(trim($request->diploma_course_code)))
                     ->where('degree_course_code', $degreeCourseCode)
@@ -747,7 +809,7 @@ class ApplicationController extends Controller
                     ->first();
 
                 if (!$existingEquivalency) {
-                    CourseEquivalency::create([
+                    $newEquivalency = CourseEquivalency::create([
                         'diploma_course_code' => strtoupper(trim($request->diploma_course_code)),
                         'diploma_course_name' => $request->diploma_course_name,
                         'diploma_credit_hour' => $request->diploma_credit_hours,
@@ -765,6 +827,13 @@ class ApplicationController extends Controller
                         'match_percentage' => $httpRequest->match_percentage,
                         'affected_students' => $affectedStudentCount,
                     ]);
+
+                    // Process retroactive re-evaluations for affected applications
+                    // This notifies Academic Advisors about applications that may now qualify
+                    $reevaluationService = new ReevaluationService();
+                    $reevaluationResult = $reevaluationService->processNewEquivalency($newEquivalency);
+
+                    Log::info('Retroactive re-evaluation processed', $reevaluationResult);
                 }
             }
 
@@ -776,6 +845,11 @@ class ApplicationController extends Controller
             $message = $decision === 'approved'
                 ? "Course marked as equivalent for {$affectedStudentCount} student(s). Course equivalency created successfully!"
                 : "Course marked as not equivalent for {$affectedStudentCount} student(s).";
+
+            // Add re-evaluation info to success message
+            if ($reevaluationResult && $reevaluationResult['reevaluations_created'] > 0) {
+                $message .= " Additionally, {$reevaluationResult['reevaluations_created']} existing application(s) have been flagged for Academic Advisor review.";
+            }
 
             return redirect()->route('resource_person.equivalency_requests.index')->with('success', $message);
 
@@ -1068,6 +1142,58 @@ class ApplicationController extends Controller
                 'affected_students' => $affectedStudentCount,
                 'academic_advisors_notified' => $academicAdvisors->count(),
                 'program_coordinators_notified' => $programCoordinators->count(),
+            ]);
+        }
+    }
+
+    /**
+     * Send notification to student when a subject decision is made by Resource Person.
+     */
+    private function sendSubjectDecisionNotification(ApplicationSubject $subject, string $decision): void
+    {
+        try {
+            // Get student's user_id from the exemption application
+            $application = $subject->exemptionApplication;
+            $studentUserId = $application->student->user_id ?? null;
+
+            if (!$studentUserId) {
+                Log::warning('Cannot send RP notification: Student user_id not found', [
+                    'subject_id' => $subject->id,
+                    'application_id' => $application->id
+                ]);
+                return;
+            }
+
+            $courseInfo = $subject->course_code . ' - ' . $subject->course_name;
+
+            if ($decision === 'Equivalent') {
+                $title = 'Course Approved by Resource Person';
+                $message = "Your course {$courseInfo} has been reviewed and approved for credit exemption by the Resource Person.";
+            } else {
+                $title = 'Course Not Approved by Resource Person';
+                $message = "Your course {$courseInfo} has been reviewed and was not approved for credit exemption.";
+            }
+
+            \App\Models\Notification::create([
+                'user_id' => $studentUserId,
+                'type' => 'request_reviewed',
+                'title' => $title,
+                'message' => $message,
+                'link' => route('student.application.status'),
+                'is_read' => false,
+            ]);
+
+            Log::info('Student notification sent for RP subject decision', [
+                'student_user_id' => $studentUserId,
+                'subject_id' => $subject->id,
+                'decision' => $decision
+            ]);
+
+        } catch (\Exception $e) {
+            // Log error but don't fail the main operation
+            Log::error('Failed to send student notification for RP decision', [
+                'error' => $e->getMessage(),
+                'subject_id' => $subject->id
             ]);
         }
     }

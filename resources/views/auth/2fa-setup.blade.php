@@ -635,7 +635,7 @@
                                         <i class="fas fa-copy"></i>
                                     </button>
                                 </div>
-                                <small>Account: {{ Auth::user()->email }} | Type: Time based</small>
+                                <small>Account: {{ $userEmail }} | Type: Time based</small>
                             </div>
                         </div>
                     </div>

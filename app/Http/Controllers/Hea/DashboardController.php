@@ -9,10 +9,13 @@ use App\Models\AuditTrail;
 use App\Models\SystemSetting;
 use App\Models\EquivalencyList;
 use App\Models\ResourcePerson;
+use App\Models\ProgramGroupConfig;
 use App\Notifications\SemesterReminderNotification;
+use App\Notifications\ApplicationReviewReminderNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class DashboardController extends Controller
 {
@@ -23,7 +26,7 @@ class DashboardController extends Controller
     {
         // Fetch pending user approvals once - use for both count and display
         $allPendingUserApprovals = User::where('approval_status', 'pending')
-            ->whereIn('requested_role', ['academic_advisor', 'coordinator', 'resource_person'])
+            ->whereIn('requested_role', ['academic_advisor', 'program_coordinator', 'resource_person'])
             ->orderBy('created_at', 'asc')
             ->get();
 
@@ -140,6 +143,9 @@ class DashboardController extends Controller
     public function applications(Request $request)
     {
         $statusFilter = $request->get('status_filter', 'all');
+        $programFilter = $request->get('program_filter', 'all');
+        $groupFilter = $request->get('group_filter', 'all');
+        $search = $request->get('search', '');
 
         $query = ExemptionApplication::with(['student.user', 'student.faculty']);
 
@@ -148,15 +154,38 @@ class DashboardController extends Controller
             $query->where('status', 'Submitted');
         } elseif ($statusFilter === 'reviewed') {
             $query->where('status', 'Reviewed by Academic Advisor');
+        } elseif ($statusFilter === 'completed') {
+            $query->where('status', 'Completed');
         }
 
-        // Get all applications
-        $applications = $query->get();
+        // Apply program filter
+        if ($programFilter !== 'all') {
+            $query->where('current_program_code', $programFilter);
+        }
+
+        // Apply group filter
+        if ($groupFilter !== 'all') {
+            $query->where('student_group', $groupFilter);
+        }
+
+        // Apply search (student name or matric number)
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('student_name', 'like', "%{$search}%")
+                  ->orWhere('matric_no', 'like', "%{$search}%");
+            });
+        }
+
+        // Custom sorting: Pending applications first (oldest first), then reviewed (oldest first)
+        $query->orderByRaw("CASE WHEN LOWER(status) = 'submitted' THEN 0 ELSE 1 END")
+              ->orderBy('created_at', 'asc');
+
+        // Paginate results
+        $applications = $query->paginate(20)->withQueryString();
 
         // For each reviewed application, fetch the academic advisor who reviewed it from audit trail
         foreach ($applications as $app) {
             if (strtolower($app->status) === 'reviewed by academic advisor') {
-                // Find the audit trail entry for this application's review
                 $auditLog = AuditTrail::where('target_entity', 'ExemptionApplication')
                     ->where('target_id', $app->id)
                     ->where('action', 'like', '%Forward%')
@@ -168,15 +197,222 @@ class DashboardController extends Controller
             }
         }
 
-        // Custom sorting: Pending applications first (oldest first), then reviewed (oldest first)
-        $applications = $applications->sortBy(function ($app) {
-            // Pending applications get priority 0, reviewed get priority 1
-            $priority = (strtolower($app->status) === 'submitted') ? 0 : 1;
-            // Return array for multi-level sorting: [priority, timestamp]
-            return [$priority, $app->created_at->timestamp];
-        })->values();
+        // Get filter options
+        $supportedPrograms = \App\Models\ProgramGroupConfig::getSupportedPrograms();
 
-        return view('hea.applications', compact('applications'));
+        // Get current semester groups from config (9 groups for SESI I 2025/2026)
+        $programGroups = config('programs.program_groups', []);
+        $studentGroups = collect($programGroups)
+            ->flatMap(fn($program) => $program['groups'] ?? [])
+            ->sort()
+            ->values();
+
+        // Stats
+        $stats = [
+            'total' => ExemptionApplication::count(),
+            'pending' => ExemptionApplication::where('status', 'Submitted')->count(),
+            'reviewed' => ExemptionApplication::where('status', 'Reviewed by Academic Advisor')->count(),
+            'completed' => ExemptionApplication::where('status', 'Completed')->count(),
+        ];
+
+        return view('hea.applications', compact(
+            'applications',
+            'statusFilter',
+            'programFilter',
+            'groupFilter',
+            'search',
+            'supportedPrograms',
+            'studentGroups',
+            'stats'
+        ));
+    }
+
+    /**
+     * Send a reminder to the Academic Advisor to review an application.
+     */
+    public function sendApplicationReminder(ExemptionApplication $application)
+    {
+        // Check if application is still pending
+        if (strtolower($application->status) !== 'submitted') {
+            return back()->with('error', 'This application has already been reviewed.');
+        }
+
+        // Check if application has a student group
+        if (empty($application->student_group)) {
+            return back()->with('error', 'This application has no student group assigned. Cannot determine the responsible Academic Advisor.');
+        }
+
+        // Find the assigned AA for this group
+        $academicYear = ProgramGroupConfig::getCurrentAcademicYear();
+        $intake = ProgramGroupConfig::getCurrentIntake();
+
+        $groupConfig = ProgramGroupConfig::where('group_code', $application->student_group)
+            ->forSession($academicYear, $intake)
+            ->active()
+            ->first();
+
+        if (!$groupConfig) {
+            return back()->with('error', 'No active group configuration found for "' . $application->student_group . '" in the current session (' . ucfirst($intake) . ' ' . $academicYear . '). Please configure program groups first.');
+        }
+
+        if (!$groupConfig->assigned_user_id) {
+            return back()->with('error', 'No Academic Advisor is assigned to group "' . $application->student_group . '". Please assign an AA in Program Groups configuration.');
+        }
+
+        $academicAdvisor = User::find($groupConfig->assigned_user_id);
+
+        if (!$academicAdvisor) {
+            return back()->with('error', 'The assigned Academic Advisor could not be found.');
+        }
+
+        // Send the notification
+        try {
+            $sender = Auth::user();
+            $academicAdvisor->notify(new ApplicationReviewReminderNotification($application, $sender));
+
+            // Update reminder tracking on the application
+            $application->reminder_sent_at = now();
+            $application->reminder_sent_by = $sender->id;
+            $application->save();
+
+            // Create audit trail
+            AuditTrail::create([
+                'id' => Str::uuid(),
+                'user_id' => $sender->id,
+                'action' => 'Sent Application Review Reminder',
+                'target_entity' => 'ExemptionApplication',
+                'target_id' => $application->id,
+                'details' => json_encode([
+                    'application_id' => $application->id,
+                    'student_name' => $application->student_name,
+                    'matric_no' => $application->matric_no,
+                    'student_group' => $application->student_group,
+                    'sent_to_aa_id' => $academicAdvisor->id,
+                    'sent_to_aa_name' => $academicAdvisor->name,
+                    'sent_to_aa_email' => $academicAdvisor->email,
+                ]),
+            ]);
+
+            return back()->with('success', 'Reminder sent successfully to ' . $academicAdvisor->name . ' (' . $academicAdvisor->email . ').');
+
+        } catch (\Exception $e) {
+            Log::error('Failed to send application review reminder: ' . $e->getMessage(), [
+                'application_id' => $application->id,
+                'aa_id' => $academicAdvisor->id,
+            ]);
+
+            return back()->with('error', 'Failed to send reminder: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get the assigned Academic Advisor for an application (AJAX endpoint).
+     */
+    public function getAssignedAdvisor(ExemptionApplication $application)
+    {
+        $isPending = strtolower($application->status) === 'submitted';
+
+        // Get reminder info
+        $reminderInfo = null;
+        if ($application->reminder_sent_at) {
+            $sentBy = $application->reminder_sent_by ? User::find($application->reminder_sent_by) : null;
+            $reminderInfo = [
+                'sent_at' => $application->reminder_sent_at->format('d M Y, h:i A'),
+                'sent_by' => $sentBy ? $sentBy->name : 'Unknown',
+            ];
+        }
+
+        // Get reviewed by info (for applications that have been reviewed)
+        $reviewedBy = null;
+        if ($application->reviewed_by) {
+            $reviewer = User::find($application->reviewed_by);
+            if ($reviewer) {
+                $reviewedBy = [
+                    'name' => $reviewer->name,
+                    'email' => $reviewer->email,
+                    'reviewed_at' => $application->reviewed_at ? $application->reviewed_at->format('d M Y, h:i A') : null,
+                ];
+            }
+        }
+
+        // For reviewed applications, we don't need group config - just show the reviewer info
+        if (!$isPending) {
+            // Try to get reviewer from audit trail if reviewed_by is not set
+            if (!$reviewedBy) {
+                $auditLog = \App\Models\AuditTrail::where('target_entity', 'ExemptionApplication')
+                    ->where('target_id', $application->id)
+                    ->where(function($q) {
+                        $q->where('action', 'like', '%Forward%')
+                          ->orWhere('action', 'like', '%Approved%')
+                          ->orWhere('action', 'like', '%Rejected%');
+                    })
+                    ->with('user')
+                    ->latest()
+                    ->first();
+
+                if ($auditLog && $auditLog->user) {
+                    $reviewedBy = [
+                        'name' => $auditLog->user->name,
+                        'email' => $auditLog->user->email,
+                        'reviewed_at' => $auditLog->created_at->format('d M Y, h:i A'),
+                    ];
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'is_pending' => false,
+                'advisor' => null,
+                'reminder' => $reminderInfo,
+                'reviewed_by' => $reviewedBy,
+            ]);
+        }
+
+        // For pending applications, we need the group config to find the assigned AA
+        if (empty($application->student_group)) {
+            return response()->json([
+                'success' => false,
+                'is_pending' => true,
+                'message' => 'No student group assigned',
+            ]);
+        }
+
+        $academicYear = ProgramGroupConfig::getCurrentAcademicYear();
+        $intake = ProgramGroupConfig::getCurrentIntake();
+
+        $groupConfig = ProgramGroupConfig::where('group_code', $application->student_group)
+            ->forSession($academicYear, $intake)
+            ->active()
+            ->with('assignedUser')
+            ->first();
+
+        if (!$groupConfig) {
+            return response()->json([
+                'success' => false,
+                'is_pending' => true,
+                'message' => 'No group configuration found for current session',
+            ]);
+        }
+
+        if (!$groupConfig->assignedUser) {
+            return response()->json([
+                'success' => false,
+                'is_pending' => true,
+                'message' => 'No Academic Advisor assigned to this group',
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'is_pending' => true,
+            'advisor' => [
+                'id' => $groupConfig->assignedUser->id,
+                'name' => $groupConfig->assignedUser->name,
+                'email' => $groupConfig->assignedUser->email,
+            ],
+            'reminder' => $reminderInfo,
+            'reviewed_by' => $reviewedBy,
+        ]);
     }
 
     /**

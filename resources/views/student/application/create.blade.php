@@ -1,496 +1,993 @@
 @extends('layouts.app')
 
 @push('styles')
+<!-- IBM Plex Sans Typography -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
 <style>
-    /* Breadcrumb Styling */
-    .application-breadcrumb {
-        background-color: #f8f9fa;
-        padding: 15px 20px;
-        border-radius: 8px;
-        margin-bottom: 25px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+/* ========================================
+   INDUSTRIAL INSTITUTIONAL DESIGN SYSTEM
+   UiTM Credit Exemption - Application Form
+   ======================================== */
+
+:root {
+    --uitm-primary: #1e3a8a;
+    --uitm-primary-dark: #1e293b;
+    --uitm-primary-light: #3b82f6;
+    --uitm-red: #dc2626;
+    --uitm-red-light: #ef4444;
+    --uitm-amber: #f59e0b;
+    --uitm-amber-light: #fbbf24;
+    --uitm-green: #10b981;
+    --uitm-green-light: #34d399;
+    --neutral-900: #171717;
+    --neutral-800: #262626;
+    --neutral-700: #404040;
+    --neutral-600: #525252;
+    --neutral-500: #737373;
+    --neutral-400: #a3a3a3;
+    --neutral-300: #d4d4d4;
+    --neutral-200: #e5e5e5;
+    --neutral-100: #f5f5f5;
+    --neutral-50: #fafafa;
+}
+
+/* Typography Override */
+.application-container,
+.application-container * {
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+.mono-text {
+    font-family: 'IBM Plex Mono', monospace !important;
+}
+
+/* ========================================
+   PAGE HEADER - Industrial Style
+   ======================================== */
+.page-header {
+    position: relative;
+    background: linear-gradient(135deg, var(--uitm-primary) 0%, var(--uitm-primary-dark) 100%);
+    border-radius: 16px;
+    padding: 2rem;
+    color: white;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.page-header-pattern {
+    position: absolute;
+    inset: 0;
+    opacity: 0.07;
+    background-image:
+        linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+}
+
+.page-header-glow {
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(245, 158, 11, 0.15) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.page-header-content {
+    position: relative;
+    z-index: 2;
+}
+
+.page-header-eyebrow {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--uitm-amber);
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.page-header-eyebrow::before {
+    content: '';
+    width: 24px;
+    height: 2px;
+    background: var(--uitm-amber);
+}
+
+.page-header-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    line-height: 1.2;
+}
+
+.page-header-subtitle {
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.85);
+    margin-bottom: 0;
+    max-width: 600px;
+}
+
+/* ========================================
+   BREADCRUMB - Industrial Style
+   ======================================== */
+.industrial-breadcrumb {
+    background: white;
+    padding: 1rem 1.25rem;
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+    border: 2px solid var(--neutral-200);
+}
+
+.industrial-breadcrumb .breadcrumb {
+    margin-bottom: 0;
+    background-color: transparent;
+    padding: 0;
+}
+
+.industrial-breadcrumb .breadcrumb-item {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--neutral-600);
+}
+
+.industrial-breadcrumb .breadcrumb-item a {
+    color: var(--uitm-primary);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.industrial-breadcrumb .breadcrumb-item a:hover {
+    color: var(--uitm-primary-light);
+}
+
+.industrial-breadcrumb .breadcrumb-item.active {
+    color: var(--uitm-primary);
+    font-weight: 600;
+}
+
+/* ========================================
+   MULTI-STEP PROGRESS - Industrial Style
+   ======================================== */
+.step-progress {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: white;
+    border-radius: 12px;
+    border: 2px solid var(--neutral-200);
+}
+
+.step-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    flex: 1;
+    max-width: 200px;
+}
+
+.step-dot {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    background-color: var(--neutral-100);
+    border: 2px solid var(--neutral-200);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--neutral-500);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    z-index: 2;
+}
+
+.step-item.active .step-dot {
+    background: linear-gradient(135deg, var(--uitm-primary), var(--uitm-primary-light));
+    border-color: var(--uitm-primary);
+    color: white;
+    box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
+    transform: scale(1.05);
+}
+
+.step-item.completed .step-dot {
+    background: linear-gradient(135deg, var(--uitm-green), var(--uitm-green-light));
+    border-color: var(--uitm-green);
+    color: white;
+}
+
+.step-label {
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--neutral-500);
+    text-align: center;
+}
+
+.step-item.active .step-label {
+    color: var(--uitm-primary);
+}
+
+.step-item.completed .step-label {
+    color: var(--uitm-green);
+}
+
+.step-line {
+    position: absolute;
+    top: 25px;
+    left: 50%;
+    width: 100%;
+    height: 3px;
+    background-color: var(--neutral-200);
+    z-index: 1;
+}
+
+.step-item.completed .step-line {
+    background: linear-gradient(90deg, var(--uitm-green), var(--uitm-green-light));
+}
+
+.step-item:last-child .step-line {
+    display: none;
+}
+
+/* ========================================
+   INDUSTRIAL CARDS
+   ======================================== */
+.industrial-card {
+    background: white;
+    border-radius: 12px;
+    border: 2px solid var(--neutral-200);
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.industrial-card:hover {
+    border-color: var(--neutral-300);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+.card-header-industrial {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--neutral-50);
+    border-bottom: 2px solid var(--neutral-200);
+}
+
+.card-header-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--uitm-primary), var(--uitm-primary-light));
+    color: white;
+    font-size: 1rem;
+}
+
+.card-header-text h5 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--neutral-900);
+    margin: 0;
+}
+
+.card-header-text p {
+    font-size: 0.75rem;
+    color: var(--neutral-500);
+    margin: 0;
+}
+
+.card-body-industrial {
+    padding: 1.5rem;
+}
+
+/* ========================================
+   FORM STYLING - Industrial
+   ======================================== */
+.section-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--uitm-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--neutral-200);
+}
+
+.form-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--neutral-700);
+    margin-bottom: 0.5rem;
+}
+
+.form-control,
+.form-select {
+    border: 2px solid var(--neutral-200);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--uitm-primary);
+    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+}
+
+.form-control.is-invalid,
+.form-select.is-invalid {
+    border-color: var(--uitm-red);
+}
+
+.form-control.is-invalid:focus {
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.invalid-feedback {
+    font-size: 0.8rem;
+    color: var(--uitm-red);
+}
+
+textarea.form-control {
+    min-height: 80px;
+}
+
+/* Radio buttons styling */
+.form-check-input {
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 2px solid var(--neutral-300);
+    cursor: pointer;
+}
+
+.form-check-input:checked {
+    background-color: var(--uitm-primary);
+    border-color: var(--uitm-primary);
+}
+
+.form-check-input:focus {
+    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+}
+
+.form-check-label {
+    font-weight: 500;
+    color: var(--neutral-700);
+    cursor: pointer;
+}
+
+/* ========================================
+   NAVIGATION BUTTONS - Industrial
+   ======================================== */
+.step-navigation {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--neutral-200);
+}
+
+.btn-industrial {
+    padding: 0.875rem 1.75rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-industrial-primary {
+    background: linear-gradient(135deg, var(--uitm-primary), var(--uitm-primary-light));
+    color: white;
+    border: none;
+}
+
+.btn-industrial-primary:hover {
+    background: linear-gradient(135deg, var(--uitm-primary-dark), var(--uitm-primary));
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
+}
+
+.btn-industrial-secondary {
+    background: var(--neutral-100);
+    color: var(--neutral-700);
+    border: 2px solid var(--neutral-200);
+}
+
+.btn-industrial-secondary:hover {
+    background: var(--neutral-200);
+    color: var(--neutral-800);
+    transform: translateY(-2px);
+}
+
+/* ========================================
+   ALERT BOXES - Industrial
+   ======================================== */
+.alert-industrial {
+    border-radius: 10px;
+    border: none;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.alert-industrial-info {
+    background: linear-gradient(135deg, rgba(30, 58, 138, 0.08), rgba(59, 130, 246, 0.05));
+    border-left: 4px solid var(--uitm-primary);
+    color: var(--neutral-800);
+}
+
+.alert-industrial-warning {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(251, 191, 36, 0.05));
+    border-left: 4px solid var(--uitm-amber);
+    color: var(--neutral-800);
+}
+
+.alert-industrial-danger {
+    background: linear-gradient(135deg, rgba(220, 38, 38, 0.08), rgba(239, 68, 68, 0.05));
+    border-left: 4px solid var(--uitm-red);
+    color: var(--neutral-800);
+}
+
+/* ========================================
+   SEARCHABLE DROPDOWN - Industrial
+   ======================================== */
+.searchable-dropdown-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.searchable-dropdown-input {
+    width: 100%;
+    padding: 0.75rem 2.5rem 0.75rem 1rem;
+    font-size: 0.95rem;
+    border: 2px solid var(--neutral-200);
+    border-radius: 8px;
+    background-color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.searchable-dropdown-input:focus {
+    border-color: var(--uitm-primary);
+    outline: 0;
+    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+}
+
+.searchable-dropdown-arrow {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--neutral-500);
+    font-size: 0.75rem;
+}
+
+.searchable-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    background: white;
+    border: 2px solid var(--neutral-200);
+    border-radius: 8px;
+    margin-top: 4px;
+    max-height: 280px;
+    overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    display: none;
+}
+
+.searchable-dropdown-menu.show {
+    display: block;
+}
+
+.searchable-dropdown-option {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.15s ease;
+    color: var(--neutral-700);
+}
+
+.searchable-dropdown-option:hover {
+    background-color: var(--neutral-50);
+}
+
+.searchable-dropdown-option.selected {
+    background: linear-gradient(135deg, var(--uitm-primary), var(--uitm-primary-light));
+    color: white;
+}
+
+.searchable-dropdown-option.no-results {
+    padding: 1rem;
+    text-align: center;
+    color: var(--neutral-500);
+    cursor: default;
+}
+
+.searchable-dropdown-option mark {
+    background-color: rgba(245, 158, 11, 0.3);
+    padding: 0 2px;
+    font-weight: 600;
+}
+
+/* Optgroup header styling */
+.searchable-dropdown-group-header {
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--uitm-primary);
+    background-color: var(--neutral-50);
+    border-bottom: 1px solid var(--neutral-200);
+    cursor: default;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+/* Grouped option indentation */
+.searchable-dropdown-option.grouped-option {
+    padding-left: 1.75rem;
+    font-size: 0.9rem;
+    position: relative;
+}
+
+.searchable-dropdown-option.grouped-option::before {
+    content: "└─";
+    position: absolute;
+    left: 0.75rem;
+    color: var(--neutral-400);
+    font-size: 0.8rem;
+}
+
+/* Hide original select */
+.searchable-select {
+    display: none;
+}
+
+/* ========================================
+   FLYOUT MENU - Industrial Style
+   ======================================== */
+.flyout-dropdown-wrapper {
+    position: relative !important;
+    width: 100% !important;
+    overflow: visible !important;
+}
+
+.flyout-dropdown-input {
+    width: 100%;
+    padding: 0.75rem 2.5rem 0.75rem 1rem;
+    font-size: 0.95rem;
+    border: 2px solid var(--neutral-200);
+    border-radius: 8px;
+    background-color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.flyout-dropdown-input:focus {
+    border-color: var(--uitm-primary);
+    outline: 0;
+    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+}
+
+.flyout-dropdown-arrow {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--neutral-500);
+    font-size: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.flyout-dropdown-wrapper .flyout-dropdown-menu.show ~ .flyout-dropdown-arrow,
+.flyout-dropdown-arrow.open {
+    transform: translateY(-50%) rotate(180deg);
+    color: var(--uitm-primary);
+}
+
+/* Main Dropdown Menu */
+.flyout-dropdown-menu {
+    position: absolute !important;
+    top: 100% !important;
+    left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    z-index: 9999 !important;
+    background: white !important;
+    border: 2px solid var(--neutral-200) !important;
+    border-radius: 8px !important;
+    margin-top: 4px !important;
+    max-height: 320px !important;
+    overflow-y: auto !important;
+    overflow-x: visible !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+.flyout-dropdown-menu.show {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.flyout-menu-column {
+    width: 100% !important;
+    display: block !important;
+}
+
+/* Menu Items */
+.flyout-menu-item {
+    position: relative;
+    padding: 0.875rem 1rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: var(--neutral-700);
+    background-color: white;
+    transition: background-color 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--neutral-100);
+}
+
+.flyout-menu-item:hover,
+.flyout-menu-item.active {
+    background-color: var(--neutral-50);
+}
+
+.flyout-item-text {
+    flex: 1;
+    color: var(--neutral-700);
+    font-weight: 500;
+}
+
+.flyout-item-label {
+    line-height: 1.5;
+}
+
+.flyout-chevron {
+    font-size: 0.7rem;
+    color: var(--neutral-400);
+    margin-left: 8px;
+    transition: transform 0.2s ease;
+}
+
+.flyout-menu-item:hover .flyout-chevron,
+.flyout-menu-item.active .flyout-chevron {
+    color: var(--uitm-primary);
+}
+
+/* Submenu */
+.flyout-submenu {
+    display: none;
+    background-color: var(--neutral-50);
+    border-top: 1px solid var(--neutral-200);
+    padding: 0.25rem 0;
+}
+
+.flyout-submenu.expanded {
+    display: block;
+}
+
+.flyout-menu-item.expanded {
+    background-color: var(--neutral-50);
+}
+
+.flyout-menu-item.expanded .flyout-chevron {
+    transform: rotate(90deg);
+    color: var(--uitm-primary);
+}
+
+/* Group items */
+.flyout-group-item {
+    padding: 0.625rem 1rem 0.625rem 2rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--neutral-600);
+    background-color: transparent;
+    transition: all 0.15s ease;
+    border-left: 3px solid transparent;
+}
+
+.flyout-group-item:hover {
+    background-color: white;
+    border-left-color: var(--uitm-primary);
+    color: var(--uitm-primary);
+    padding-left: 2.25rem;
+}
+
+.flyout-group-item.selected {
+    background: linear-gradient(135deg, var(--uitm-primary), var(--uitm-primary-light));
+    color: white;
+    border-left-color: var(--uitm-primary-dark);
+    font-weight: 600;
+}
+
+.flyout-group-item.selected:hover {
+    padding-left: 2rem;
+}
+
+/* Ensure parent containers don't clip */
+.col-md-6:has(.flyout-dropdown-wrapper) {
+    overflow: visible !important;
+}
+
+.row:has(.flyout-dropdown-wrapper) {
+    overflow: visible !important;
+}
+
+.card-body:has(.flyout-dropdown-wrapper),
+.card-body-industrial:has(.flyout-dropdown-wrapper) {
+    overflow: visible !important;
+}
+
+.card:has(.flyout-dropdown-wrapper),
+.industrial-card:has(.flyout-dropdown-wrapper) {
+    overflow: visible !important;
+}
+
+.form-step:has(.flyout-dropdown-wrapper) {
+    overflow: visible !important;
+}
+
+/* ========================================
+   TRANSCRIPT UPLOAD - Industrial
+   ======================================== */
+.upload-section {
+    background: var(--neutral-50);
+    border: 2px dashed var(--neutral-300);
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.upload-section:hover {
+    border-color: var(--uitm-primary);
+    background: rgba(30, 58, 138, 0.02);
+}
+
+.upload-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--uitm-primary), var(--uitm-primary-light));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    color: white;
+    font-size: 1.5rem;
+}
+
+/* ========================================
+   MANUAL ENTRY TABLE - Industrial
+   ======================================== */
+.industrial-table {
+    border: 2px solid var(--neutral-200);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.industrial-table th {
+    background: var(--neutral-50);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    color: var(--neutral-600);
+    padding: 0.875rem 1rem;
+    border-bottom: 2px solid var(--neutral-200);
+}
+
+.industrial-table td {
+    padding: 0.875rem 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--neutral-100);
+}
+
+.industrial-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.industrial-table code {
+    font-family: 'IBM Plex Mono', monospace !important;
+    font-size: 0.85rem;
+    color: var(--uitm-primary);
+    background: rgba(30, 58, 138, 0.08);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+/* ========================================
+   STATUS BADGES
+   ======================================== */
+.status-badge {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.status-badge-success {
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    color: #065f46;
+}
+
+.status-badge-warning {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    color: #92400e;
+}
+
+.status-badge-danger {
+    background: linear-gradient(135deg, #fee2e2, #fecaca);
+    color: #991b1b;
+}
+
+.status-badge-info {
+    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+    color: #1e40af;
+}
+
+.status-badge-secondary {
+    background: linear-gradient(135deg, var(--neutral-200), var(--neutral-100));
+    color: var(--neutral-600);
+}
+
+/* ========================================
+   FORM STEPS
+   ======================================== */
+.form-step {
+    display: none;
+}
+
+.form-step.active {
+    display: block;
+}
+
+/* ========================================
+   POPOVER - Industrial
+   ======================================== */
+.semester-guide-popover {
+    max-width: 350px;
+}
+
+.semester-guide-popover .popover-header {
+    background: linear-gradient(135deg, var(--uitm-primary), var(--uitm-primary-light));
+    color: white;
+    font-weight: 600;
+    border-bottom: none;
+}
+
+.semester-guide-popover .popover-body {
+    padding: 12px 15px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.semester-guide-popover .popover-body ul {
+    list-style-type: disc;
+}
+
+.semester-guide-popover .popover-body li {
+    margin-bottom: 6px;
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+@media (max-width: 991px) {
+    .page-header {
+        padding: 1.5rem;
     }
 
-    .application-breadcrumb .breadcrumb {
-        margin-bottom: 0;
-        background-color: transparent;
-        padding: 0;
+    .page-header-title {
+        font-size: 1.5rem;
     }
+}
 
-    .application-breadcrumb .breadcrumb-item {
-        font-size: 0.95rem;
-        font-weight: 500;
-    }
-
-    .application-breadcrumb .breadcrumb-item.active {
-        color: #667eea;
-    }
-
-    /* Multi-Step Progress Dots */
+@media (max-width: 767px) {
     .step-progress {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin-bottom: 35px;
-        padding: 20px 0;
+        flex-direction: column;
+        gap: 1rem;
     }
 
     .step-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        position: relative;
-        flex: 1;
-        max-width: 200px;
-    }
-
-    .step-dot {
-        width: 45px;
-        height: 45px;
-        border-radius: 50%;
-        background-color: #e9ecef;
-        border: 3px solid #e9ecef;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        font-size: 1.1rem;
-        color: #6c757d;
-        transition: all 0.3s ease;
-        position: relative;
-        z-index: 2;
-    }
-
-    .step-item.active .step-dot {
-        background-color: #667eea;
-        border-color: #667eea;
-        color: white;
-        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
-        transform: scale(1.1);
-    }
-
-    .step-item.completed .step-dot {
-        background-color: #28a745;
-        border-color: #28a745;
-        color: white;
-    }
-
-    .step-label {
-        margin-top: 10px;
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: #6c757d;
-        text-align: center;
-    }
-
-    .step-item.active .step-label {
-        color: #667eea;
-    }
-
-    .step-item.completed .step-label {
-        color: #28a745;
+        flex-direction: row;
+        max-width: 100%;
+        gap: 1rem;
     }
 
     .step-line {
-        position: absolute;
-        top: 22px;
-        left: 50%;
-        width: 100%;
-        height: 3px;
-        background-color: #e9ecef;
-        z-index: 1;
-    }
-
-    .step-item.completed .step-line {
-        background-color: #28a745;
-    }
-
-    .step-item:last-child .step-line {
         display: none;
     }
 
-    /* Form Step Content */
-    .form-step {
-        display: none;
-    }
-
-    .form-step.active {
-        display: block;
-    }
-
-    /* Navigation Buttons */
     .step-navigation {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 30px;
-        padding-top: 20px;
-        border-top: 2px solid #e9ecef;
+        flex-direction: column;
+        gap: 1rem;
     }
 
-    .btn-step {
-        padding: 12px 30px;
-        font-weight: 600;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-    }
-
-    .btn-previous {
-        background-color: #6c757d;
-        color: white;
-        border: none;
-    }
-
-    .btn-previous:hover {
-        background-color: #5a6268;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
-
-    .btn-next, .btn-submit {
-        background-color: #667eea;
-        color: white;
-        border: none;
-    }
-
-    .btn-next:hover, .btn-submit:hover {
-        background-color: #5568d3;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
-    }
-
-    /* Semester Guide Popover Styling */
-    .semester-guide-popover {
-        max-width: 350px;
-    }
-
-    .semester-guide-popover .popover-header {
-        background-color: #667eea;
-        color: white;
-        font-weight: 600;
-        border-bottom: none;
-    }
-
-    .semester-guide-popover .popover-body {
-        padding: 12px 15px;
-        font-size: 0.9rem;
-        line-height: 1.6;
-    }
-
-    .semester-guide-popover .popover-body ul {
-        list-style-type: disc;
-    }
-
-    .semester-guide-popover .popover-body li {
-        margin-bottom: 6px;
-    }
-
-    /* Simple Searchable Dropdown Styling */
-    .searchable-dropdown-wrapper {
-        position: relative;
+    .btn-industrial {
         width: 100%;
+        justify-content: center;
     }
+}
 
-    .searchable-dropdown-input {
-        width: 100%;
-        padding: 0.375rem 2rem 0.375rem 0.75rem;
-        font-size: 1rem;
-        border: 1px solid #ced4da;
-        border-radius: 0.375rem;
-        background-color: white;
-        cursor: pointer;
+/* ========================================
+   ACCESSIBILITY
+   ======================================== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
     }
+}
 
-    .searchable-dropdown-input:focus {
-        border-color: #86b7fe;
-        outline: 0;
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-    }
-
-    .searchable-dropdown-arrow {
-        position: absolute;
-        right: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        pointer-events: none;
-        color: #6c757d;
-    }
-
-    .searchable-dropdown-menu {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        z-index: 1050;
-        background: white;
-        border: 1px solid #ced4da;
-        border-radius: 0.375rem;
-        margin-top: 2px;
-        max-height: 250px;
-        overflow-y: auto;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        display: none;
-    }
-
-    .searchable-dropdown-menu.show {
-        display: block;
-    }
-
-    .searchable-dropdown-option {
-        padding: 8px 12px;
-        cursor: pointer;
-        font-size: 0.9rem;
-    }
-
-    .searchable-dropdown-option:hover {
-        background-color: #f8f9fa;
-    }
-
-    .searchable-dropdown-option.selected {
-        background-color: #667eea;
-        color: white;
-    }
-
-    .searchable-dropdown-option.no-results {
-        padding: 12px;
-        text-align: center;
-        color: #6c757d;
-        cursor: default;
-    }
-
-    .searchable-dropdown-option mark {
-        background-color: #fff59d;
-        padding: 0 2px;
-        font-weight: 600;
-    }
-
-    /* Optgroup header styling */
-    .searchable-dropdown-group-header {
-        padding: 8px 12px;
-        font-size: 0.85rem;
-        font-weight: 700;
-        color: #667eea;
-        background-color: #f0f2ff;
-        border-bottom: 1px solid #d0d4f0;
-        cursor: default;
-        position: sticky;
-        top: 0;
-        z-index: 1;
-    }
-
-    /* Grouped option indentation */
-    .searchable-dropdown-option.grouped-option {
-        padding-left: 28px;
-        font-size: 0.9rem;
-        position: relative;
-    }
-
-    .searchable-dropdown-option.grouped-option::before {
-        content: "└─";
-        position: absolute;
-        left: 12px;
-        color: #999;
-        font-size: 0.85rem;
-    }
-
-    /* Hide original select */
-    .searchable-select {
-        display: none;
-    }
-
-    /* ========================================
-       FLYOUT MENU STYLING - Clean Design
-       Dropdown opens BELOW, Submenu flies RIGHT
-       ======================================== */
-
-    .flyout-dropdown-wrapper {
-        position: relative !important;
-        width: 100% !important;
-        overflow: visible !important;
-    }
-
-    .flyout-dropdown-input {
-        width: 100%;
-        padding: 0.5rem 2.5rem 0.5rem 0.75rem;
-        font-size: 0.95rem;
-        border: 1px solid #ced4da;
-        border-radius: 0.375rem;
-        background-color: white;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-
-    .flyout-dropdown-input:focus {
-        border-color: #86b7fe;
-        outline: 0;
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-    }
-
-    .flyout-dropdown-arrow {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        pointer-events: none;
-        color: #6c757d;
-        font-size: 0.75rem;
-        transition: all 0.2s ease;
-    }
-
-    .flyout-dropdown-wrapper .flyout-dropdown-menu.show ~ .flyout-dropdown-arrow,
-    .flyout-dropdown-arrow.open {
-        transform: translateY(-50%) rotate(180deg);
-        color: #667eea;
-    }
-
-    /* Main Dropdown Menu - Simple clean design */
-    .flyout-dropdown-menu {
-        position: absolute !important;
-        top: 100% !important;
-        left: 0 !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        z-index: 9999 !important;
-        background: white !important;
-        border: 1px solid #ced4da !important;
-        border-radius: 4px !important;
-        margin-top: 2px !important;
-        max-height: 300px !important;
-        overflow-y: auto !important;
-        overflow-x: visible !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-    }
-
-    .flyout-dropdown-menu.show {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }
-
-    /* Simple programme list */
-    .flyout-menu-column {
-        width: 100% !important;
-        display: block !important;
-    }
-
-    /* Menu Items (Programmes) - Simple clean design */
-    .flyout-menu-item {
-        position: relative;
-        padding: 10px 12px;
-        cursor: pointer;
-        font-size: 0.95rem;
-        color: #333;
-        background-color: white;
-        transition: background-color 0.15s ease;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-
-    .flyout-menu-item:hover,
-    .flyout-menu-item.active {
-        background-color: #f8f9fa;
-    }
-
-    .flyout-item-text {
-        flex: 1;
-        color: #333;
-    }
-
-    .flyout-item-label {
-        line-height: 1.5;
-    }
-
-    .flyout-chevron {
-        font-size: 0.7rem;
-        color: #999;
-        margin-left: 8px;
-    }
-
-    .flyout-menu-item:hover .flyout-chevron,
-    .flyout-menu-item.active .flyout-chevron {
-        color: #667eea;
-    }
-
-    /* Submenu (Groups) - Vertical expansion below programme */
-    .flyout-submenu {
-        display: none;
-        background-color: #f8f9fa;
-        border-top: 1px solid #e9ecef;
-        padding: 4px 0;
-    }
-
-    .flyout-submenu.expanded {
-        display: block;
-    }
-
-    .flyout-menu-item.expanded {
-        background-color: #f8f9fa;
-    }
-
-    .flyout-menu-item.expanded .flyout-chevron {
-        transform: rotate(90deg);
-        color: #667eea;
-    }
-
-    /* Group items in submenu */
-    .flyout-group-item {
-        padding: 8px 12px 8px 32px;
-        cursor: pointer;
-        font-size: 0.88rem;
-        color: #555;
-        background-color: transparent;
-        transition: all 0.15s ease;
-        border-left: 3px solid transparent;
-    }
-
-    .flyout-group-item:hover {
-        background-color: #ffffff;
-        border-left-color: #667eea;
-        color: #667eea;
-        padding-left: 36px;
-    }
-
-    .flyout-group-item.selected {
-        background-color: #667eea;
-        color: white;
-        border-left-color: #5568d3;
-        font-weight: 500;
-    }
-
-    .flyout-group-item.selected:hover {
-        padding-left: 32px;
-    }
-
-    /* Ensure parent container doesn't clip the flyout */
-    .col-md-6:has(.flyout-dropdown-wrapper) {
-        overflow: visible !important;
-    }
-
-    .row:has(.flyout-dropdown-wrapper) {
-        overflow: visible !important;
-    }
-
-    .card-body:has(.flyout-dropdown-wrapper) {
-        overflow: visible !important;
-    }
-
-    .card:has(.flyout-dropdown-wrapper) {
-        overflow: visible !important;
-    }
-
-    .form-step:has(.flyout-dropdown-wrapper) {
-        overflow: visible !important;
-    }
+a:focus-visible,
+button:focus-visible,
+.btn:focus-visible {
+    outline: 3px solid var(--uitm-amber);
+    outline-offset: 2px;
+}
 </style>
 @endpush
 
 @section('content')
-<div class="container-fluid">
+<div class="application-container">
+    {{-- Page Header --}}
+    <div class="page-header">
+        <div class="page-header-pattern"></div>
+        <div class="page-header-glow"></div>
+        <div class="page-header-content">
+            <div class="page-header-eyebrow">Credit Exemption Application</div>
+            <h1 class="page-header-title">Submit New Application</h1>
+            <p class="page-header-subtitle">
+                Complete the form below to apply for credit exemption based on your previous diploma courses.
+            </p>
+        </div>
+    </div>
+
     {{-- Breadcrumb --}}
-    <div class="application-breadcrumb">
+    <div class="industrial-breadcrumb">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{{ route('student.dashboard') }}"><i class="fas fa-home"></i> Dashboard</a></li>
@@ -499,26 +996,22 @@
         </nav>
     </div>
 
-    <h2 class="mb-4">Credit Exemption Application</h2>
-
     {{-- Display validation errors --}}
     @if($errors->any())
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <h6><strong><i class="fas fa-exclamation-triangle"></i> Please correct the following errors:</strong></h6>
-            <ul class="mb-0">
+        <div class="alert-industrial alert-industrial-danger">
+            <h6 class="fw-bold mb-2"><i class="fas fa-exclamation-triangle me-2"></i>Please correct the following errors:</h6>
+            <ul class="mb-0 ps-3">
                 @foreach($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach
             </ul>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     @endif
 
     {{-- Display warning messages --}}
     @if(session('warning'))
-        <div class="alert alert-warning alert-dismissible fade show" role="alert">
-            <i class="fas fa-exclamation-circle"></i> {{ session('warning') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <div class="alert-industrial alert-industrial-warning">
+            <i class="fas fa-exclamation-circle me-2"></i> {{ session('warning') }}
         </div>
     @endif
 
@@ -540,243 +1033,248 @@
 
         {{-- STEP 1: Student Details --}}
         <div class="form-step active" id="step-1">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-light py-3">
-                    <h5 class="mb-0"><i class="fas fa-user-edit"></i>  Fill in Your Details</h5>
+            <div class="industrial-card">
+                <div class="card-header-industrial">
+                    <div class="card-header-icon">
+                        <i class="fas fa-user-edit"></i>
+                    </div>
+                    <div class="card-header-text">
+                        <h5>Fill in Your Details</h5>
+                        <p>Personal and academic information</p>
+                    </div>
                 </div>
-                <div class="card-body p-4">
-                        <h6>Student Information</h6>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Full Name <span class="text-danger">*</span></label>
-                                <input type="text" name="full_name" class="form-control @error('full_name') is-invalid @enderror" value="{{ old('full_name') }}" required>
-                                @error('full_name')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Student ID <span class="text-danger">*</span></label>
-                                <input type="text" name="student_id" class="form-control @error('student_id') is-invalid @enderror" value="{{ old('student_id') }}" required>
-                                @error('student_id')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
+                <div class="card-body-industrial">
+                    <h6 class="section-title">Student Information</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Full Name <span class="text-danger">*</span></label>
+                            <input type="text" name="full_name" class="form-control @error('full_name') is-invalid @enderror" value="{{ old('full_name') }}" required>
+                            @error('full_name')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">IC Number<span class="text-danger">*</span></label>
-                                <input type="text" name="ic_number" class="form-control @error('ic_number') is-invalid @enderror" value="{{ old('ic_number') }}" placeholder="000000-00-0000" required>
-                                @error('ic_number')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Home Address <span class="text-danger">*</span></label>
-                                <textarea name="home_address" class="form-control @error('home_address') is-invalid @enderror" rows="2" required>{{ old('home_address') }}</textarea>
-                                @error('home_address')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Student ID <span class="text-danger">*</span></label>
+                            <input type="text" name="student_id" class="form-control @error('student_id') is-invalid @enderror" value="{{ old('student_id') }}" required>
+                            @error('student_id')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
-                        <hr>
-                        <h6>Current UiTM Details</h6>
-                        <div class="row">
-                            {{-- PROGRAMME & GROUP - NOW ON THE LEFT --}}
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Programme & Group <span class="text-danger">*</span></label>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">IC Number<span class="text-danger">*</span></label>
+                            <input type="text" name="ic_number" class="form-control @error('ic_number') is-invalid @enderror" value="{{ old('ic_number') }}" placeholder="000000-00-0000" required>
+                            @error('ic_number')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Home Address <span class="text-danger">*</span></label>
+                            <textarea name="home_address" class="form-control @error('home_address') is-invalid @enderror" rows="2" required>{{ old('home_address') }}</textarea>
+                            @error('home_address')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
 
-                                <!-- Flyout Menu Dropdown -->
-                                <div class="flyout-dropdown-wrapper">
-                                    <input type="text"
-                                           class="flyout-dropdown-input form-control"
-                                           id="flyout_selected_display"
-                                           placeholder="Select Your Programme and Group"
-                                           readonly
-                                           autocomplete="off"
-                                           required
-                                           style="cursor: pointer;">
-                                    <span class="flyout-dropdown-arrow">▼</span>
+                    <h6 class="section-title mt-4">Current UiTM Details</h6>
+                    <div class="row">
+                        {{-- PROGRAMME & GROUP --}}
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Programme & Group <span class="text-danger">*</span></label>
 
-                                    <!-- Main Dropdown Menu - Simple single column with inline submenus -->
-                                    <div class="flyout-dropdown-menu" id="flyout_menu">
-                                        <div class="flyout-menu-column">
-                                            <div class="flyout-menu-item" data-code="CDCS230" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.)" data-groups='["CDCS2301B","CDCS2303B","CDCS2303C"]'>
-                                                <span class="flyout-item-text">CDCS230 - Bachelor of Computer Science (Hons.)</span>
-                                                <i class="fas fa-caret-right flyout-chevron"></i>
-                                                <div class="flyout-submenu">
-                                                    <div class="flyout-group-item" data-group="CDCS2301B" data-code="CDCS230" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.)">CDCS2301B</div>
-                                                    <div class="flyout-group-item" data-group="CDCS2303B" data-code="CDCS230" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.)">CDCS2303B</div>
-                                                    <div class="flyout-group-item" data-group="CDCS2303C" data-code="CDCS230" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.)">CDCS2303C</div>
-                                                </div>
+                            <!-- Flyout Menu Dropdown -->
+                            <div class="flyout-dropdown-wrapper">
+                                <input type="text"
+                                       class="flyout-dropdown-input form-control"
+                                       id="flyout_selected_display"
+                                       placeholder="Select Your Programme and Group"
+                                       readonly
+                                       autocomplete="off"
+                                       required
+                                       style="cursor: pointer;">
+                                <span class="flyout-dropdown-arrow">▼</span>
+
+                                <!-- Main Dropdown Menu -->
+                                <div class="flyout-dropdown-menu" id="flyout_menu">
+                                    <div class="flyout-menu-column">
+                                        <div class="flyout-menu-item" data-code="CDCS230" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.)" data-groups='["CDCS2301B","CDCS2303B","CDCS2303C"]'>
+                                            <span class="flyout-item-text">CDCS230 - Bachelor of Computer Science (Hons.)</span>
+                                            <i class="fas fa-caret-right flyout-chevron"></i>
+                                            <div class="flyout-submenu">
+                                                <div class="flyout-group-item" data-group="CDCS2301B" data-code="CDCS230" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.)">CDCS2301B</div>
+                                                <div class="flyout-group-item" data-group="CDCS2303B" data-code="CDCS230" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.)">CDCS2303B</div>
+                                                <div class="flyout-group-item" data-group="CDCS2303C" data-code="CDCS230" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.)">CDCS2303C</div>
                                             </div>
-                                            <div class="flyout-menu-item" data-code="CDCS251" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.) NETCENTRIC COMPUTING" data-groups='["CDCS2513A"]'>
-                                                <span class="flyout-item-text">CDCS251 - Bachelor of Computer Science (Hons.) Netcentric Computing</span>
-                                                <i class="fas fa-caret-right flyout-chevron"></i>
-                                                <div class="flyout-submenu">
-                                                    <div class="flyout-group-item" data-group="CDCS2513A" data-code="CDCS251" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.) NETCENTRIC COMPUTING">CDCS2513A</div>
-                                                </div>
+                                        </div>
+                                        <div class="flyout-menu-item" data-code="CDCS251" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.) NETCENTRIC COMPUTING" data-groups='["CDCS2513A"]'>
+                                            <span class="flyout-item-text">CDCS251 - Bachelor of Computer Science (Hons.) Netcentric Computing</span>
+                                            <i class="fas fa-caret-right flyout-chevron"></i>
+                                            <div class="flyout-submenu">
+                                                <div class="flyout-group-item" data-group="CDCS2513A" data-code="CDCS251" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.) NETCENTRIC COMPUTING">CDCS2513A</div>
                                             </div>
-                                            <div class="flyout-menu-item" data-code="CDCS253" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.) MULTIMEDIA COMPUTING" data-groups='["CDCS2531A","CDCS2533B"]'>
-                                                <span class="flyout-item-text">CDCS253 - Bachelor of Computer Science (Hons.) Multimedia Computing</span>
-                                                <i class="fas fa-caret-right flyout-chevron"></i>
-                                                <div class="flyout-submenu">
-                                                    <div class="flyout-group-item" data-group="CDCS2531A" data-code="CDCS253" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.) MULTIMEDIA COMPUTING">CDCS2531A</div>
-                                                    <div class="flyout-group-item" data-group="CDCS2533B" data-code="CDCS253" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.) MULTIMEDIA COMPUTING">CDCS2533B</div>
-                                                </div>
+                                        </div>
+                                        <div class="flyout-menu-item" data-code="CDCS253" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.) MULTIMEDIA COMPUTING" data-groups='["CDCS2531A","CDCS2533B"]'>
+                                            <span class="flyout-item-text">CDCS253 - Bachelor of Computer Science (Hons.) Multimedia Computing</span>
+                                            <i class="fas fa-caret-right flyout-chevron"></i>
+                                            <div class="flyout-submenu">
+                                                <div class="flyout-group-item" data-group="CDCS2531A" data-code="CDCS253" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.) MULTIMEDIA COMPUTING">CDCS2531A</div>
+                                                <div class="flyout-group-item" data-group="CDCS2533B" data-code="CDCS253" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.) MULTIMEDIA COMPUTING">CDCS2533B</div>
                                             </div>
-                                            <div class="flyout-menu-item" data-code="CDCS255" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.) COMPUTER NETWORKS" data-groups='["CDCS2551A","CDCS2553B"]'>
-                                                <span class="flyout-item-text">CDCS255 - Bachelor of Computer Science (Hons.) Computer Networks</span>
-                                                <i class="fas fa-caret-right flyout-chevron"></i>
-                                                <div class="flyout-submenu">
-                                                    <div class="flyout-group-item" data-group="CDCS2551A" data-code="CDCS255" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.) COMPUTER NETWORKS">CDCS2551A</div>
-                                                    <div class="flyout-group-item" data-group="CDCS2553B" data-code="CDCS255" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.) COMPUTER NETWORKS">CDCS2553B</div>
-                                                </div>
+                                        </div>
+                                        <div class="flyout-menu-item" data-code="CDCS255" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.) COMPUTER NETWORKS" data-groups='["CDCS2551A","CDCS2553B"]'>
+                                            <span class="flyout-item-text">CDCS255 - Bachelor of Computer Science (Hons.) Computer Networks</span>
+                                            <i class="fas fa-caret-right flyout-chevron"></i>
+                                            <div class="flyout-submenu">
+                                                <div class="flyout-group-item" data-group="CDCS2551A" data-code="CDCS255" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.) COMPUTER NETWORKS">CDCS2551A</div>
+                                                <div class="flyout-group-item" data-group="CDCS2553B" data-code="CDCS255" data-name="BACHELOR OF COMPUTER SCIENCE (HONS.) COMPUTER NETWORKS">CDCS2553B</div>
                                             </div>
-                                            <div class="flyout-menu-item" data-code="CDCS266" data-name="BACHELOR OF INFORMATION SYSTEMS (HONS.) INFORMATION SYSTEMS ENGINEERING" data-groups='["CDCS2663A"]'>
-                                                <span class="flyout-item-text">CDCS266 - Bachelor of Information Systems (Hons.) Information Systems Engineering</span>
-                                                <i class="fas fa-caret-right flyout-chevron"></i>
-                                                <div class="flyout-submenu">
-                                                    <div class="flyout-group-item" data-group="CDCS2663A" data-code="CDCS266" data-name="BACHELOR OF INFORMATION SYSTEMS (HONS.) INFORMATION SYSTEMS ENGINEERING">CDCS2663A</div>
-                                                </div>
+                                        </div>
+                                        <div class="flyout-menu-item" data-code="CDCS266" data-name="BACHELOR OF INFORMATION SYSTEMS (HONS.) INFORMATION SYSTEMS ENGINEERING" data-groups='["CDCS2663A"]'>
+                                            <span class="flyout-item-text">CDCS266 - Bachelor of Information Systems (Hons.) Information Systems Engineering</span>
+                                            <i class="fas fa-caret-right flyout-chevron"></i>
+                                            <div class="flyout-submenu">
+                                                <div class="flyout-group-item" data-group="CDCS2663A" data-code="CDCS266" data-name="BACHELOR OF INFORMATION SYSTEMS (HONS.) INFORMATION SYSTEMS ENGINEERING">CDCS2663A</div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-
-                                <!-- Hidden Inputs for Form Submission -->
-                                <input type="hidden" name="student_group" id="student_group" value="{{ old('student_group', '') }}" required>
-                                <input type="hidden" name="program_name" id="program_name" value="{{ old('program_name', '') }}">
-                                <input type="hidden" name="program_code" id="program_code" value="{{ old('program_code', '') }}">
-                                <input type="hidden" name="faculty" value="FAKULTI SAINS KOMPUTER DAN MATEMATIK">
-                                <input type="hidden" name="faculty_id" value="">
-
-                                @error('student_group')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                                @enderror
                             </div>
 
-                            {{-- CURRENT CAMPUS - NOW ON THE RIGHT --}}
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Current Campus <span class="text-danger">*</span></label>
-                                <select name="campus" id="campus_select" class="form-select searchable-select" required>
-                                    <option value="" disabled selected>Select Your Campus</option>
+                            <!-- Hidden Inputs for Form Submission -->
+                            <input type="hidden" name="student_group" id="student_group" value="{{ old('student_group', '') }}" required>
+                            <input type="hidden" name="program_name" id="program_name" value="{{ old('program_name', '') }}">
+                            <input type="hidden" name="program_code" id="program_code" value="{{ old('program_code', '') }}">
+                            <input type="hidden" name="faculty" value="FAKULTI SAINS KOMPUTER DAN MATEMATIK">
+                            <input type="hidden" name="faculty_id" value="">
+
+                            @error('student_group')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        {{-- CURRENT CAMPUS --}}
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Current Campus <span class="text-danger">*</span></label>
+                            <select name="campus" id="campus_select" class="form-select searchable-select" required>
+                                <option value="" disabled selected>Select Your Campus</option>
+                                @foreach($campuses as $campus)
+                                    <option value="{{ $campus->name }}" {{ old('campus') == $campus->name ? 'selected' : '' }}>{{ $campus->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">
+                                Current Semester <span class="text-danger">*</span>
+                                <i class="fas fa-info-circle text-primary"
+                                   style="cursor: pointer; margin-left: 5px;"
+                                   data-bs-toggle="popover"
+                                   data-bs-placement="right"
+                                   data-bs-trigger="hover focus"
+                                   data-bs-html="true"
+                                   data-bs-title="<strong>Semester Selection Guide</strong>"
+                                   data-bs-content="<div style='text-align: left;'><p style='margin-bottom: 8px;'><strong>If you are a Diploma graduate from:</strong></p><ul style='margin-bottom: 0; padding-left: 20px;'><li>the same faculty — choose <strong>3</strong></li><li>another UiTM faculty — choose <strong>1 or 2</strong></li><li>another institution (IPT) — choose <strong>1</strong></li></ul></div>"></i>
+                            </label>
+                            <select name="current_semester" class="form-select @error('current_semester') is-invalid @enderror" required>
+                                <option value="" disabled {{ old('current_semester') ? '' : 'selected' }}>Select your semester</option>
+                                @for($i = 1; $i <= 10; $i++)
+                                    <option value="{{ $i }}" {{ old('current_semester') == $i ? 'selected' : '' }}>{{ $i }}</option>
+                                @endfor
+                            </select>
+                            @error('current_semester')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div class="col-md-6 mb-3"></div>
+                    </div>
+
+                    <h6 class="section-title mt-4">Previous Institution (IPT)</h6>
+
+                    <!-- Institution Type Selection -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="institution_type" id="uitm_previous" value="uitm" onchange="toggleInstitutionFields()">
+                                <label class="form-check-label" for="uitm_previous">
+                                    UiTM (Previous Campus/Program)
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="institution_type" id="non_uitm_previous" value="non_uitm" onchange="toggleInstitutionFields()">
+                                <label class="form-check-label" for="non_uitm_previous">
+                                    Non-UiTM Institution
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- UiTM Previous Institution Fields -->
+                    <div id="uitm_fields" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6 col-sm-6 mb-3" style="float: left; width: 50%; padding-right: 15px;">
+                                <label class="form-label">Previous UiTM Campus</label>
+                                <select name="previous_uitm_campus" class="form-select searchable-select">
+                                    <option value="" disabled selected>Select Your Previous Campus</option>
                                     @foreach($campuses as $campus)
-                                        <option value="{{ $campus->name }}" {{ old('campus') == $campus->name ? 'selected' : '' }}>{{ $campus->name }}</option>
+                                        <option value="{{ $campus->name }}">{{ $campus->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-6 col-sm-6 mb-3" style="float: left; width: 50%; padding-left: 15px;">
+                                <label class="form-label">Previous UiTM Diploma Program</label>
+                                <select name="previous_uitm_program" class="form-select searchable-select">
+                                    <option value="" disabled selected>Select Your Diploma Program</option>
+                                    @foreach($uitmDiplomaPrograms as $program)
+                                        <option value="{{ $program->name }}">
+                                            {{ $program->code ? $program->code . ' - ' : '' }}{{ $program->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Non-UiTM Institution Fields -->
+                    <div id="non_uitm_fields" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">Diploma Institution</label>
+                                <select name="previous_institution" class="form-select searchable-select">
+                                    <option value="" disabled selected>Select Your Institution</option>
+                                    @foreach($nonUitmInstitutions as $institution)
+                                        <option value="{{ $institution->name }}">{{ $institution->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">
-                                    Current Semester <span class="text-danger">*</span>
-                                    <i class="fas fa-info-circle text-primary"
-                                       style="cursor: pointer; margin-left: 5px;"
-                                       data-bs-toggle="popover"
-                                       data-bs-placement="right"
-                                       data-bs-trigger="hover focus"
-                                       data-bs-html="true"
-                                       data-bs-title="<strong>Semester Selection Guide</strong>"
-                                       data-bs-content="<div style='text-align: left;'><p style='margin-bottom: 8px;'><strong>If you are a Diploma graduate from:</strong></p><ul style='margin-bottom: 0; padding-left: 20px;'><li>the same faculty — choose <strong>3</strong></li><li>another UiTM faculty — choose <strong>1 or 2</strong></li><li>another institution (IPT) — choose <strong>1</strong></li></ul></div>"></i>
-                                </label>
-                                <select name="current_semester" class="form-select @error('current_semester') is-invalid @enderror" required>
-                                    <option value="" disabled {{ old('current_semester') ? '' : 'selected' }}>Select your semester</option>
-                                    @for($i = 1; $i <= 10; $i++)
-                                        <option value="{{ $i }}" {{ old('current_semester') == $i ? 'selected' : '' }}>{{ $i }}</option>
-                                    @endfor
-                                </select>
-                                @error('current_semester')
+                                <label class="form-label">Diploma Programme Code</label>
+                                <input type="text" name="previous_program_code" class="form-control text-uppercase @error('previous_program_code') is-invalid @enderror" value="{{ old('previous_program_code') }}" placeholder="e.g., CS110" maxlength="10">
+                                <small class="text-muted">Enter your diploma programme code if available</small>
+                                @error('previous_program_code')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
-                            <div class="col-md-6 mb-3"></div>
-                        </div>
-                        <hr>
-                        <h6>Previous Institution (IPT)</h6>
-                        
-                        <!-- Institution Type Selection -->
-                        <div class="row mb-3">
-                            <div class="col-12">
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="institution_type" id="uitm_previous" value="uitm" onchange="toggleInstitutionFields()">
-                                    <label class="form-check-label" for="uitm_previous">
-                                        UiTM (Previous Campus/Program)
-                                    </label>
-                                </div>
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="institution_type" id="non_uitm_previous" value="non_uitm" onchange="toggleInstitutionFields()">
-                                    <label class="form-check-label" for="non_uitm_previous">
-                                        Non-UiTM Institution
-                                    </label>
-                                </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Diploma Programme Name</label>
+                                <input type="text" name="previous_program" class="form-control @error('previous_program') is-invalid @enderror" value="{{ old('previous_program') }}" placeholder="e.g., Diploma in Computer Science">
+                                @error('previous_program')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
                             </div>
                         </div>
+                    </div>
 
-                        <!-- UiTM Previous Institution Fields -->
-                        <div id="uitm_fields" style="display: none;">
-                            <div class="row">
-                                <div class="col-md-6 col-sm-6 mb-3" style="float: left; width: 50%; padding-right: 15px;">
-                                    <label class="form-label">Previous UiTM Campus</label>
-                                    <select name="previous_uitm_campus" class="form-select searchable-select">
-                                        <option value="" disabled selected>Select Your Previous Campus</option>
-                                        @foreach($campuses as $campus)
-                                            <option value="{{ $campus->name }}">{{ $campus->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="col-md-6 col-sm-6 mb-3" style="float: left; width: 50%; padding-left: 15px;">
-                                    <label class="form-label">Previous UiTM Diploma Program</label>
-                                    <select name="previous_uitm_program" class="form-select searchable-select">
-                                        <option value="" disabled selected>Select Your Diploma Program</option>
-                                        @foreach($uitmDiplomaPrograms as $program)
-                                            <option value="{{ $program->name }}">
-                                                {{ $program->code ? $program->code . ' - ' : '' }}{{ $program->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Non-UiTM Institution Fields -->
-                        <div id="non_uitm_fields" style="display: none;">
-                            <div class="row">
-                                <div class="col-md-12 mb-3">
-                                    <label class="form-label">Diploma Institution</label>
-                                    <select name="previous_institution" class="form-select searchable-select">
-                                        <option value="" disabled selected>Select Your Institution</option>
-                                        @foreach($nonUitmInstitutions as $institution)
-                                            <option value="{{ $institution->name }}">{{ $institution->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Diploma Programme Code</label>
-                                    <input type="text" name="previous_program_code" class="form-control text-uppercase @error('previous_program_code') is-invalid @enderror" value="{{ old('previous_program_code') }}" placeholder="e.g., CS110" maxlength="10">
-                                    <small class="text-muted">Enter your diploma programme code if available</small>
-                                    @error('previous_program_code')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Diploma Programme Name</label>
-                                    <input type="text" name="previous_program" class="form-control @error('previous_program') is-invalid @enderror" value="{{ old('previous_program') }}" placeholder="e.g., Diploma in Computer Science">
-                                    @error('previous_program')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Step 1 Navigation --}}
-                        <div class="step-navigation">
-                            <div></div>
-                            <button type="button" class="btn btn-step btn-next" id="nextToStep2">
-                                Upload Transcript <i class="fas fa-arrow-right ms-2"></i>
-                            </button>
-                        </div>
+                    {{-- Step 1 Navigation --}}
+                    <div class="step-navigation">
+                        <div></div>
+                        <button type="button" class="btn-industrial btn-industrial-primary" id="nextToStep2">
+                            Upload Transcript <i class="fas fa-arrow-right ms-2"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -784,27 +1282,33 @@
 
         {{-- STEP 2: Upload Transcript or Manual Entry --}}
         <div class="form-step" id="step-2">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-light py-3">
-                    <h5 class="mb-0"><i class="fas fa-file-upload"></i> Submit Transcript Information</h5>
+            <div class="industrial-card">
+                <div class="card-header-industrial">
+                    <div class="card-header-icon" style="background: linear-gradient(135deg, var(--uitm-amber), var(--uitm-amber-light));">
+                        <i class="fas fa-file-upload"></i>
+                    </div>
+                    <div class="card-header-text">
+                        <h5>Submit Transcript Information</h5>
+                        <p>Upload your official transcript for processing</p>
+                    </div>
                 </div>
-                <div class="card-body p-4">
+                <div class="card-body-industrial">
                     <div class="row justify-content-center">
                         <div class="col-lg-10">
                             {{-- Entry Method Selection --}}
                             <div class="mb-4" id="entry_method_selection">
                                 {{-- For UiTM Previous Institution - OCR Only --}}
                                 <div id="uitm_entry_options">
-                                    <div class="alert alert-info border-primary" style="background-color: #e7f3ff;">
+                                    <div class="alert-industrial alert-industrial-info">
                                         <div class="d-flex align-items-start">
-                                            <i class="fas fa-robot me-3 mt-1" style="font-size: 2rem; color: #0d6efd;"></i>
+                                            <i class="fas fa-robot me-3 mt-1" style="font-size: 2rem; color: var(--uitm-primary);"></i>
                                             <div>
-                                                <h6 class="mb-2"><strong>OCR Automatic Transcript Processing</strong></h6>
+                                                <h6 class="mb-2 fw-bold">OCR Automatic Transcript Processing</h6>
                                                 <p class="mb-2">For UiTM diploma students, we use OCR (Optical Character Recognition) technology to automatically extract your course information from your official transcript.</p>
                                                 <p class="mb-0 text-muted" style="font-size: 0.9rem;">
-                                                    <i class="fas fa-check-circle me-1 text-success"></i> Fast and accurate course extraction<br>
-                                                    <i class="fas fa-check-circle me-1 text-success"></i> Automatic grade and credit hour detection<br>
-                                                    <i class="fas fa-check-circle me-1 text-success"></i> Instant exemption eligibility analysis
+                                                    <i class="fas fa-check-circle me-1" style="color: var(--uitm-green);"></i> Fast and accurate course extraction<br>
+                                                    <i class="fas fa-check-circle me-1" style="color: var(--uitm-green);"></i> Automatic grade and credit hour detection<br>
+                                                    <i class="fas fa-check-circle me-1" style="color: var(--uitm-green);"></i> Instant exemption eligibility analysis
                                                 </p>
                                             </div>
                                         </div>
@@ -814,7 +1318,7 @@
 
                                 {{-- For Non-UiTM Previous Institution - Manual Entry Only --}}
                                 <div id="non_uitm_entry_options" style="display: none;">
-                                    <div class="alert alert-info">
+                                    <div class="alert-industrial alert-industrial-info">
                                         <i class="fas fa-info-circle me-2"></i>
                                         <strong>Manual Entry Required:</strong> OCR automatic extraction is only available for UiTM transcripts. For students from non-UiTM institution, please enter your diploma course details manually.
                                     </div>
@@ -825,8 +1329,8 @@
                             {{-- OCR Upload Section --}}
                             <div id="ocr_section">
                                 <div class="text-center mb-4">
-                                    <h5>Upload Your Official UiTM Transcript</h5>
-                                    <p class="text-muted">Upload a computer-generated transcript for best accuracy. This transcript will be used for OCR processing to extract your course information automatically. Ensure the document is clear, complete, and in PDF format to achieve accurate results.</p>
+                                    <h5 class="fw-bold mb-2">Upload Your Official UiTM Transcript</h5>
+                                    <p class="text-muted">Upload a computer-generated transcript for best accuracy. This transcript will be used for OCR processing to extract your course information automatically.</p>
                                 </div>
 
                                 <div class="mb-4">
@@ -838,7 +1342,7 @@
                                 </div>
 
                                 {{-- Declaration Checkbox --}}
-                                <div class="alert alert-warning border-warning" style="background-color: #fff3cd;">
+                                <div class="alert-industrial alert-industrial-warning">
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" id="transcript_declaration" name="transcript_declaration" style="width: 18px; height: 18px; margin-top: 0.25em;">
                                         <label class="form-check-label" for="transcript_declaration" style="margin-left: 8px; line-height: 1.6; font-size: 0.95rem;">
@@ -850,7 +1354,7 @@
 
                             {{-- Manual Entry Section --}}
                             <div id="manual_entry_section" style="display: none;">
-                                <div class="alert alert-info">
+                                <div class="alert-industrial alert-industrial-info">
                                     <i class="fas fa-info-circle me-2"></i><strong>Manual Entry Instructions:</strong>
                                     <ul class="mb-0 mt-2">
                                         <li>Enter each course from your diploma transcript</li>
@@ -863,11 +1367,16 @@
                                 </div>
 
                                 {{-- Course Entry Form --}}
-                                <div class="card mb-3">
-                                    <div class="card-header bg-primary text-white">
-                                        <h6 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Add Course</h6>
+                                <div class="industrial-card mb-3">
+                                    <div class="card-header-industrial" style="background: linear-gradient(135deg, var(--uitm-primary), var(--uitm-primary-light)); color: white;">
+                                        <div class="card-header-icon" style="background: rgba(255,255,255,0.2);">
+                                            <i class="fas fa-plus-circle"></i>
+                                        </div>
+                                        <div class="card-header-text">
+                                            <h5 style="color: white;">Add Course</h5>
+                                        </div>
                                     </div>
-                                    <div class="card-body">
+                                    <div class="card-body-industrial">
                                         <div class="row g-3">
                                             <div class="col-md-3">
                                                 <label class="form-label">Course Code <span class="text-danger">*</span></label>
@@ -902,7 +1411,7 @@
                                             </div>
                                             <div class="col-md-1">
                                                 <label class="form-label" style="visibility: hidden;">Action</label>
-                                                <button type="button" class="btn btn-primary w-100" onclick="addManualCourse()">
+                                                <button type="button" class="btn-industrial btn-industrial-primary w-100" onclick="addManualCourse()" style="padding: 0.75rem;">
                                                     <i class="fas fa-plus"></i>
                                                 </button>
                                             </div>
@@ -911,15 +1420,20 @@
                                 </div>
 
                                 {{-- Courses List --}}
-                                <div class="card">
-                                    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
-                                        <h6 class="mb-0"><i class="fas fa-list me-2"></i>Added Courses</h6>
-                                        <span class="badge bg-light text-dark" id="course_count">0 courses</span>
+                                <div class="industrial-card">
+                                    <div class="card-header-industrial" style="background: var(--neutral-600); color: white;">
+                                        <div class="card-header-icon" style="background: rgba(255,255,255,0.2);">
+                                            <i class="fas fa-list"></i>
+                                        </div>
+                                        <div class="card-header-text">
+                                            <h5 style="color: white;">Added Courses</h5>
+                                        </div>
+                                        <span class="status-badge status-badge-secondary ms-auto" id="course_count">0 courses</span>
                                     </div>
-                                    <div class="card-body p-0">
+                                    <div class="card-body-industrial p-0">
                                         <div id="manual_courses_list" class="table-responsive">
-                                            <table class="table table-hover mb-0">
-                                                <thead class="table-light">
+                                            <table class="table industrial-table mb-0">
+                                                <thead>
                                                     <tr>
                                                         <th width="15%">Course Code</th>
                                                         <th width="40%">Course Name</th>
@@ -932,7 +1446,7 @@
                                                 <tbody id="manual_courses_tbody">
                                                     <tr class="text-center text-muted">
                                                         <td colspan="6" class="py-4">
-                                                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                                                            <i class="fas fa-inbox fa-2x mb-2" style="color: var(--neutral-300);"></i>
                                                             <p class="mb-0">No courses added yet. Use the form above to add courses.</p>
                                                         </td>
                                                     </tr>
@@ -946,7 +1460,7 @@
                                 <input type="hidden" name="manual_courses" id="manual_courses_data" value="[]">
 
                                 {{-- Manual Entry Declaration --}}
-                                <div class="alert alert-warning border-warning mt-3" style="background-color: #fff3cd;">
+                                <div class="alert-industrial alert-industrial-warning mt-3">
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" id="manual_declaration" name="manual_declaration" style="width: 18px; height: 18px; margin-top: 0.25em;">
                                         <label class="form-check-label" for="manual_declaration" style="margin-left: 8px; line-height: 1.6; font-size: 0.95rem;">
@@ -958,11 +1472,11 @@
 
                             {{-- Step 2 Navigation --}}
                             <div class="step-navigation mt-4">
-                                <button type="button" class="btn btn-step btn-previous" id="backToStep1">
+                                <button type="button" class="btn-industrial btn-industrial-secondary" id="backToStep1">
                                     <i class="fas fa-arrow-left me-2"></i> Previous
                                 </button>
-                                <button type="submit" class="btn btn-step btn-submit" id="submitBtn">
-                                    Submit Application
+                                <button type="submit" class="btn-industrial btn-industrial-primary" id="submitBtn">
+                                    <i class="fas fa-paper-plane me-2"></i> Submit Application
                                 </button>
                             </div>
                         </div>
@@ -1014,8 +1528,6 @@ $(document).ready(function() {
         goToStep(1);
     });
 
-    // Note: Flyout menu initialization handles old values automatically
-
     // Form validation on submit (Step 2 only - file upload check)
     $('form').on('submit', function(e) {
         // Check if transcript file is uploaded
@@ -1042,10 +1554,9 @@ $(document).ready(function() {
             e.preventDefault();
             alert('Please confirm that you are submitting an official, unaltered transcript by checking the declaration box.');
             declarationCheckbox.focus();
-            // Add visual feedback
-            const alertBox = declarationCheckbox.closest('.alert');
+            const alertBox = declarationCheckbox.closest('.alert-industrial');
             if (alertBox) {
-                alertBox.style.border = '2px solid #dc3545';
+                alertBox.style.border = '2px solid var(--uitm-red)';
                 setTimeout(() => {
                     alertBox.style.border = '';
                 }, 3000);
@@ -1053,7 +1564,6 @@ $(document).ready(function() {
             return false;
         }
 
-        // All validations passed
         return true;
     });
 
@@ -1071,7 +1581,7 @@ $(document).ready(function() {
 
     // Handle declaration checkbox to remove error border when checked
     $('#transcript_declaration').on('change', function() {
-        const alertBox = this.closest('.alert');
+        const alertBox = this.closest('.alert-industrial');
         if (this.checked && alertBox) {
             alertBox.style.border = '';
         }
@@ -1200,8 +1710,6 @@ function initSearchableDropdown($select) {
         $input.val(text);
         $input.attr('readonly', 'readonly');
         $menu.removeClass('show');
-
-        // Note: Campus dropdown uses searchable dropdown, program/group uses flyout menu
     });
 
     // Close on click outside
@@ -1210,7 +1718,6 @@ function initSearchableDropdown($select) {
             $input.attr('readonly', 'readonly');
             $menu.removeClass('show');
             if (selectedValue) {
-                // Get original text from options array
                 var selectedOpt = options.find(function(opt) { return opt.value === selectedValue; });
                 if (selectedOpt) {
                     $input.val(selectedOpt.text);
@@ -1234,24 +1741,21 @@ function toggleInstitutionFields() {
     allFields.forEach(field => {
         field.removeAttribute('required');
         field.value = '';
-        // Disable fields that are not visible to prevent them from being submitted
         field.disabled = true;
     });
 
-    // Remove all existing searchable dropdown wrappers to ensure clean reinitialiation
+    // Remove all existing searchable dropdown wrappers
     $('#uitm_fields .searchable-dropdown-wrapper, #non_uitm_fields .searchable-dropdown-wrapper').remove();
 
     if (uitmRadio.checked) {
         uitmFields.style.display = 'block';
         nonUitmFields.style.display = 'none';
 
-        // Enable and require UiTM fields
         document.querySelector('select[name="previous_uitm_campus"]').disabled = false;
         document.querySelector('select[name="previous_uitm_campus"]').setAttribute('required', 'required');
         document.querySelector('select[name="previous_uitm_program"]').disabled = false;
         document.querySelector('select[name="previous_uitm_program"]').setAttribute('required', 'required');
 
-        // Show UiTM entry options (OCR only), hide non-UiTM options
         const uitmEntryOptions = document.getElementById('uitm_entry_options');
         const nonUitmEntryOptions = document.getElementById('non_uitm_entry_options');
         if (uitmEntryOptions) uitmEntryOptions.style.display = 'block';
@@ -1261,7 +1765,6 @@ function toggleInstitutionFields() {
             if (manualHiddenInput) manualHiddenInput.disabled = true;
         }
 
-        // Initialize searchable dropdowns for UiTM fields
         setTimeout(function() {
             $('#uitm_fields .searchable-select').each(function() {
                 initSearchableDropdown($(this));
@@ -1272,14 +1775,12 @@ function toggleInstitutionFields() {
         uitmFields.style.display = 'none';
         nonUitmFields.style.display = 'block';
 
-        // Enable and require non-UiTM fields
         document.querySelector('select[name="previous_institution"]').disabled = false;
         document.querySelector('select[name="previous_institution"]').setAttribute('required', 'required');
         document.querySelector('input[name="previous_program"]').disabled = false;
         document.querySelector('input[name="previous_program"]').setAttribute('required', 'required');
         document.querySelector('input[name="previous_program_code"]').disabled = false;
 
-        // Show non-UiTM entry options (manual only), hide UiTM options
         const uitmEntryOptions = document.getElementById('uitm_entry_options');
         const nonUitmEntryOptions = document.getElementById('non_uitm_entry_options');
         if (uitmEntryOptions) uitmEntryOptions.style.display = 'none';
@@ -1289,10 +1790,8 @@ function toggleInstitutionFields() {
             if (manualHiddenInput) manualHiddenInput.disabled = false;
         }
 
-        // Force manual entry mode for non-UiTM students
         toggleEntryMethod(true);
 
-        // Initialize searchable dropdowns for Non-UiTM fields
         setTimeout(function() {
             $('#non_uitm_fields .searchable-select').each(function() {
                 initSearchableDropdown($(this));
@@ -1303,7 +1802,6 @@ function toggleInstitutionFields() {
         uitmFields.style.display = 'none';
         nonUitmFields.style.display = 'none';
 
-        // Hide both entry option sections
         const uitmEntryOptions = document.getElementById('uitm_entry_options');
         const nonUitmEntryOptions = document.getElementById('non_uitm_entry_options');
         if (uitmEntryOptions) uitmEntryOptions.style.display = 'none';
@@ -1313,10 +1811,7 @@ function toggleInstitutionFields() {
 
 // ========================================
 // FLYOUT MENU FUNCTIONALITY
-// Simple dropdown with horizontal inline submenus
 // ========================================
-
-// Use vanilla JavaScript to avoid jQuery conflicts
 document.addEventListener('DOMContentLoaded', function() {
     const flyoutInput = document.getElementById('flyout_selected_display');
     const flyoutMenu = document.getElementById('flyout_menu');
@@ -1325,38 +1820,25 @@ document.addEventListener('DOMContentLoaded', function() {
     let selectedProgramCode = '';
     let selectedProgramName = '';
 
-    console.log('Flyout menu initialized (vanilla JS)', {
-        input: flyoutInput,
-        menu: flyoutMenu,
-        arrow: flyoutArrow
-    });
-
-    // Open/Close menu on input click and wrapper click
+    // Open/Close menu on input click
     if (flyoutInput && flyoutMenu) {
         const wrapper = document.querySelector('.flyout-dropdown-wrapper');
 
-        // Click handler function
         const toggleMenu = function(e) {
             e.preventDefault();
             e.stopPropagation();
-            console.log('Dropdown clicked! Current classes:', flyoutMenu.className);
             flyoutMenu.classList.toggle('show');
             if (flyoutArrow) flyoutArrow.classList.toggle('open');
-            console.log('After toggle, show class:', flyoutMenu.classList.contains('show'));
         };
 
-        // Add click to both input and wrapper
         flyoutInput.addEventListener('click', toggleMenu);
         if (wrapper) {
             wrapper.addEventListener('click', function(e) {
-                // Only trigger if clicking the wrapper or input, not submenu
                 if (e.target === wrapper || e.target === flyoutInput || e.target === flyoutArrow) {
                     toggleMenu(e);
                 }
             });
         }
-    } else {
-        console.error('Flyout elements not found!', { input: flyoutInput, menu: flyoutMenu });
     }
 
     // Handle programme item click - expand/collapse groups
@@ -1366,11 +1848,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (programmeItem && !e.target.classList.contains('flyout-group-item')) {
             e.stopPropagation();
 
-            // Toggle expansion
             const submenu = programmeItem.querySelector('.flyout-submenu');
             const isExpanded = programmeItem.classList.contains('expanded');
 
-            // Close all other expanded items
             document.querySelectorAll('.flyout-menu-item.expanded').forEach(item => {
                 if (item !== programmeItem) {
                     item.classList.remove('expanded');
@@ -1379,7 +1859,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
-            // Toggle current item
             if (isExpanded) {
                 programmeItem.classList.remove('expanded');
                 if (submenu) submenu.classList.remove('expanded');
@@ -1390,7 +1869,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Handle group selection (click on group item)
+    // Handle group selection
     document.addEventListener('click', function(e) {
         if (e.target.classList.contains('flyout-group-item')) {
             e.stopPropagation();
@@ -1400,26 +1879,21 @@ document.addEventListener('DOMContentLoaded', function() {
             const code = groupItem.getAttribute('data-code');
             const name = groupItem.getAttribute('data-name');
 
-            // Update selection
             selectedGroup = group;
             selectedProgramCode = code;
             selectedProgramName = name;
 
-            // Update display input
             flyoutInput.value = code + ' - ' + group;
 
-            // Update hidden form inputs
             document.getElementById('student_group').value = group;
             document.getElementById('program_code').value = code;
             document.getElementById('program_name').value = name;
 
-            // Visual feedback - mark as selected
             document.querySelectorAll('.flyout-group-item').forEach(item => {
                 item.classList.remove('selected');
             });
             groupItem.classList.add('selected');
 
-            // Close expanded submenu and menu
             document.querySelectorAll('.flyout-menu-item.expanded').forEach(item => {
                 item.classList.remove('expanded');
                 const submenu = item.querySelector('.flyout-submenu');
@@ -1428,15 +1902,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             flyoutMenu.classList.remove('show');
             if (flyoutArrow) flyoutArrow.classList.remove('open');
-
-            console.log('✓ Selected:', { group, code, name });
         }
     });
 
     // Close menu on outside click
     document.addEventListener('click', function(e) {
         if (!e.target.closest('.flyout-dropdown-wrapper')) {
-            // Collapse all expanded items
             document.querySelectorAll('.flyout-menu-item.expanded').forEach(item => {
                 item.classList.remove('expanded');
                 const submenu = item.querySelector('.flyout-submenu');
@@ -1451,7 +1922,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Keyboard navigation (ESC to close)
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && flyoutMenu.classList.contains('show')) {
-            // Collapse all expanded items
             document.querySelectorAll('.flyout-menu-item.expanded').forEach(item => {
                 item.classList.remove('expanded');
                 const submenu = item.querySelector('.flyout-submenu');
@@ -1463,7 +1933,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Restore previously selected value (from old() Laravel helper)
+    // Restore previously selected value
     const oldGroup = document.getElementById('student_group').value;
     const oldCode = document.getElementById('program_code').value;
 
@@ -1473,7 +1943,6 @@ document.addEventListener('DOMContentLoaded', function() {
         selectedProgramName = document.getElementById('program_name').value;
         flyoutInput.value = oldCode + ' - ' + oldGroup;
 
-        // Mark the selected group item
         document.querySelectorAll('.flyout-group-item').forEach(function(item) {
             if (item.getAttribute('data-group') === oldGroup &&
                 item.getAttribute('data-code') === oldCode) {
@@ -1485,13 +1954,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Multi-Step Navigation Functions
 function goToStep(stepNumber) {
-    // Hide all steps
     $('.form-step').removeClass('active');
-
-    // Show target step
     $('#step-' + stepNumber).addClass('active');
 
-    // Update progress indicators
     $('.step-item').removeClass('active completed');
 
     for (let i = 1; i <= totalSteps; i++) {
@@ -1503,17 +1968,14 @@ function goToStep(stepNumber) {
         }
     }
 
-    // Update breadcrumb
     const breadcrumbTexts = {
         1: 'Student Details',
         2: 'Upload Transcript'
     };
     $('#breadcrumb-step').text(breadcrumbTexts[stepNumber]);
 
-    // Update current step
     currentStep = stepNumber;
 
-    // Scroll to top smoothly
     $('html, body').animate({ scrollTop: 0 }, 400);
 }
 
@@ -1521,7 +1983,6 @@ function validateStep1() {
     let isValid = true;
     const errors = [];
 
-    // Check required text inputs
     const requiredFields = [
         { name: 'full_name', label: 'Full Name' },
         { name: 'student_id', label: 'Student ID' },
@@ -1545,8 +2006,6 @@ function validateStep1() {
         }
     });
 
-    // Check required select and hidden fields
-    // Campus - select field
     const campusSelect = document.querySelector('select[name="campus"]');
     if (!campusSelect || !campusSelect.value) {
         isValid = false;
@@ -1556,7 +2015,6 @@ function validateStep1() {
         if (campusSelect) campusSelect.classList.remove('is-invalid');
     }
 
-    // Programme & Group - hidden input field
     const studentGroupInput = document.getElementById('student_group');
     const flyoutDisplayInput = document.getElementById('flyout_selected_display');
     if (!studentGroupInput || !studentGroupInput.value) {
@@ -1567,13 +2025,11 @@ function validateStep1() {
         if (flyoutDisplayInput) flyoutDisplayInput.classList.remove('is-invalid');
     }
 
-    // Check institution type selection
     const institutionType = document.querySelector('input[name="institution_type"]:checked');
     if (!institutionType) {
         isValid = false;
         errors.push('Institution Type (UiTM or Non-UiTM)');
     } else {
-        // Check institution-specific fields
         if (institutionType.value === 'uitm') {
             const uitmCampus = document.querySelector('select[name="previous_uitm_campus"]');
             const uitmProgram = document.querySelector('select[name="previous_uitm_program"]');
@@ -1607,7 +2063,6 @@ function validateStep1() {
         }
     }
 
-    // Validate current semester selection
     const semesterSelect = document.querySelector('select[name="current_semester"]');
     if (semesterSelect && !semesterSelect.value) {
         isValid = false;
@@ -1617,7 +2072,6 @@ function validateStep1() {
 
     if (!isValid) {
         alert('Please fill in the following required fields:\n\n• ' + errors.join('\n• '));
-        // Scroll to first error field
         const firstErrorField = document.querySelector('.is-invalid');
         if (firstErrorField) {
             firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1631,11 +2085,8 @@ function validateStep1() {
 // ========================================
 // MANUAL TRANSCRIPT ENTRY FUNCTIONS
 // ========================================
-
-// Array to store manually entered courses
 let manualCourses = [];
 
-// Update entry method options based on institution type selection in Step 1
 function updateEntryMethodOptions() {
     const institutionType = document.querySelector('input[name="institution_type"]:checked');
     const uitmEntryOptions = document.getElementById('uitm_entry_options');
@@ -1643,35 +2094,26 @@ function updateEntryMethodOptions() {
     const hiddenEntryMethod = document.getElementById('entry_method_manual_hidden');
 
     if (!institutionType) {
-        console.warn('No institution type selected');
         return;
     }
 
     if (institutionType.value === 'non_uitm') {
-        // Non-UiTM: Show manual entry only
         uitmEntryOptions.style.display = 'none';
         nonUitmEntryOptions.style.display = 'block';
 
-        // Enable hidden input for non-UiTM
         if (hiddenEntryMethod) hiddenEntryMethod.disabled = false;
 
-        // Automatically trigger manual entry mode
-        toggleEntryMethod(true); // Force manual mode
+        toggleEntryMethod(true);
     } else {
-        // UiTM: Show OCR only (no manual entry option)
         uitmEntryOptions.style.display = 'block';
         nonUitmEntryOptions.style.display = 'none';
 
-        // Disable non-UiTM hidden input
         if (hiddenEntryMethod) hiddenEntryMethod.disabled = true;
 
-        // UiTM students always use OCR (handled by hidden input in HTML)
-        // Force OCR mode
         toggleEntryMethod(false);
     }
 }
 
-// Toggle between OCR upload and Manual Entry
 function toggleEntryMethod(forceManual = false) {
     const ocrSection = document.getElementById('ocr_section');
     const manualSection = document.getElementById('manual_entry_section');
@@ -1679,10 +2121,8 @@ function toggleEntryMethod(forceManual = false) {
     const transcriptDeclaration = document.getElementById('transcript_declaration');
     const manualDeclaration = document.getElementById('manual_declaration');
 
-    // Check if UiTM student (has hidden OCR input)
     const ocrHiddenInput = document.querySelector('#uitm_entry_options input[name="entry_method"][value="ocr"]');
 
-    // For UiTM students, always show OCR section (no manual entry option)
     if (ocrHiddenInput && ocrHiddenInput.type === 'hidden') {
         ocrSection.style.display = 'block';
         manualSection.style.display = 'none';
@@ -1692,14 +2132,12 @@ function toggleEntryMethod(forceManual = false) {
         return;
     }
 
-    // For non-UiTM students, determine if manual mode should be active
     let manualMode = forceManual;
 
     if (!forceManual) {
         const ocrRadio = document.getElementById('entry_method_ocr');
         const manualRadioUitm = document.getElementById('entry_method_manual_uitm');
 
-        // Check which radio is selected (if available)
         if (ocrRadio && ocrRadio.type === 'radio' && ocrRadio.checked) {
             manualMode = false;
         } else if (manualRadioUitm && manualRadioUitm.checked) {
@@ -1708,41 +2146,33 @@ function toggleEntryMethod(forceManual = false) {
     }
 
     if (manualMode) {
-        // Show manual section, hide OCR section
         ocrSection.style.display = 'none';
         manualSection.style.display = 'block';
 
-        // Disable OCR fields, enable manual fields
         transcriptFile.removeAttribute('required');
         transcriptDeclaration.removeAttribute('required');
         if (manualDeclaration) manualDeclaration.setAttribute('required', 'required');
     } else {
-        // Show OCR section, hide manual section
         ocrSection.style.display = 'block';
         manualSection.style.display = 'none';
 
-        // Enable OCR fields, disable manual fields
         transcriptFile.setAttribute('required', 'required');
         transcriptDeclaration.setAttribute('required', 'required');
         if (manualDeclaration) manualDeclaration.removeAttribute('required');
     }
 }
 
-// Add manual course to the list
 function addManualCourse() {
-    // Get input values
     const courseCode = document.getElementById('manual_course_code').value.trim().toUpperCase();
     const courseName = document.getElementById('manual_course_name').value.trim();
     const grade = document.getElementById('manual_grade').value;
     const creditHours = parseFloat(document.getElementById('manual_credit_hours').value);
 
-    // Validate inputs
     if (!courseCode || !courseName || !grade || !creditHours) {
         alert('Please fill in all course fields before adding.');
         return;
     }
 
-    // Validate course code format
     const courseCodePattern = /^[A-Z]{2,4}\d{3}$/;
     if (!courseCodePattern.test(courseCode)) {
         alert('Invalid course code format. Use format like CSC159 (2-4 letters + 3 digits).');
@@ -1750,28 +2180,22 @@ function addManualCourse() {
         return;
     }
 
-    // Check for duplicates
     if (manualCourses.some(course => course.code === courseCode)) {
         alert('This course code has already been added.');
         return;
     }
 
-    // Get program code from Step 1
     const programCode = document.getElementById('program_code').value;
 
-    // Check equivalency via AJAX
     checkCourseEquivalency(courseCode, courseName, grade, creditHours, programCode);
 }
 
-// Check course equivalency and add to table
 function checkCourseEquivalency(courseCode, courseName, grade, creditHours, programCode) {
-    // Show loading state
     const addButton = document.querySelector('button[onclick="addManualCourse()"]');
     const originalButtonHtml = addButton.innerHTML;
     addButton.disabled = true;
     addButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-    // Get institution info for non-UiTM students
     const institutionType = document.querySelector('input[name="institution_type"]:checked')?.value || 'uitm';
     let institution = null;
     if (institutionType === 'non_uitm') {
@@ -1780,7 +2204,6 @@ function checkCourseEquivalency(courseCode, courseName, grade, creditHours, prog
         institution = document.querySelector('select[name="previous_uitm_campus"]')?.value || 'UiTM';
     }
 
-    // Make AJAX request to check equivalency with institution-aware matching
     fetch('{{ route("student.application.check-equivalency") }}', {
         method: 'POST',
         headers: {
@@ -1796,10 +2219,8 @@ function checkCourseEquivalency(courseCode, courseName, grade, creditHours, prog
     })
     .then(response => response.json())
     .then(data => {
-        // Convert grade to GPA
         const gradeGPA = gradeToGPA(grade);
 
-        // Determine exemption status based on three-criteria validation
         let status = 'pending';
         let statusBadge = '';
         let exemptionReason = '';
@@ -1810,25 +2231,23 @@ function checkCourseEquivalency(courseCode, courseName, grade, creditHours, prog
 
             if (gradeAcceptable && matchPercentageOK) {
                 status = 'exempted';
-                statusBadge = '<span class="badge bg-success"><i class="fas fa-check-circle"></i> EXEMPTED</span>';
+                statusBadge = '<span class="status-badge status-badge-success"><i class="fas fa-check-circle"></i> EXEMPTED</span>';
                 exemptionReason = `All criteria met: Course found, grade ${grade} ≥ C, match ${data.match_percentage}% > 80%`;
             } else if (!gradeAcceptable) {
                 status = 'not_eligible_grade';
-                statusBadge = '<span class="badge bg-danger"><i class="fas fa-times-circle"></i> GRADE TOO LOW</span>';
+                statusBadge = '<span class="status-badge status-badge-danger"><i class="fas fa-times-circle"></i> GRADE TOO LOW</span>';
                 exemptionReason = `Grade ${grade} is below minimum requirement (C required)`;
             } else if (!matchPercentageOK) {
                 status = 'not_eligible_match';
-                statusBadge = '<span class="badge bg-warning text-dark"><i class="fas fa-exclamation-circle"></i> LOW MATCH</span>';
+                statusBadge = '<span class="status-badge status-badge-warning"><i class="fas fa-exclamation-circle"></i> LOW MATCH</span>';
                 exemptionReason = `Match percentage ${data.match_percentage}% is below 80% threshold`;
             }
         } else {
             status = 'not_found';
-            statusBadge = '<span class="badge bg-secondary"><i class="fas fa-question-circle"></i> NOT FOUND</span>';
-            // Use institution-specific message if available
+            statusBadge = '<span class="status-badge status-badge-secondary"><i class="fas fa-question-circle"></i> NOT FOUND</span>';
             exemptionReason = data.message || `Course not found in ${programCode} equivalency database`;
         }
 
-        // Create course object
         const course = {
             code: courseCode,
             name: courseName,
@@ -1841,30 +2260,23 @@ function checkCourseEquivalency(courseCode, courseName, grade, creditHours, prog
             matchPercentage: data.match_percentage || 0
         };
 
-        // Add to array
         manualCourses.push(course);
 
-        // Update hidden input
         document.getElementById('manual_courses_data').value = JSON.stringify(manualCourses);
 
-        // Add to table
         addCourseToTable(course, statusBadge);
 
-        // Clear form
         clearManualEntryForm();
 
-        // Restore button
         addButton.disabled = false;
         addButton.innerHTML = originalButtonHtml;
 
-        // Update counter
         updateCourseCount();
     })
     .catch(error => {
         console.error('Error checking equivalency:', error);
         alert('An error occurred while checking course equivalency. The course will be added for manual review.');
 
-        // Add course without equivalency check
         const course = {
             code: courseCode,
             name: courseName,
@@ -1880,7 +2292,7 @@ function checkCourseEquivalency(courseCode, courseName, grade, creditHours, prog
         manualCourses.push(course);
         document.getElementById('manual_courses_data').value = JSON.stringify(manualCourses);
 
-        const statusBadge = '<span class="badge bg-info"><i class="fas fa-clock"></i> PENDING</span>';
+        const statusBadge = '<span class="status-badge status-badge-info"><i class="fas fa-clock"></i> PENDING</span>';
         addCourseToTable(course, statusBadge);
         clearManualEntryForm();
 
@@ -1890,26 +2302,23 @@ function checkCourseEquivalency(courseCode, courseName, grade, creditHours, prog
     });
 }
 
-// Add course to the table display
 function addCourseToTable(course, statusBadge) {
     const tbody = document.getElementById('manual_courses_tbody');
 
-    // Remove empty state if exists
     if (tbody.querySelector('.text-muted')) {
         tbody.innerHTML = '';
     }
 
-    // Create row
     const row = document.createElement('tr');
     row.setAttribute('data-course-code', course.code);
     row.innerHTML = `
-        <td><code class="text-primary">${course.code}</code></td>
+        <td><code>${course.code}</code></td>
         <td>${course.name}</td>
         <td>${course.grade}</td>
         <td>${course.creditHours}</td>
         <td>${statusBadge}</td>
         <td>
-            <button type="button" class="btn btn-sm btn-danger" onclick="removeManualCourse('${course.code}')">
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeManualCourse('${course.code}')">
                 <i class="fas fa-trash"></i>
             </button>
         </td>
@@ -1918,34 +2327,28 @@ function addCourseToTable(course, statusBadge) {
     tbody.appendChild(row);
 }
 
-// Remove course from the list
 function removeManualCourse(courseCode) {
     if (!confirm(`Remove course ${courseCode}?`)) {
         return;
     }
 
-    // Remove from array
     manualCourses = manualCourses.filter(course => course.code !== courseCode);
 
-    // Update hidden input
     document.getElementById('manual_courses_data').value = JSON.stringify(manualCourses);
 
-    // Remove from table
     const row = document.querySelector(`tr[data-course-code="${courseCode}"]`);
     if (row) {
         row.remove();
     }
 
-    // Update counter
     updateCourseCount();
 
-    // Restore empty state if no courses
     const tbody = document.getElementById('manual_courses_tbody');
     if (tbody.children.length === 0) {
         tbody.innerHTML = `
             <tr class="text-center text-muted">
                 <td colspan="6" class="py-4">
-                    <i class="fas fa-inbox fa-2x mb-2"></i>
+                    <i class="fas fa-inbox fa-2x mb-2" style="color: var(--neutral-300);"></i>
                     <p class="mb-0">No courses added yet. Use the form above to add courses.</p>
                 </td>
             </tr>
@@ -1953,7 +2356,6 @@ function removeManualCourse(courseCode) {
     }
 }
 
-// Clear manual entry form
 function clearManualEntryForm() {
     document.getElementById('manual_course_code').value = '';
     document.getElementById('manual_course_name').value = '';
@@ -1962,13 +2364,11 @@ function clearManualEntryForm() {
     document.getElementById('manual_course_code').focus();
 }
 
-// Update course counter
 function updateCourseCount() {
     const count = manualCourses.length;
     document.getElementById('course_count').textContent = count + (count === 1 ? ' course' : ' courses');
 }
 
-// Convert letter grade to GPA
 function gradeToGPA(grade) {
     const gradeMap = {
         'A+': 4.00, 'A': 4.00, 'A-': 3.67,
@@ -1979,114 +2379,53 @@ function gradeToGPA(grade) {
     return gradeMap[grade] || 0.00;
 }
 
-// Check if grade is acceptable (C or above)
 function isGradeAcceptable(grade) {
     const acceptableGrades = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C'];
     return acceptableGrades.includes(grade);
 }
 
-// Update form validation for manual entry
 $(document).ready(function() {
-    // Modify form submit validation
     const originalFormSubmit = $('form').off('submit').on('submit', function(e) {
-        // Get entry method from either radio buttons or hidden inputs
         let entryMethod = document.querySelector('input[name="entry_method"]:checked');
 
-        // If no radio is checked, check for hidden inputs (UiTM OCR or non-UiTM manual)
         if (!entryMethod) {
-            // Check for UiTM OCR hidden input
             const uitmOcrHidden = document.querySelector('#uitm_entry_options input[name="entry_method"][value="ocr"]');
             if (uitmOcrHidden && uitmOcrHidden.type === 'hidden') {
-                entryMethod = { value: uitmOcrHidden.value };
+                entryMethod = { value: 'ocr' };
             }
 
-            // Check for non-UiTM manual hidden input
-            if (!entryMethod) {
-                const hiddenEntryMethod = document.getElementById('entry_method_manual_hidden');
-                if (hiddenEntryMethod && !hiddenEntryMethod.disabled) {
-                    entryMethod = { value: hiddenEntryMethod.value };
-                }
+            const nonUitmManualHidden = document.getElementById('entry_method_manual_hidden');
+            if (nonUitmManualHidden && !nonUitmManualHidden.disabled) {
+                entryMethod = { value: 'manual' };
             }
         }
 
-        if (!entryMethod) {
-            e.preventDefault();
-            alert('Please select an entry method (OCR Upload or Manual Entry).');
-            return false;
-        }
-
-        if (entryMethod.value === 'ocr') {
-            // OCR validation (existing)
-            const transcriptFile = document.querySelector('input[name="transcript_file"]');
-            if (!transcriptFile || !transcriptFile.files || transcriptFile.files.length === 0) {
-                e.preventDefault();
-                alert('Upload your official transcript to proceed.');
-                transcriptFile.classList.add('is-invalid');
-                transcriptFile.focus();
-                return false;
-            }
-
-            if (transcriptFile.files[0].size > 5 * 1024 * 1024) {
-                e.preventDefault();
-                alert('File size must not exceed 5MB.');
-                transcriptFile.classList.add('is-invalid');
-                return false;
-            }
-
-            const declarationCheckbox = document.getElementById('transcript_declaration');
-            if (!declarationCheckbox || !declarationCheckbox.checked) {
-                e.preventDefault();
-                alert('Please confirm that you are submitting an official, unaltered transcript by checking the declaration box.');
-                declarationCheckbox.focus();
-                const alertBox = declarationCheckbox.closest('.alert');
-                if (alertBox) {
-                    alertBox.style.border = '2px solid #dc3545';
-                    setTimeout(() => { alertBox.style.border = ''; }, 3000);
-                }
-                return false;
-            }
-        } else {
-            // Manual entry validation
+        if (entryMethod && entryMethod.value === 'manual') {
             if (manualCourses.length === 0) {
                 e.preventDefault();
                 alert('Please add at least one course before submitting.');
-                document.getElementById('manual_course_code').focus();
                 return false;
             }
 
             const manualDeclaration = document.getElementById('manual_declaration');
-            if (!manualDeclaration || !manualDeclaration.checked) {
+            if (manualDeclaration && !manualDeclaration.checked) {
                 e.preventDefault();
-                alert('Please confirm that the course information you entered is accurate by checking the declaration box.');
+                alert('Please confirm that you have entered accurate course information by checking the declaration box.');
                 manualDeclaration.focus();
-                const alertBox = manualDeclaration.closest('.alert');
+                const alertBox = manualDeclaration.closest('.alert-industrial');
                 if (alertBox) {
-                    alertBox.style.border = '2px solid #dc3545';
-                    setTimeout(() => { alertBox.style.border = ''; }, 3000);
+                    alertBox.style.border = '2px solid var(--uitm-red)';
+                    setTimeout(() => {
+                        alertBox.style.border = '';
+                    }, 3000);
                 }
                 return false;
             }
+
+            return true;
         }
 
         return true;
-    });
-
-    // Auto-uppercase course code input
-    $('#manual_course_code').on('input', function() {
-        this.value = this.value.toUpperCase();
-    });
-
-    // Auto-uppercase diploma programme code input
-    $('input[name="previous_program_code"]').on('input', function() {
-        this.value = this.value.toUpperCase();
-    });
-
-    // Handle Enter key in manual entry form
-    $('#manual_entry_section input, #manual_entry_section select').on('keypress', function(e) {
-        if (e.which === 13) { // Enter key
-            e.preventDefault();
-            addManualCourse();
-        }
     });
 });
 </script>

@@ -11,5 +11,5 @@ class Course extends Model
     public $incrementing = false; // Because the primary key 'code' is a string
     protected $primaryKey = 'code';
     protected $keyType = 'string';
-    protected $fillable = ['code', 'name', 'credit_hour'];
+    protected $fillable = ['code', 'name', 'credit_hour', 'program_code', 'semester', 'type'];
 }

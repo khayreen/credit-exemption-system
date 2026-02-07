@@ -311,7 +311,6 @@ class SecurityController extends Controller
         $roles = [
             'student' => 'Student',
             'academic_advisor' => 'Academic Advisor',
-            'coordinator' => 'Coordinator',
             'program_coordinator' => 'Program Coordinator',
             'resource_person' => 'Resource Person',
             'hea_personnel' => 'HEA Personnel',

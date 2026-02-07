@@ -34,8 +34,6 @@ class HomeController extends Controller
                 return redirect('/student/dashboard');
             case 'academic_advisor':
                 return redirect('/academic-advisor/dashboard');
-            case 'coordinator':
-                return redirect('/coordinator/dashboard');
             case 'program_coordinator':
                 return redirect('/program-coordinator/dashboard');
             case 'resource_person':

@@ -12,7 +12,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Modify enum to add new status values
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return; // SQLite uses TEXT for enums, no modification needed
+        }
         DB::statement("ALTER TABLE course_equivalency_requests MODIFY COLUMN status ENUM('pending', 'under_review', 'syllabus_received', 'approved', 'rejected') DEFAULT 'pending'");
     }
 
@@ -21,6 +23,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return;
+        }
         DB::statement("ALTER TABLE course_equivalency_requests MODIFY COLUMN status ENUM('pending', 'under_review', 'approved', 'rejected') DEFAULT 'pending'");
     }
 };

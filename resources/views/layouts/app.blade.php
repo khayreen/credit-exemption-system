@@ -6,10 +6,10 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'UiTM Credit Exemption') }}</title>
     
-    <!-- Fonts -->
+    <!-- Fonts - IBM Plex Sans & Mono for Industrial Design -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Styles -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -18,73 +18,450 @@
     @stack('styles')
 
     <style>
-        body {
-            background-color: #f8f9fa;
-            font-family: 'Inter', sans-serif;
+        /* ============================================
+           INDUSTRIAL DESIGN SYSTEM - CSS VARIABLES
+           ============================================ */
+        :root {
+            /* UiTM Color Palette */
+            --uitm-primary: #1e3a8a;
+            --uitm-primary-dark: #1e293b;
+            --uitm-primary-light: #3b82f6;
+            --uitm-red: #dc2626;
+            --uitm-amber: #f59e0b;
+            --uitm-green: #10b981;
+            --uitm-purple: #7c3aed;
+
+            /* Neutral Scale */
+            --neutral-900: #171717;
+            --neutral-800: #262626;
+            --neutral-700: #404040;
+            --neutral-600: #525252;
+            --neutral-500: #737373;
+            --neutral-400: #a3a3a3;
+            --neutral-300: #d4d4d4;
+            --neutral-200: #e5e5e5;
+            --neutral-100: #f5f5f5;
+            --neutral-50: #fafafa;
+
+            /* Sidebar Dimensions */
+            --sidebar-width: 280px;
+            --sidebar-collapsed-width: 0px;
         }
+
+        /* ============================================
+           BASE STYLES
+           ============================================ */
+        body {
+            background: var(--neutral-100);
+            font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: var(--neutral-800);
+        }
+
         .wrapper {
             display: flex;
             width: 100%;
             align-items: stretch;
         }
-        #sidebar {
-            min-width: 260px;
-            max-width: 260px;
-            background: #fff;
-            color: #333;
-            transition: all 0.3s;
-            box-shadow: 0 0 15px rgba(0,0,0,0.05);
+
+        /* ============================================
+           INDUSTRIAL SIDEBAR STYLES
+           ============================================ */
+        #sidebar.industrial-sidebar {
+            min-width: var(--sidebar-width);
+            max-width: var(--sidebar-width);
+            background: linear-gradient(180deg, var(--uitm-primary-dark) 0%, var(--uitm-primary) 100%);
+            color: white;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
             position: fixed;
-            height: 100%;
+            height: 100vh;
             z-index: 999;
             overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
         }
+
+        #sidebar.industrial-sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #sidebar.industrial-sidebar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        #sidebar.industrial-sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        #sidebar.industrial-sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
         #sidebar.active {
-            margin-left: -260px;
+            margin-left: calc(-1 * var(--sidebar-width));
         }
-        #sidebar .sidebar-header {
-            padding: 20px;
-            background: #fff;
-            border-bottom: 1px solid #eee;
+
+        /* Sidebar Brand Header */
+        .sidebar-brand {
+            position: relative;
+            padding: 1.5rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
         }
-        #sidebar ul.components {
-            padding: 15px 0;
+
+        .brand-pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+            pointer-events: none;
         }
-        #sidebar ul li a {
-            padding: 12px 20px;
-            font-size: 0.95em;
-            display: block;
-            color: #555;
+
+        .brand-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.875rem;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--uitm-amber) 0%, #d97706 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            color: white;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+        }
+
+        .logo-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo-title {
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+        }
+
+        .logo-subtitle {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.7);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-top: 2px;
+        }
+
+        /* Sidebar Profile Section */
+        .sidebar-profile {
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .profile-avatar-wrapper {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .profile-avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            object-fit: cover;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .profile-status-indicator {
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            width: 14px;
+            height: 14px;
+            background: var(--uitm-green);
+            border-radius: 50%;
+            border: 3px solid var(--uitm-primary-dark);
+            box-shadow: 0 2px 6px rgba(16, 185, 129, 0.5);
+        }
+
+        .profile-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .profile-name {
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: white;
+            margin: 0 0 0.375rem 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .profile-role {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.25rem 0.625rem;
+            border-radius: 6px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .profile-role i {
+            font-size: 0.6rem;
+        }
+
+        /* Role-specific colors */
+        .profile-role.role-student {
+            background: linear-gradient(135deg, var(--uitm-primary-light), #2563eb);
+            color: white;
+        }
+
+        .profile-role.role-advisor {
+            background: linear-gradient(135deg, var(--uitm-green), #059669);
+            color: white;
+        }
+
+        .profile-role.role-coordinator {
+            background: linear-gradient(135deg, var(--uitm-amber), #d97706);
+            color: white;
+        }
+
+        .profile-role.role-resource {
+            background: linear-gradient(135deg, var(--uitm-purple), #6d28d9);
+            color: white;
+        }
+
+        .profile-role.role-external {
+            background: linear-gradient(135deg, #06b6d4, #0891b2);
+            color: white;
+        }
+
+        .profile-role.role-hea {
+            background: linear-gradient(135deg, var(--uitm-red), #b91c1c);
+            color: white;
+        }
+
+        .profile-role.role-admin {
+            background: linear-gradient(135deg, var(--neutral-700), var(--neutral-900));
+            color: white;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar-nav {
+            flex: 1;
+            padding: 1rem 0;
+            overflow-y: auto;
+        }
+
+        .nav-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        /* Section Headers */
+        .nav-section {
+            padding: 0.75rem 1.25rem 0.5rem;
+        }
+
+        .nav-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--uitm-amber);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .nav-section-title i {
+            font-size: 0.6rem;
+            opacity: 0.8;
+        }
+
+        /* Navigation Items */
+        .nav-item {
+            margin: 2px 0.75rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none !important;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--uitm-amber);
+            transform: scaleY(0);
+            transition: transform 0.2s ease;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            transform: translateX(4px);
+        }
+
+        .nav-link:hover::before {
+            transform: scaleY(1);
+        }
+
+        .nav-item.active .nav-link {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .nav-item.active .nav-link::before {
+            transform: scaleY(1);
+        }
+
+        .nav-icon {
+            width: 32px;
+            height: 32px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.9);
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .nav-link:hover .nav-icon,
+        .nav-item.active .nav-link .nav-icon {
+            background: var(--uitm-amber);
+            color: var(--uitm-primary-dark);
+            box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
+        }
+
+        .nav-text {
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-size: 0.875rem;
             font-weight: 500;
-            border-left: 3px solid transparent;
-            text-decoration: none;
+            flex: 1;
         }
-        #sidebar ul li a:hover {
-            color: #0d6efd;
-            background: #f8f9fa;
-            text-decoration: none !important;
+
+        .nav-external {
+            font-size: 0.65rem;
+            opacity: 0.5;
+            margin-left: auto;
         }
-        #sidebar ul li.active > a, a[aria-expanded="true"] {
-            color: #0d6efd;
-            background: #eef5ff;
-            border-left: 3px solid #0d6efd;
-            text-decoration: none !important;
+
+        /* Sidebar Footer */
+        .sidebar-footer {
+            padding: 1rem 1.25rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: auto;
         }
-        #sidebar ul li a i {
-            margin-right: 10px;
-            width: 20px;
-            text-align: center;
+
+        .footer-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
         }
+
+        .system-version {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .version-label {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.6rem;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .version-number {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--uitm-amber);
+            font-weight: 600;
+            background: rgba(245, 158, 11, 0.15);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .footer-divider {
+            width: 1px;
+            height: 16px;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .copyright {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.65rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* ============================================
+           CONTENT AREA STYLES
+           ============================================ */
         #content {
             width: 100%;
             padding: 0;
             min-height: 100vh;
-            transition: all 0.3s;
-            margin-left: 260px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-left: var(--sidebar-width);
+            background: var(--neutral-100);
         }
+
         #content.active {
             margin-left: 0;
         }
+
         .top-navbar {
             padding: 15px 30px;
             background: #fff;
@@ -93,107 +470,36 @@
             margin-bottom: 20px;
             box-shadow: 0 1px 1px rgba(0,0,0,0.1);
         }
+
         .profile-photo-sm {
             width: 35px;
             height: 35px;
             border-radius: 50%;
             object-fit: cover;
         }
+
         .card {
             border: none;
             border-radius: 0.75rem;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
+
         .stat-card {
             padding: 20px;
         }
+
         .stat-card .stat-icon {
             font-size: 2rem;
             padding: 15px;
             border-radius: 50%;
             margin-right: 15px;
         }
-        .stat-card .stat-icon.icon-blue { background-color: #eef5ff; color: #0d6efd; }
-        .stat-card .stat-icon.icon-green { background-color: #e6f9f1; color: #198754; }
-        .stat-card .stat-icon.icon-orange { background-color: #fff4e6; color: #fd7e14; }
-        .stat-card .stat-icon.icon-red { background-color: #fdeeee; color: #dc3545; }
-        .stat-card .stat-icon.icon-purple { background-color: #f3e8ff; color: #6f42c1; }
-        
-        /* Enhanced University Professional Styling */
-        body {
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-        }
-        
-        /* Enhanced Sidebar Styling */
-        #sidebar {
-            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-            border-right: 3px solid #e2e8f0;
-        }
-        
-        #sidebar .sidebar-header {
-            background: #ffffff;
-            color: #333;
-            border-bottom: 1px solid #eee;
-            margin: 0;
-            padding: 20px;
-        }
-        
-        #sidebar .sidebar-header h4 {
-            margin-bottom: 0;
-            font-weight: 700;
-            color: #333;
-        }
-        
-        #sidebar .sidebar-header hr {
-            border-color: #eee;
-            margin: 15px 0;
-        }
-        
-        #sidebar .sidebar-header h5 {
-            font-weight: 600;
-            margin-top: 10px;
-            color: #333;
-        }
-        
-        #sidebar .sidebar-header p {
-            color: #666;
-            font-size: 0.9rem;
-            margin-bottom: 0;
-        }
-        
-        /* Enhanced Navigation Links */
-        #sidebar ul li a {
-            transition: all 0.3s ease;
-            border-radius: 8px;
-            margin: 2px 15px;
-            padding: 12px 15px;
-            text-decoration: none !important;
-        }
-        
-        #sidebar ul li a:hover {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            transform: translateX(5px);
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-            text-decoration: none !important;
-        }
-        
-        #sidebar ul li.active > a {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border-left: none;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-            text-decoration: none !important;
-        }
-        
-        /* Section Headers in Sidebar */
-        #sidebar ul p {
-            font-weight: 700;
-            color: #667eea;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-size: 0.75rem;
-        }
+
+        .stat-card .stat-icon.icon-blue { background-color: #eef5ff; color: var(--uitm-primary); }
+        .stat-card .stat-icon.icon-green { background-color: #e6f9f1; color: var(--uitm-green); }
+        .stat-card .stat-icon.icon-orange { background-color: #fff4e6; color: var(--uitm-amber); }
+        .stat-card .stat-icon.icon-red { background-color: #fdeeee; color: var(--uitm-red); }
+        .stat-card .stat-icon.icon-purple { background-color: #f3e8ff; color: var(--uitm-purple); }
         
         /* Enhanced Top Navbar */
         .top-navbar {
@@ -203,31 +509,31 @@
         }
         
         #sidebarCollapse {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, var(--uitm-primary), var(--uitm-primary-dark));
             color: white;
             border: none;
             border-radius: 10px;
             padding: 10px 15px;
             transition: all 0.3s ease;
         }
-        
+
         #sidebarCollapse:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 8px 25px rgba(30, 58, 138, 0.3);
         }
         
         /* Enhanced Profile Section */
         .navbar-nav .dropdown-toggle {
-            background: rgba(102, 126, 234, 0.1);
+            background: rgba(30, 58, 138, 0.1);
             border-radius: 25px;
             padding: 8px 15px;
             border: 2px solid transparent;
             transition: all 0.3s ease;
         }
-        
+
         .navbar-nav .dropdown-toggle:hover {
-            border-color: #667eea;
-            background: rgba(102, 126, 234, 0.15);
+            border-color: var(--uitm-primary);
+            background: rgba(30, 58, 138, 0.15);
         }
         
         /* Enhanced Cards */
@@ -292,43 +598,43 @@
         
         /* University Branding Elements */
         .university-brand {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--uitm-primary) 0%, var(--uitm-primary-dark) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
             font-weight: 700;
         }
         
-        /* Enhanced Buttons */
+        /* Enhanced Buttons - UiTM Theme */
         .btn-primary {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, var(--uitm-primary), var(--uitm-primary-dark));
             border: none;
             border-radius: 12px;
             padding: 10px 25px;
             font-weight: 600;
             transition: all 0.3s ease;
         }
-        
+
         .btn-primary:hover {
-            background: linear-gradient(135deg, #5a67d8, #6b46c1);
+            background: linear-gradient(135deg, var(--uitm-primary-light), var(--uitm-primary));
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 8px 25px rgba(30, 58, 138, 0.3);
         }
-        
+
         .btn-outline-primary {
-            border: 2px solid #667eea;
-            color: #667eea;
+            border: 2px solid var(--uitm-primary);
+            color: var(--uitm-primary);
             border-radius: 12px;
             padding: 10px 25px;
             font-weight: 600;
             transition: all 0.3s ease;
         }
-        
+
         .btn-outline-primary:hover {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, var(--uitm-primary), var(--uitm-primary-dark));
             border-color: transparent;
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 8px 25px rgba(30, 58, 138, 0.3);
         }
         
         /* Loading States */
@@ -351,7 +657,7 @@
             width: 60px;
             height: 60px;
             border: 4px solid #e2e8f0;
-            border-top: 4px solid #667eea;
+            border-top: 4px solid var(--uitm-primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -362,13 +668,51 @@
         }
         
         /* Responsive Enhancements */
-        @media (max-width: 768px) {
-            #sidebar {
-                transform: translateX(-100%);
+        /* ============================================
+           RESPONSIVE SIDEBAR STYLES
+           ============================================ */
+        @media (max-width: 991px) {
+            :root {
+                --sidebar-width: 260px;
             }
 
-            #sidebar.active {
+            .sidebar-brand {
+                padding: 1.25rem;
+            }
+
+            .logo-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+
+            .logo-title {
+                font-size: 1.25rem;
+            }
+
+            .sidebar-profile {
+                padding: 1.25rem;
+            }
+
+            .profile-avatar {
+                width: 44px;
+                height: 44px;
+            }
+
+            .profile-name {
+                font-size: 0.875rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            #sidebar.industrial-sidebar {
+                transform: translateX(-100%);
+                box-shadow: none;
+            }
+
+            #sidebar.industrial-sidebar.active {
                 transform: translateX(0);
+                box-shadow: 4px 0 30px rgba(0, 0, 0, 0.3);
             }
 
             #content {
@@ -377,6 +721,114 @@
 
             .top-navbar {
                 padding: 10px 15px;
+            }
+
+            /* Mobile sidebar overlay */
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 998;
+            }
+
+            .sidebar-overlay.active {
+                display: block;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .sidebar-brand {
+                padding: 1rem;
+            }
+
+            .logo-icon {
+                width: 36px;
+                height: 36px;
+                font-size: 0.9rem;
+                border-radius: 10px;
+            }
+
+            .logo-title {
+                font-size: 1.125rem;
+            }
+
+            .logo-subtitle {
+                font-size: 0.6rem;
+            }
+
+            .sidebar-profile {
+                padding: 1rem;
+            }
+
+            .profile-avatar {
+                width: 40px;
+                height: 40px;
+                border-radius: 10px;
+            }
+
+            .profile-status-indicator {
+                width: 12px;
+                height: 12px;
+            }
+
+            .profile-name {
+                font-size: 0.8rem;
+            }
+
+            .profile-role {
+                font-size: 0.6rem;
+                padding: 0.2rem 0.5rem;
+            }
+
+            .nav-section {
+                padding: 0.625rem 1rem 0.375rem;
+            }
+
+            .nav-section-title {
+                font-size: 0.6rem;
+            }
+
+            .nav-item {
+                margin: 2px 0.5rem;
+            }
+
+            .nav-link {
+                padding: 0.625rem 0.875rem;
+            }
+
+            .nav-icon {
+                width: 28px;
+                height: 28px;
+                font-size: 0.75rem;
+            }
+
+            .nav-text {
+                font-size: 0.8rem;
+            }
+
+            .sidebar-footer {
+                padding: 0.875rem 1rem;
+            }
+
+            .footer-content {
+                gap: 0.75rem;
+            }
+
+            .version-label {
+                font-size: 0.55rem;
+            }
+
+            .version-number {
+                font-size: 0.6rem;
+                padding: 0.15rem 0.4rem;
+            }
+
+            .copyright {
+                font-size: 0.6rem;
             }
         }
 
@@ -430,19 +882,19 @@
             height: 42px;
             border-radius: 12px;
             border: none;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--uitm-primary) 0%, var(--uitm-primary-dark) 100%);
             color: white;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
         }
 
         .sidebar-toggle:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 6px 20px rgba(30, 58, 138, 0.4);
         }
 
         .sidebar-toggle:active {
@@ -491,8 +943,8 @@
         }
 
         .notification-btn:hover {
-            border-color: #667eea;
-            background: #f8f7ff;
+            border-color: var(--uitm-primary);
+            background: #eff6ff;
         }
 
         .notification-btn i {
@@ -502,7 +954,7 @@
         }
 
         .notification-btn:hover i {
-            color: #667eea;
+            color: var(--uitm-primary);
         }
 
         .notification-btn.has-notifications i {
@@ -550,9 +1002,9 @@
         }
 
         .user-profile-btn:hover {
-            border-color: #667eea;
-            background: #f8f7ff;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+            border-color: var(--uitm-primary);
+            background: #eff6ff;
+            box-shadow: 0 4px 12px rgba(30, 58, 138, 0.15);
         }
 
         .user-avatar {
@@ -629,8 +1081,8 @@
         }
 
         .navbar-dropdown .dropdown-item:hover {
-            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
-            color: #667eea;
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.08) 0%, rgba(30, 41, 59, 0.08) 100%);
+            color: var(--uitm-primary);
         }
 
         .navbar-dropdown .dropdown-item i {
@@ -640,7 +1092,7 @@
         }
 
         .navbar-dropdown .dropdown-item:hover i {
-            color: #667eea;
+            color: var(--uitm-primary);
         }
 
         .navbar-dropdown .dropdown-divider {
@@ -670,7 +1122,7 @@
         }
 
         .notification-dropdown-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--uitm-primary) 0%, var(--uitm-primary-dark) 100%);
             color: white;
             padding: 16px 20px;
             display: flex;
@@ -721,7 +1173,7 @@
 
         .notification-item.unread {
             background: linear-gradient(135deg, #eff6ff 0%, #f0f5ff 100%);
-            border-left: 3px solid #667eea;
+            border-left: 3px solid var(--uitm-primary);
         }
 
         .notification-item.unread:hover {
@@ -750,8 +1202,8 @@
         }
 
         .notification-icon-wrapper.primary {
-            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
-            color: #667eea;
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            color: var(--uitm-primary);
         }
 
         .notification-icon-wrapper.warning {
@@ -780,7 +1232,7 @@
         }
 
         .notification-title .new-badge {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--uitm-primary) 0%, var(--uitm-primary-dark) 100%);
             color: white;
             font-size: 0.6rem;
             padding: 2px 8px;
@@ -810,7 +1262,7 @@
         }
 
         .notification-dropdown-footer a {
-            color: #667eea;
+            color: var(--uitm-primary);
             font-weight: 600;
             font-size: 0.85rem;
             text-decoration: none;
@@ -818,7 +1270,7 @@
         }
 
         .notification-dropdown-footer a:hover {
-            color: #764ba2;
+            color: var(--uitm-primary-dark);
         }
 
         .notification-empty {
@@ -1013,7 +1465,6 @@
                                             $roleMap = [
                                                 'student' => 'Student',
                                                 'academic_advisor' => 'Academic Advisor',
-                                                'coordinator' => 'Coordinator',
                                                 'program_coordinator' => 'Program Coordinator',
                                                 'resource_person' => 'Resource Person',
                                                 'external_lecturer' => 'External Lecturer',

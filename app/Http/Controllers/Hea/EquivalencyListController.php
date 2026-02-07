@@ -177,51 +177,6 @@ class EquivalencyListController extends Controller
     }
 
     /**
-     * Display published lists archive (READ-ONLY)
-     */
-    public function published(Request $request)
-    {
-        $programFilter = $request->get('program', 'all');
-        $categoryFilter = $request->get('category', 'all');
-
-        $query = EquivalencyList::with(['creator', 'publisher', 'courseEquivalencies'])
-            ->published();
-
-        if ($programFilter !== 'all') {
-            $query->where('program_code', $programFilter);
-        }
-
-        if ($categoryFilter !== 'all') {
-            $query->where('category', $categoryFilter);
-        }
-
-        // Group by program and category
-        $lists = $query->orderBy('program_code')
-            ->orderBy('category')
-            ->orderBy('published_at', 'desc')
-            ->get()
-            ->groupBy('program_code');
-
-        $programs = $this->getProgramNames();
-
-        // Get counts
-        $publishedCounts = [
-            'total' => EquivalencyList::published()->count(),
-            'internal' => EquivalencyList::published()->internal()->count(),
-            'external' => EquivalencyList::published()->external()->count(),
-            'active' => EquivalencyList::published()->active()->count(),
-        ];
-
-        return view('hea.equivalency_lists.published', compact(
-            'lists',
-            'programs',
-            'publishedCounts',
-            'programFilter',
-            'categoryFilter'
-        ));
-    }
-
-    /**
      * Display draft lists being prepared by Program Coordinators (READ-ONLY)
      */
     public function drafts(Request $request)
@@ -757,22 +712,24 @@ class EquivalencyListController extends Controller
         foreach ($programs as $programCode) {
             // Get current (latest) HEA-endorsed published list for this program
             // ONLY shows lists that went through: Resource Person → HEA Endorsement → Published
+            // Note: Uses published_at instead of status because lists revert to draft for continuous editing
             $current = EquivalencyList::where('program_code', $programCode)
-                ->where('status', 'published')
+                ->whereNotNull('published_at') // Has been published at least once
+                ->where('category', 'internal') // CS110 lists only
                 ->whereNotNull('endorsed_at') // CRITICAL: Only HEA-endorsed lists
+                ->where('is_active', true) // Current active list
                 ->with(['creator', 'publisher', 'endorser', 'courseEquivalencies'])
                 ->orderByRaw('COALESCE(endorsed_at, created_at) DESC')
                 ->first();
 
             // Get history (all other HEA-endorsed published lists except the latest)
             $history = EquivalencyList::where('program_code', $programCode)
-                ->where('status', 'published')
+                ->whereNotNull('published_at') // Has been published at least once
+                ->where('category', 'internal') // CS110 lists only
                 ->whereNotNull('endorsed_at') // CRITICAL: Only HEA-endorsed lists
+                ->where('is_active', false) // Archived lists
                 ->with(['creator', 'publisher', 'endorser', 'courseEquivalencies'])
                 ->orderByRaw('COALESCE(endorsed_at, created_at) DESC')
-                ->when($current, function($query) use ($current) {
-                    return $query->where('id', '!=', $current->id);
-                })
                 ->get();
 
             $count = ($current ? 1 : 0) + $history->count();

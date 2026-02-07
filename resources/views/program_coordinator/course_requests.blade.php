@@ -20,8 +20,15 @@
     </div>
 
     <!-- Course Information -->
+    @php
+        $verifiedCount = $requests->filter(fn($r) => isset($r->transcript_validation['status']) && $r->transcript_validation['status'] === 'verified')->count();
+        $notInTranscriptCount = $requests->filter(fn($r) => isset($r->transcript_validation['status']) && $r->transcript_validation['status'] === 'not_in_transcript')->count();
+        $noApplicationCount = $requests->filter(fn($r) => isset($r->transcript_validation['status']) && $r->transcript_validation['status'] === 'no_application')->count();
+        $invalidRequestIds = $requests->filter(fn($r) => isset($r->transcript_validation['status']) && $r->transcript_validation['status'] === 'not_in_transcript')->pluck('id')->toArray();
+    @endphp
+
     <div class="row mb-4">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card shadow-sm">
                 <div class="card-body">
                     <h6 class="text-muted mb-2">Total Requests</h6>
@@ -29,15 +36,23 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card shadow-sm">
+        <div class="col-md-3">
+            <div class="card shadow-sm border-success">
                 <div class="card-body">
-                    <h6 class="text-muted mb-2">Different Lecturers</h6>
-                    <h3 class="mb-0">{{ $requests->pluck('external_lecturer_email')->unique()->count() }}</h3>
+                    <h6 class="text-muted mb-2"><i class="fas fa-check-circle text-success me-1"></i>Verified</h6>
+                    <h3 class="mb-0 text-success">{{ $verifiedCount }}</h3>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm border-danger">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2"><i class="fas fa-exclamation-circle text-danger me-1"></i>Not in Transcript</h6>
+                    <h3 class="mb-0 text-danger">{{ $notInTranscriptCount }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
             <div class="card shadow-sm">
                 <div class="card-body">
                     <h6 class="text-muted mb-2">Credit Hours</h6>
@@ -46,6 +61,28 @@
             </div>
         </div>
     </div>
+
+    <!-- Validation Warning -->
+    @if($notInTranscriptCount > 0)
+        <div class="alert alert-danger mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Warning:</strong> {{ $notInTranscriptCount }} request(s) are from students who <strong>never took this course</strong>.
+                    These students are requesting equivalency for a course not in their transcript and should be rejected.
+                </div>
+                <form action="{{ route('program_coordinator.reject_not_in_transcript') }}" method="POST" class="d-inline">
+                    @csrf
+                    @foreach($invalidRequestIds as $invalidId)
+                        <input type="hidden" name="request_ids[]" value="{{ $invalidId }}">
+                    @endforeach
+                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Reject {{ $notInTranscriptCount }} invalid request(s)?')">
+                        <i class="fas fa-ban me-1"></i>Reject Invalid ({{ $notInTranscriptCount }})
+                    </button>
+                </form>
+            </div>
+        </div>
+    @endif
 
     <!-- Students List -->
     <div class="card shadow-sm mb-4">
@@ -61,8 +98,8 @@
                                 <input type="checkbox" id="selectAll" class="form-check-input">
                             </th>
                             <th>Student</th>
+                            <th>Validation</th>
                             <th>Program</th>
-                            <th>Institution</th>
                             <th>Lecturer Contact</th>
                             <th>Suggested Degree Course</th>
                             <th>Submitted</th>
@@ -70,20 +107,53 @@
                     </thead>
                     <tbody>
                         @foreach($requests as $request)
-                            <tr>
+                            @php
+                                $validation = $request->transcript_validation ?? ['status' => 'unknown', 'message' => 'Unknown'];
+                                $isInvalid = $validation['status'] === 'not_in_transcript';
+                                $isVerified = $validation['status'] === 'verified';
+                                $noApp = $validation['status'] === 'no_application';
+                            @endphp
+                            <tr class="{{ $isInvalid ? 'table-danger' : '' }}">
                                 <td>
                                     <input type="checkbox" name="request_ids[]" value="{{ $request->id }}"
-                                           class="form-check-input request-checkbox">
+                                           class="form-check-input request-checkbox {{ $isInvalid ? 'invalid-request' : '' }}"
+                                           data-valid="{{ $isVerified ? 'true' : 'false' }}">
                                 </td>
                                 <td>
                                     <strong>{{ $request->student->matric_no }}</strong><br>
                                     <small class="text-muted">{{ $request->student->user->name }}</small>
                                 </td>
                                 <td>
-                                    <span class="badge bg-secondary">{{ $request->current_program_code }}</span>
+                                    @if($isVerified)
+                                        <span class="badge bg-success" title="{{ $validation['message'] }}">
+                                            <i class="fas fa-check-circle me-1"></i>Verified
+                                        </span>
+                                        @if(isset($validation['subject']))
+                                            <br>
+                                            <small class="text-muted">
+                                                Grade: <strong>{{ $validation['subject']['grade'] }}</strong>
+                                            </small>
+                                        @endif
+                                    @elseif($isInvalid)
+                                        <span class="badge bg-danger" title="{{ $validation['message'] }}">
+                                            <i class="fas fa-times-circle me-1"></i>Not in Transcript
+                                        </span>
+                                        <br>
+                                        <small class="text-danger">
+                                            <i class="fas fa-exclamation-triangle"></i> Student never took this course!
+                                        </small>
+                                    @elseif($noApp)
+                                        <span class="badge bg-warning text-dark" title="{{ $validation['message'] }}">
+                                            <i class="fas fa-question-circle me-1"></i>No Application
+                                        </span>
+                                        <br>
+                                        <small class="text-muted">Cannot verify</small>
+                                    @else
+                                        <span class="badge bg-secondary">Unknown</span>
+                                    @endif
                                 </td>
                                 <td>
-                                    <small>{{ $request->diploma_institution }}</small>
+                                    <span class="badge bg-secondary">{{ $request->current_program_code }}</span>
                                 </td>
                                 <td>
                                     <strong>{{ $request->external_lecturer_name }}</strong><br>
@@ -298,32 +368,74 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function updateButtons() {
-        const checkedCount = document.querySelectorAll('.request-checkbox:checked').length;
+        const checked = document.querySelectorAll('.request-checkbox:checked');
+        const checkedCount = checked.length;
         const disabled = checkedCount === 0;
 
-        btnEquivalent.disabled = disabled;
+        // Count how many selected are invalid (not in transcript)
+        const invalidSelected = Array.from(checked).filter(cb => cb.classList.contains('invalid-request')).length;
+        const validSelected = checkedCount - invalidSelected;
+
+        btnEquivalent.disabled = disabled || validSelected === 0;
         btnNotEquivalent.disabled = disabled;
-        btnForward.disabled = disabled;
+        btnForward.disabled = disabled || validSelected === 0;
+
+        // Update button text to show counts
+        if (invalidSelected > 0 && validSelected > 0) {
+            btnEquivalent.innerHTML = '<i class="fas fa-check-circle me-2"></i>Mark as Equivalent (' + validSelected + ' valid)';
+            btnForward.innerHTML = '<i class="fas fa-share me-2"></i>Forward to RP (' + validSelected + ' valid)';
+        } else {
+            btnEquivalent.innerHTML = '<i class="fas fa-check-circle me-2"></i>Mark as Equivalent';
+            btnForward.innerHTML = '<i class="fas fa-share me-2"></i>Forward to RP';
+        }
+
+        // Show warning if only invalid requests are selected
+        if (invalidSelected > 0 && validSelected === 0) {
+            btnEquivalent.title = 'Cannot approve requests for courses not in transcript';
+            btnForward.title = 'Cannot forward requests for courses not in transcript';
+        } else {
+            btnEquivalent.title = '';
+            btnForward.title = '';
+        }
     }
 
-    // Update hidden inputs when modals open
-    document.getElementById('equivalentModal').addEventListener('show.bs.modal', function() {
-        updateModalInputs('equivalentRequestIds');
+    // Update hidden inputs when modals open - only include valid requests for equivalent/forward
+    document.getElementById('equivalentModal').addEventListener('show.bs.modal', function(e) {
+        const invalidSelected = Array.from(document.querySelectorAll('.request-checkbox:checked'))
+            .filter(cb => cb.classList.contains('invalid-request')).length;
+
+        if (invalidSelected > 0) {
+            alert('Note: ' + invalidSelected + ' invalid request(s) (course not in transcript) will be excluded from this action.');
+        }
+
+        updateModalInputs('equivalentRequestIds', true); // Exclude invalid
     });
 
     document.getElementById('notEquivalentModal').addEventListener('show.bs.modal', function() {
-        updateModalInputs('notEquivalentRequestIds');
+        updateModalInputs('notEquivalentRequestIds', false); // Include all
     });
 
-    document.getElementById('forwardModal').addEventListener('show.bs.modal', function() {
-        updateModalInputs('forwardRequestIds');
+    document.getElementById('forwardModal').addEventListener('show.bs.modal', function(e) {
+        const invalidSelected = Array.from(document.querySelectorAll('.request-checkbox:checked'))
+            .filter(cb => cb.classList.contains('invalid-request')).length;
+
+        if (invalidSelected > 0) {
+            alert('Note: ' + invalidSelected + ' invalid request(s) (course not in transcript) will be excluded from this action.');
+        }
+
+        updateModalInputs('forwardRequestIds', true); // Exclude invalid
     });
 
-    function updateModalInputs(containerId) {
+    function updateModalInputs(containerId, excludeInvalid) {
         const container = document.getElementById(containerId);
         container.innerHTML = '';
 
         document.querySelectorAll('.request-checkbox:checked').forEach(cb => {
+            // Skip invalid requests if excludeInvalid is true
+            if (excludeInvalid && cb.classList.contains('invalid-request')) {
+                return;
+            }
+
             const input = document.createElement('input');
             input.type = 'hidden';
             input.name = 'request_ids[]';

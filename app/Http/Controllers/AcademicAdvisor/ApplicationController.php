@@ -7,7 +7,9 @@ use App\Models\ExemptionApplication;
 use App\Models\ApplicationSubject;
 use App\Models\CourseEquivalency;
 use App\Models\EquivalencyList;
+use App\Models\Notification;
 use App\Models\PendingEquivalencyMapping;
+use App\Models\ProgramGroupConfig;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -18,27 +20,61 @@ class ApplicationController extends Controller
 {
     /**
      * Display a listing of the applications for the academic advisor.
+     * Only shows applications for groups assigned to the current AA.
      */
     public function index()
     {
-        // Load applications with their OCR-extracted courses
-        $applications = \App\Models\ExemptionApplication::where('status', 'Submitted')
+        $user = Auth::user();
+
+        // Get the AA's assigned group codes from program_group_configs
+        // Uses current session's configuration
+        $academicYear = ProgramGroupConfig::getCurrentAcademicYear();
+        $intake = ProgramGroupConfig::getCurrentIntake();
+
+        $assignedGroupCodes = ProgramGroupConfig::active()
+            ->forSession($academicYear, $intake)
+            ->where('assigned_user_id', $user->id)
+            ->pluck('group_code')
+            ->toArray();
+
+        // Build the applications query
+        $query = ExemptionApplication::where('status', 'Submitted')
             ->with(['student.user', 'applicationSubjects'])
-            ->latest()
-            ->get();
-        
-        // Calculate enhanced stats including OCR data
-        $totalExemptedCourses = ApplicationSubject::where('status', 'exempted')->count();
-        $totalProcessedCourses = ApplicationSubject::whereNotNull('status')->count();
-        
+            ->latest();
+
+        // Filter by assigned groups if the AA has any assignments
+        if (!empty($assignedGroupCodes)) {
+            $query->whereIn('student_group', $assignedGroupCodes);
+        } else {
+            // If no groups assigned, show no applications (or optionally show all for HEA testing)
+            // For now, show none to enforce proper assignment workflow
+            $query->whereRaw('1 = 0'); // This returns no results
+        }
+
+        $applications = $query->get();
+
+        // Calculate stats for this AA's assigned applications only
+        $assignedApplicationIds = ExemptionApplication::whereIn('student_group', $assignedGroupCodes)
+            ->pluck('id');
+
+        $totalExemptedCourses = ApplicationSubject::whereIn('exemption_application_id', $assignedApplicationIds)
+            ->where('status', 'exempted')
+            ->count();
+        $totalProcessedCourses = ApplicationSubject::whereIn('exemption_application_id', $assignedApplicationIds)
+            ->whereNotNull('status')
+            ->count();
+
         $stats = [
             'pending_review' => $applications->count(),
-            'total_reviewed' => \App\Models\ExemptionApplication::where('status', '!=', 'Submitted')->count(),
+            'total_reviewed' => ExemptionApplication::whereIn('student_group', $assignedGroupCodes)
+                ->where('status', '!=', 'Submitted')
+                ->count(),
             'exempted_courses' => $totalExemptedCourses,
             'total_courses' => $totalProcessedCourses,
+            'assigned_groups' => $assignedGroupCodes,
         ];
 
-        return view('academic_advisor.dashboard', compact('applications', 'stats'));
+        return view('academic_advisor.dashboard', compact('applications', 'stats', 'assignedGroupCodes'));
     }
 
     /**
@@ -127,7 +163,7 @@ class ApplicationController extends Controller
         $exemptedSubjects = $subjects->where(function($subject) {
             // Include if originally exempted by OCR OR if it's an approved/rejected/forwarded exempted course
             return $subject['status'] === 'exempted' ||
-                   (in_array($subject['status'], ['Approved', 'Rejected', 'Forward to Coordinator']) &&
+                   (in_array($subject['status'], ['Approved', 'Rejected']) &&
                     str_contains($subject['exemption_reason'] ?? '', 'All criteria met'));
         });
 
@@ -172,7 +208,7 @@ class ApplicationController extends Controller
     {
         try {
             $request->validate([
-                'decision' => 'required|string|in:Approved,Rejected,Forward to Coordinator,Undo',
+                'decision' => 'required|string|in:Approved,Rejected,Undo',
             ]);
 
             // Verify that the subject belongs to the application
@@ -189,7 +225,7 @@ class ApplicationController extends Controller
             // Handle undo operation
             if ($request->decision === 'Undo') {
                 // Reset to original status based on subject type
-                if (in_array($subject->status, ['Approved', 'Rejected', 'Forward to Coordinator'])) {
+                if (in_array($subject->status, ['Approved', 'Rejected'])) {
                     // Determine original status based on exemption criteria
                     $originalStatus = $this->determineOriginalStatus($subject, $application);
                     $subject->status = $originalStatus;
@@ -232,9 +268,14 @@ class ApplicationController extends Controller
                 'details' => json_encode($details)
             ]);
 
+            // Send notification to student (except for Undo action)
+            if ($request->decision !== 'Undo') {
+                $this->sendStudentDecisionNotification($application, $subject, $request->decision);
+            }
+
             // Check if all subjects have been processed by academic advisor
             $pendingSubjects = $application->applicationSubjects()
-                ->whereNotIn('status', ['Approved', 'Rejected', 'Forward to Coordinator'])
+                ->whereNotIn('status', ['Approved', 'Rejected'])
                 ->count();
 
             // If all subjects are processed, update application status and record reviewer
@@ -290,7 +331,7 @@ class ApplicationController extends Controller
         $request->validate([
             'subjects' => 'required|array',
             'decision' => 'required|array',
-            'decision.*' => 'required|string|in:Approved,Rejected,Forward to Coordinator',
+            'decision.*' => 'required|string|in:Approved,Rejected',
         ]);
 
         foreach ($request->subjects as $subjectId) {
@@ -412,7 +453,7 @@ class ApplicationController extends Controller
                     ->where(function($query) {
                         $query->where('status', 'exempted')
                               ->orWhere(function($q) {
-                                  $q->whereIn('status', ['Approved', 'Rejected', 'Forward to Coordinator'])
+                                  $q->whereIn('status', ['Approved', 'Rejected'])
                                     ->where('exemption_reason', 'LIKE', '%All criteria met%');
                               });
                     })
@@ -455,9 +496,12 @@ class ApplicationController extends Controller
                     ]);
                 }
 
+                // Send single notification for bulk approval
+                $this->sendBulkDecisionNotification($application, $courseCodes, 'Approved');
+
                 // Check if all subjects have been processed
                 $pendingSubjects = $application->applicationSubjects()
-                    ->whereNotIn('status', ['Approved', 'Rejected', 'Forward to Coordinator'])
+                    ->whereNotIn('status', ['Approved', 'Rejected'])
                     ->count();
 
                 // If all subjects are processed, update application status and record reviewer
@@ -548,9 +592,12 @@ class ApplicationController extends Controller
                     ]);
                 }
 
+                // Send single notification for bulk rejection
+                $this->sendBulkDecisionNotification($application, $courseCodes, 'Rejected');
+
                 // Check if all subjects have been processed
                 $pendingSubjects = $application->applicationSubjects()
-                    ->whereNotIn('status', ['Approved', 'Rejected', 'Forward to Coordinator'])
+                    ->whereNotIn('status', ['Approved', 'Rejected'])
                     ->count();
 
                 // If all subjects are processed, update application status and record reviewer
@@ -601,10 +648,12 @@ class ApplicationController extends Controller
         foreach ($programs as $programCode) {
             // Get current (latest) HEA-endorsed CS110 (internal) list for this program
             // ONLY shows internal lists that went through: Resource Person → HEA Endorsement → Published
+            // Note: Uses published_at instead of status because lists revert to draft for continuous editing
             $current = EquivalencyList::where('program_code', $programCode)
-                ->where('status', 'published')
+                ->whereNotNull('published_at') // Has been published at least once
                 ->where('category', 'internal') // CS110 lists only, not external institution mappings
                 ->whereNotNull('endorsed_at') // Must be HEA-endorsed
+                ->where('is_active', true) // Current active list
                 ->with(['creator', 'publisher', 'endorsedBy', 'courseEquivalencies'])
                 ->orderBy('endorsed_at', 'desc')
                 ->first();
@@ -830,10 +879,19 @@ class ApplicationController extends Controller
      */
     public function myStudents()
     {
-        // Get the Academic Advisor's record
-        $academicAdvisor = \App\Models\AcademicAdvisor::where('user_id', Auth::id())->first();
+        $user = Auth::user();
 
-        if (!$academicAdvisor || !$academicAdvisor->assigned_programs) {
+        // Get the AA's assigned group codes from program_group_configs
+        $academicYear = ProgramGroupConfig::getCurrentAcademicYear();
+        $intake = ProgramGroupConfig::getCurrentIntake();
+
+        $assignedGroups = ProgramGroupConfig::active()
+            ->forSession($academicYear, $intake)
+            ->where('assigned_user_id', $user->id)
+            ->pluck('group_code')
+            ->toArray();
+
+        if (empty($assignedGroups)) {
             // No assigned groups
             return view('academic_advisor.my_students', [
                 'groupData' => [],
@@ -845,9 +903,6 @@ class ApplicationController extends Controller
                 ],
             ]);
         }
-
-        // assigned_programs actually contains GROUP codes like CDCS2513A
-        $assignedGroups = $academicAdvisor->assigned_programs;
         $groupData = [];
         $totalStudents = 0;
         $totalApplications = 0;
@@ -874,8 +929,8 @@ class ApplicationController extends Controller
                 ->latest()
                 ->get();
 
-            // Group by student to get unique students with their latest application
-            $studentsGrouped = $applications->groupBy('student_id');
+            // Group by matric_no to get unique students (handles data integrity issues)
+            $studentsGrouped = $applications->groupBy('matric_no');
 
             // Add application status to each student
             $studentsData = $studentsGrouped->map(function($studentApplications) use (&$totalApplications, &$pendingApplications, &$reviewedApplications) {
@@ -892,12 +947,12 @@ class ApplicationController extends Controller
                 }
 
                 return [
-                    'id' => $student->id,
-                    'matric_no' => $latestApplication->matric_no ?: ($student->matric_no ?? 'N/A'),
-                    'name' => $latestApplication->name ?: ($student->user->name ?? 'N/A'),
-                    'email' => $latestApplication->email ?: ($student->user->email ?? 'N/A'),
-                    'campus' => $latestApplication->campus ?: ($student->campus ?? 'N/A'),
-                    'intake_semester' => $student->intake_semester ?? 'N/A',
+                    'id' => $student->id ?? null,
+                    'matric_no' => $latestApplication->matric_no ?? 'N/A',
+                    'name' => $latestApplication->student_name ?? ($student->user->name ?? 'N/A'),
+                    'email' => $student->user->email ?? 'N/A',
+                    'campus' => $latestApplication->current_campus ?? 'N/A',
+                    'intake_semester' => $latestApplication->current_semester ?? 'N/A',
                     'application_status' => $latestApplication->status,
                     'application_id' => $latestApplication->id,
                     'application_date' => $latestApplication->created_at,
@@ -922,5 +977,118 @@ class ApplicationController extends Controller
         ];
 
         return view('academic_advisor.my_students', compact('groupData', 'stats'));
+    }
+
+    /**
+     * Send notification to student when a single subject decision is made.
+     */
+    private function sendStudentDecisionNotification(ExemptionApplication $application, ApplicationSubject $subject, string $decision): void
+    {
+        try {
+            // Get student's user_id
+            $studentUserId = $application->student->user_id ?? null;
+
+            if (!$studentUserId) {
+                Log::warning('Cannot send notification: Student user_id not found', [
+                    'application_id' => $application->id,
+                    'subject_id' => $subject->id
+                ]);
+                return;
+            }
+
+            // Determine notification message based on decision
+            $courseInfo = $subject->course_code . ' - ' . $subject->course_name;
+
+            switch ($decision) {
+                case 'Approved':
+                    $title = 'Course Approved for Exemption';
+                    $message = "Your course {$courseInfo} has been approved for credit exemption.";
+                    break;
+                case 'Rejected':
+                    $title = 'Course Not Approved for Exemption';
+                    $message = "Your course {$courseInfo} was not approved for credit exemption.";
+                    break;
+                default:
+                    return; // Unknown decision, don't send notification
+            }
+
+            Notification::create([
+                'user_id' => $studentUserId,
+                'type' => 'request_reviewed',
+                'title' => $title,
+                'message' => $message,
+                'link' => route('student.application.status'),
+                'is_read' => false,
+            ]);
+
+            Log::info('Student notification sent for subject decision', [
+                'student_user_id' => $studentUserId,
+                'subject_id' => $subject->id,
+                'decision' => $decision
+            ]);
+
+        } catch (\Exception $e) {
+            // Log error but don't fail the main operation
+            Log::error('Failed to send student notification', [
+                'error' => $e->getMessage(),
+                'application_id' => $application->id,
+                'subject_id' => $subject->id
+            ]);
+        }
+    }
+
+    /**
+     * Send notification to student for bulk decisions (approve all / reject all).
+     */
+    private function sendBulkDecisionNotification(ExemptionApplication $application, array $courseCodes, string $decision): void
+    {
+        try {
+            // Get student's user_id
+            $studentUserId = $application->student->user_id ?? null;
+
+            if (!$studentUserId) {
+                Log::warning('Cannot send bulk notification: Student user_id not found', [
+                    'application_id' => $application->id
+                ]);
+                return;
+            }
+
+            $courseCount = count($courseCodes);
+            $courseList = implode(', ', array_slice($courseCodes, 0, 3));
+            if ($courseCount > 3) {
+                $courseList .= ' and ' . ($courseCount - 3) . ' more';
+            }
+
+            if ($decision === 'Approved') {
+                $title = $courseCount . ' Course(s) Approved';
+                $message = "Your courses ({$courseList}) have been approved for credit exemption.";
+            } else {
+                $title = $courseCount . ' Course(s) Not Approved';
+                $message = "Your courses ({$courseList}) were not approved for credit exemption.";
+            }
+
+            Notification::create([
+                'user_id' => $studentUserId,
+                'type' => 'request_reviewed',
+                'title' => $title,
+                'message' => $message,
+                'link' => route('student.application.status'),
+                'is_read' => false,
+            ]);
+
+            Log::info('Student bulk notification sent', [
+                'student_user_id' => $studentUserId,
+                'application_id' => $application->id,
+                'decision' => $decision,
+                'course_count' => $courseCount
+            ]);
+
+        } catch (\Exception $e) {
+            // Log error but don't fail the main operation
+            Log::error('Failed to send student bulk notification', [
+                'error' => $e->getMessage(),
+                'application_id' => $application->id
+            ]);
+        }
     }
 }

@@ -4,277 +4,393 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>2FA Setup - UiTM Credit Exemption System</title>
-    
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
+
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
+
     <style>
         :root {
-            --uitm-primary: #1e3a8a;
-            --uitm-secondary: #3b82f6;
-            --uitm-accent: #f59e0b;
-            --uitm-dark: #1f2937;
-            --uitm-light: #f8fafc;
-            --uitm-red: #dc2626;
+            --uitm-blue: #1e3a8a;
+            --uitm-blue-light: #3b82f6;
+            --uitm-amber: #f59e0b;
+            --industrial-dark: #0f172a;
+            --industrial-gray: #334155;
+            --industrial-light: #f1f5f9;
+            --success-color: #059669;
+            --danger-color: #dc2626;
+            --warning-color: #ea580c;
+            --info-color: #0d9488;
         }
-        
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), 
-                        url('https://malaysiabangkit.com/wp-content/uploads/2024/11/UITM-pelajar.jpg');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
+            font-family: 'IBM Plex Sans', sans-serif;
+            background: linear-gradient(135deg, var(--industrial-dark) 0%, var(--uitm-blue) 50%, var(--industrial-dark) 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px 0;
+            padding: 2rem 1rem;
+            position: relative;
+            overflow-x: hidden;
         }
-        
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            pointer-events: none;
+        }
+
         .setup-container {
             position: relative;
             z-index: 2;
             width: 100%;
-            max-width: 500px;
-            padding: 1rem;
+            max-width: 520px;
         }
-        
+
         .setup-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 24px;
-            box-shadow: 0 32px 64px rgba(0, 0, 0, 0.1);
-            padding: 3rem;
-            transition: all 0.3s ease;
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--uitm-blue) 0%, var(--industrial-dark) 100%);
+            padding: 2rem;
             text-align: center;
+            position: relative;
         }
-        
-        .setup-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.15);
+
+        .card-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--uitm-amber), var(--uitm-blue-light), var(--uitm-amber));
         }
-        
-        .logo-section {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        
+
         .logo {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, var(--uitm-primary), var(--uitm-secondary));
+            width: 70px;
+            height: 70px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 16px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-size: 2rem;
+            color: #fff;
+            font-size: 1.75rem;
+            margin-bottom: 1rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .setup-title {
+            color: #fff;
+            font-size: 1.5rem;
             font-weight: 700;
-            box-shadow: 0 16px 32px rgba(30, 58, 138, 0.3);
+            margin-bottom: 0.25rem;
+            letter-spacing: -0.025em;
+        }
+
+        .setup-subtitle {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .card-body {
+            padding: 2rem;
+        }
+
+        .setup-description {
+            color: var(--industrial-gray);
+            font-size: 0.95rem;
+            line-height: 1.7;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        /* Steps Section */
+        .steps-container {
+            background: var(--industrial-light);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .steps-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--industrial-gray);
             margin-bottom: 1rem;
         }
-        
-        .setup-title {
-            color: var(--uitm-dark);
-            font-size: 1.75rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
-        
-        .setup-subtitle {
-            color: var(--uitm-secondary);
-            font-size: 1rem;
-            font-weight: 500;
-            margin-bottom: 2rem;
-        }
-        
-        .setup-description {
-            color: #6b7280;
-            font-size: 1rem;
-            line-height: 1.6;
-            margin-bottom: 2rem;
-        }
-        
-        .qr-container {
-            background: white;
-            border-radius: 16px;
-            padding: 2rem;
-            margin: 2rem auto;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-            border: 2px solid #e5e7eb;
-            text-align: center;
-            max-width: 300px;
-        }
-        
-        .qr-container img,
-        .qr-container svg {
-            max-width: 250px;
-            max-height: 250px;
-            width: 100%;
-            height: auto;
-            border-radius: 8px;
-            border: none;
-            outline: none;
-            display: block;
-            margin: 0 auto;
-        }
-        
-        .warning-message {
-            background: linear-gradient(135deg, #fef3c7, #fed7aa);
-            color: #92400e;
-            padding: 1rem;
-            border-radius: 12px;
-            margin: 1.5rem 0;
-            font-weight: 500;
-            border: 2px solid #f59e0b;
-            text-align: center;
-        }
-        
-        .btn-continue {
-            background: linear-gradient(135deg, var(--uitm-primary), var(--uitm-secondary));
-            color: white;
-            border: none;
-            padding: 1rem 2rem;
-            font-size: 1rem;
-            font-weight: 600;
-            border-radius: 12px;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 24px rgba(30, 58, 138, 0.3);
-            display: inline-block;
-            margin-top: 1rem;
-        }
-        
-        .btn-continue:hover {
-            color: white;
-            transform: translateY(-1px);
-            box-shadow: 0 12px 32px rgba(30, 58, 138, 0.4);
-        }
-        
-        .btn-continue:focus {
-            color: white;
-            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
-        }
-        
-        .steps {
-            text-align: left;
-            margin: 2rem 0;
-        }
-        
+
         .step {
             display: flex;
             align-items: flex-start;
-            margin-bottom: 1rem;
-            padding: 0.5rem;
+            margin-bottom: 0.875rem;
         }
-        
+
+        .step:last-child {
+            margin-bottom: 0;
+        }
+
         .step-number {
-            background: var(--uitm-secondary);
-            color: white;
-            width: 30px;
-            height: 30px;
+            background: var(--uitm-blue);
+            color: #fff;
+            width: 26px;
+            height: 26px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: 600;
-            font-size: 0.9rem;
-            margin-right: 1rem;
+            font-size: 0.8rem;
+            font-family: 'IBM Plex Mono', monospace;
+            margin-right: 0.875rem;
             flex-shrink: 0;
         }
-        
+
         .step-text {
-            color: var(--uitm-dark);
+            color: var(--industrial-dark);
+            font-size: 0.9rem;
             font-weight: 500;
             line-height: 1.5;
+            padding-top: 0.125rem;
         }
-        
+
+        /* QR Code Section */
+        .qr-section {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .qr-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--industrial-gray);
+            margin-bottom: 1rem;
+        }
+
+        .qr-container {
+            background: #fff;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: 2px solid #e2e8f0;
+            display: inline-block;
+        }
+
+        .qr-container img,
+        .qr-container svg {
+            max-width: 200px;
+            max-height: 200px;
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* Manual Code Section */
+        .manual-code-section {
+            background: var(--industrial-light);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .manual-code-label {
+            font-size: 0.8rem;
+            color: var(--industrial-gray);
+            margin-bottom: 0.75rem;
+        }
+
+        .secret-code {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--uitm-blue);
+            background: #fff;
+            padding: 0.625rem 1rem;
+            border-radius: 8px;
+            display: inline-block;
+            letter-spacing: 0.1em;
+            border: 1px solid #e2e8f0;
+        }
+
+        /* Warning Message */
+        .warning-message {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-left: 4px solid var(--uitm-amber);
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .warning-message i {
+            color: var(--uitm-amber);
+            font-size: 1.1rem;
+            margin-top: 0.125rem;
+        }
+
+        .warning-message-content {
+            font-size: 0.875rem;
+            color: #92400e;
+            line-height: 1.5;
+        }
+
+        .warning-message-content strong {
+            font-weight: 600;
+        }
+
+        /* Continue Button */
+        .btn-continue {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            background: linear-gradient(135deg, var(--uitm-blue) 0%, var(--uitm-blue-light) 100%);
+            color: #fff;
+            border: none;
+            padding: 1rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 10px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 14px 0 rgba(30, 58, 138, 0.3);
+        }
+
+        .btn-continue:hover {
+            color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px 0 rgba(30, 58, 138, 0.4);
+        }
+
+        .btn-continue:active {
+            transform: translateY(0);
+        }
+
         @media (max-width: 576px) {
-            .setup-card {
-                padding: 2rem;
-                margin: 1rem;
+            body {
+                padding: 1rem;
             }
-            
+
+            .card-header {
+                padding: 1.5rem;
+            }
+
+            .card-body {
+                padding: 1.5rem;
+            }
+
             .qr-container {
                 padding: 1rem;
+            }
+
+            .secret-code {
+                font-size: 0.85rem;
+                padding: 0.5rem 0.75rem;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Setup Container -->
     <div class="setup-container">
         <div class="setup-card">
-            <!-- Logo Section -->
-            <div class="logo-section">
+            <!-- Card Header -->
+            <div class="card-header">
                 <div class="logo">
                     <i class="fas fa-shield-alt"></i>
                 </div>
-                <h1 class="setup-title">Set up Google Authenticator</h1>
-                <p class="setup-subtitle">Secure your UiTM CES account</p>
+                <h1 class="setup-title">Set Up 2FA Security</h1>
+                <p class="setup-subtitle">Two-Factor Authentication Setup</p>
             </div>
 
-            <!-- Setup Instructions -->
-            <div class="setup-description">
-                Set up your two-factor authentication by scanning the barcode below. 
-                Alternatively, you can use the code provided.
-            </div>
+            <!-- Card Body -->
+            <div class="card-body">
+                <!-- Description -->
+                <p class="setup-description">
+                    Secure your account by setting up two-factor authentication.
+                    Scan the QR code below with your authenticator app.
+                </p>
 
-            <!-- Steps -->
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-text">Download Google Authenticator app on your mobile device</div>
+                <!-- Steps -->
+                <div class="steps-container">
+                    <div class="steps-title">Setup Instructions</div>
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-text">Download Google Authenticator or any TOTP app on your mobile device</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-text">Scan the QR code below or enter the secret code manually</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-text">Enter the 6-digit code from your app to verify setup</div>
+                    </div>
                 </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-text">Scan the QR code below or enter the secret code manually</div>
+
+                <!-- QR Code -->
+                <div class="qr-section">
+                    <div class="qr-label">Scan QR Code</div>
+                    <div class="qr-container">
+                        {!! $qrCodeUrl !!}
+                    </div>
                 </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-text">Enter the 6-digit code from your app to verify setup</div>
+
+                <!-- Manual Entry Code -->
+                <div class="manual-code-section">
+                    <p class="manual-code-label">Or enter this code manually:</p>
+                    <code class="secret-code">{{ $secret }}</code>
                 </div>
-            </div>
 
-            <!-- QR Code -->
-            <div class="qr-container">
-                {!! $qrCodeUrl !!}
-            </div>
+                <!-- Warning Message -->
+                <div class="warning-message">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <div class="warning-message-content">
+                        <strong>Important:</strong> You must complete 2FA setup before continuing.
+                        Save the secret code in a secure location as a backup.
+                    </div>
+                </div>
 
-            <!-- Manual Entry Code -->
-            <div style="margin-top: 1.5rem; padding: 1rem; background: #f3f4f6; border-radius: 8px;">
-                <p class="text-muted mb-2" style="font-size: 0.9rem;">Or enter this code manually:</p>
-                <code style="font-size: 1.1rem; font-weight: 600; color: #1e3a8a; background: white; padding: 0.5rem 1rem; border-radius: 6px; display: inline-block;">{{ $secret }}</code>
+                <!-- Continue Button -->
+                <a href="{{ route('2fa.verify') }}" class="btn-continue">
+                    Continue to Verification
+                    <i class="fas fa-arrow-right"></i>
+                </a>
             </div>
-
-            <!-- Important Disclaimer -->
-            <div class="warning-message">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>Important:</strong> You must set up your Google Authenticator app before continuing. 
-                You will be unable to login otherwise.
-            </div>
-
-            <!-- Continue Button -->
-            <a href="{{ route('2fa.verify') }}" class="btn-continue">
-                <i class="fas fa-arrow-right me-2"></i>
-                Continue to Verification
-            </a>
         </div>
     </div>
 

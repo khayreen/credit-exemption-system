@@ -67,13 +67,13 @@ return [
     'coordinator_categories' => [
         'category_1' => [
             'label' => 'Category 1',
-            'programs' => ['CDCS230', 'CDCS251', 'CDCS253'],
-            'description' => 'Computer Science Programs (General, Netcentric, Multimedia)',
+            'programs' => ['CDCS230', 'CDCS253'],
+            'description' => 'Computer Science Programs (General, Multimedia)',
         ],
         'category_2' => [
             'label' => 'Category 2',
-            'programs' => ['CDCS255', 'CDCS266'],
-            'description' => 'Network & Information Systems Programs',
+            'programs' => ['CDCS251', 'CDCS255', 'CDCS266'],
+            'description' => 'Netcentric, Network & Information Systems Programs',
         ],
     ],
 ];

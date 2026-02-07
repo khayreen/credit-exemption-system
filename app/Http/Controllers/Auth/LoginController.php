@@ -108,7 +108,7 @@ class LoginController extends Controller
         }
 
         // Check if user is approved (for roles requiring HEA approval)
-        if (in_array($user->requested_role, ['academic_advisor', 'coordinator', 'resource_person'])) {
+        if (in_array($user->requested_role, ['academic_advisor', 'program_coordinator', 'resource_person'])) {
             if ($user->approval_status === 'pending') {
                 auth()->logout();
                 return redirect()->route('login')
@@ -123,28 +123,30 @@ class LoginController extends Controller
         }
 
         // MANDATORY 2FA for all users (except external lecturers)
+        $userId = $user->id;
 
-        // First login: 2FA not set up yet
-        if (!$user->two_factor_verified_at) {
-            // Redirect to 2FA setup (stay logged in for setup)
+        // First login: 2FA not set up yet OR secret was reset
+        if (!$user->two_factor_verified_at || !$user->google2fa_secret) {
+            // Reset verification status if secret is missing
+            if (!$user->google2fa_secret && $user->two_factor_verified_at) {
+                $user->two_factor_verified_at = null;
+                $user->save();
+            }
+
+            // Log out user BEFORE redirecting to 2FA setup (no authenticated session during setup)
+            auth()->logout();
+            $request->session()->regenerate();
+            $request->session()->put('2fa_setup_user_id', $userId);
+            $request->session()->save();
+
             return redirect()->route('2fa.setup')
                 ->with('status', 'Please set up two-factor authentication to secure your account.');
         }
 
-        // Subsequent logins: 2FA already set up
-        // Store user ID in session BEFORE logout to prevent session loss
-        $userId = $user->id;
-
-        // Logout but preserve session data
+        // Subsequent logins: 2FA already set up — log out and verify OTP first
         auth()->logout();
-
-        // Regenerate session to prevent fixation attacks, but keep our data
         $request->session()->regenerate();
-
-        // Store user ID for 2FA verification
         $request->session()->put('2fa_user_id', $userId);
-
-        // Force session save to ensure data persists before redirect
         $request->session()->save();
 
         return redirect()->route('2fa.login');

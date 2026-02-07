@@ -11,13 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('academic_advisors', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->foreignUuid('user_id')->constrained()->onDelete('cascade');
-            $table->string('staff_id')->unique();
-            $table->string('department');
-            $table->timestamps();
-        });
+        // Skipped: academic_advisors table is created by
+        // 2025_11_27_172254_create_academic_advisors_table.php with full schema
     }
 
     /**

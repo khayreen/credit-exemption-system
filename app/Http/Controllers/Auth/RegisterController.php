@@ -83,7 +83,7 @@ class RegisterController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users',
             'password' => 'required|min:8|confirmed',
-            'requested_role' => 'required|in:student,academic_advisor,coordinator,resource_person,hea_personnel',
+            'requested_role' => 'required|in:student,academic_advisor,program_coordinator,resource_person,hea_personnel',
 
             // Student conditional fields
             'matric_no' => 'required_if:requested_role,student',
@@ -96,7 +96,7 @@ class RegisterController extends Controller
             'program_groups' => 'required_if:requested_role,academic_advisor|json',
 
             // Program Coordinator fields - category selection
-            'program_category' => 'required_if:requested_role,coordinator|in:category_1,category_2',
+            'program_category' => 'required_if:requested_role,program_coordinator|in:category_1,category_2',
 
             // Resource Person fields - single program assignment
             'degree_program' => 'required_if:requested_role,resource_person|in:CDCS230,CDCS251,CDCS253,CDCS255,CDCS266',
@@ -120,7 +120,7 @@ class RegisterController extends Controller
             if ($validated['requested_role'] === 'academic_advisor' && isset($validated['program_groups'])) {
                 // Store programme-group assignments for Academic Advisor
                 $requestedProgramsData = $validated['program_groups'];
-            } elseif ($validated['requested_role'] === 'coordinator' && isset($validated['program_category'])) {
+            } elseif ($validated['requested_role'] === 'program_coordinator' && isset($validated['program_category'])) {
                 // Store category selection for Program Coordinator
                 $requestedProgramsData = json_encode(['category' => $validated['program_category']]);
             } elseif ($validated['requested_role'] === 'resource_person' && isset($validated['degree_program'])) {
@@ -173,7 +173,7 @@ class RegisterController extends Controller
                 'redirect_message' => 'Registration successful! Please check your email to verify your account.',
             ],
 
-            'academic_advisor', 'coordinator', 'resource_person' => [
+            'academic_advisor', 'program_coordinator', 'resource_person' => [
                 'approval_status' => 'pending',
                 'current_role' => null,
                 'auto_approve' => false,
@@ -220,7 +220,7 @@ class RegisterController extends Controller
                 'assigned_programs' => null,
             ])),
 
-            'coordinator' => ProgramCoordinator::create(array_merge($roleData, [
+            'program_coordinator' => ProgramCoordinator::create(array_merge($roleData, [
                 'name' => $user->name,
                 'email' => $user->email,
                 'program_category' => $data['program_category'] ?? null,
@@ -538,7 +538,7 @@ class RegisterController extends Controller
     {
         return match($role) {
             'academic_advisor' => 'Academic Advisor',
-            'coordinator' => 'Program Coordinator',
+            'program_coordinator' => 'Program Coordinator',
             'resource_person' => 'Resource Person',
             'hea_personnel' => 'HEA Personnel',
             default => ucwords(str_replace('_', ' ', $role)),

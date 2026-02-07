@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
@@ -16,15 +15,26 @@ class TwoFactorController extends Controller
 {
     /**
      * Show 2FA setup page
+     * Uses session-based user tracking — user is NOT authenticated during setup.
      */
     public function showSetup()
     {
-        // Fresh user from database to avoid caching issues
-        $user = \App\Models\User::find(Auth::id());
+        // Get user ID from session (set by LoginController before redirect)
+        $userId = session('2fa_setup_user_id');
+        if (!$userId) {
+            return redirect()->route('login');
+        }
 
-        // If already verified, redirect to home
+        $user = \App\Models\User::find($userId);
+        if (!$user) {
+            session()->forget('2fa_setup_user_id');
+            return redirect()->route('login');
+        }
+
+        // If already verified, clear session and redirect to login
         if ($user->two_factor_verified_at) {
-            return redirect()->route('home');
+            session()->forget('2fa_setup_user_id');
+            return redirect()->route('login');
         }
 
         // Generate secret if not exists
@@ -34,24 +44,19 @@ class TwoFactorController extends Controller
             $user->save();
         }
 
-        // Log the secret being used for QR code
-        \Log::info('2FA Setup Page Loaded', [
-            'user_email' => $user->email,
-            'secret' => $user->google2fa_secret,
-            'qr_code_will_use_secret' => $user->google2fa_secret,
-        ]);
-
         // Generate QR code
         $qrCodeUrl = $this->getQRCodeUrl($user);
 
-        // Pass secret key explicitly
+        // Pass secret key and email explicitly (user is not authenticated during setup)
         $secretKey = $user->google2fa_secret;
+        $userEmail = $user->email;
 
-        return view('auth.2fa-setup', compact('qrCodeUrl', 'secretKey'));
+        return view('auth.2fa-setup', compact('qrCodeUrl', 'secretKey', 'userEmail'));
     }
 
     /**
      * Verify and activate 2FA
+     * Uses session-based user tracking — authenticates user only AFTER OTP is verified.
      */
     public function verify(Request $request)
     {
@@ -59,27 +64,26 @@ class TwoFactorController extends Controller
             'one_time_password' => 'required|numeric|digits:6',
         ]);
 
-        // Fresh user from database to avoid caching issues
-        $user = \App\Models\User::find(Auth::id());
+        // Get user from session (NOT from Auth)
+        $userId = session('2fa_setup_user_id');
+        if (!$userId) {
+            return redirect()->route('login')->withErrors(['email' => 'Session expired. Please login again.']);
+        }
+
+        $user = \App\Models\User::find($userId);
+        if (!$user) {
+            session()->forget('2fa_setup_user_id');
+            return redirect()->route('login')->withErrors(['email' => 'User not found.']);
+        }
+
         $google2fa = new Google2FA();
 
-        // Debug logging
-        \Log::info('2FA Verification Attempt', [
-            'user_email' => $user->email,
-            'secret' => $user->google2fa_secret,
-            'entered_code' => $request->one_time_password,
-            'server_time' => time(),
-            'expected_code' => $google2fa->getCurrentOtp($user->google2fa_secret),
-        ]);
-
-        // Add time window tolerance (8 = 4 minutes before/after)
+        // Verify the OTP code against the user's secret
         $valid = $google2fa->verifyKey($user->google2fa_secret, $request->one_time_password, 8);
 
         if (!$valid) {
-            \Log::warning('2FA Verification Failed', [
+            \Log::warning('2FA Setup Verification Failed', [
                 'user_email' => $user->email,
-                'entered_code' => $request->one_time_password,
-                'expected_code' => $google2fa->getCurrentOtp($user->google2fa_secret),
             ]);
             return back()->withErrors(['one_time_password' => 'The verification code is incorrect. Please ensure your device time is synchronized and you scanned the correct QR code.']);
         }
@@ -88,7 +92,10 @@ class TwoFactorController extends Controller
         $user->two_factor_verified_at = now();
         $user->save();
 
-        // User stays logged in and goes directly to home
+        // Clear setup session and authenticate the user
+        session()->forget('2fa_setup_user_id');
+        Auth::login($user, true);
+
         return redirect()->route('home')->with('success', 'Two-factor authentication has been enabled successfully! Your account is now secure.');
     }
 
@@ -150,9 +157,6 @@ class TwoFactorController extends Controller
         ]);
 
         if (!session()->has('2fa_user_id')) {
-            \Log::warning('2FA Login: Session does not have 2fa_user_id', [
-                'session_id' => session()->getId(),
-            ]);
             return redirect()->route('login')->withErrors(['email' => 'Session expired. Please login again.']);
         }
 
@@ -160,41 +164,22 @@ class TwoFactorController extends Controller
         $user = \App\Models\User::find($userId);
 
         if (!$user) {
-            \Log::warning('2FA Login: User not found', ['user_id' => $userId]);
             session()->forget('2fa_user_id');
             return redirect()->route('login')->withErrors(['email' => 'User not found.']);
         }
 
         $google2fa = new Google2FA();
-        $otp = trim($request->one_time_password); // Trim any whitespace
+        $otp = trim($request->one_time_password);
 
-        // Debug logging for verification
-        \Log::info('2FA Login Verification Attempt', [
-            'user_email' => $user->email,
-            'entered_code' => $otp,
-            'entered_code_length' => strlen($otp),
-            'server_time' => time(),
-            'expected_code' => $google2fa->getCurrentOtp($user->google2fa_secret),
-            'secret_exists' => !empty($user->google2fa_secret),
-            'secret_length' => strlen($user->google2fa_secret ?? ''),
-        ]);
-
-        // Verify OTP with time window tolerance (8 = 4 minutes before/after)
+        // Verify the OTP code against the user's secret
         $valid = $google2fa->verifyKey($user->google2fa_secret, $otp, 8);
 
         if (!$valid) {
             \Log::warning('2FA Login Verification Failed', [
                 'user_email' => $user->email,
-                'entered_code' => $otp,
-                'expected_code' => $google2fa->getCurrentOtp($user->google2fa_secret),
-                'server_timestamp' => $google2fa->getTimestamp(),
             ]);
             return back()->withErrors(['one_time_password' => 'The verification code is incorrect.']);
         }
-
-        \Log::info('2FA Login Verification Success', [
-            'user_email' => $user->email,
-        ]);
 
         // Login successful
         session()->forget('2fa_user_id');

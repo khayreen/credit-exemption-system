@@ -6,7 +6,7 @@ enum UserRole: string
 {
     case STUDENT = 'student';
     case ACADEMIC_ADVISOR = 'academic_advisor';
-    case COORDINATOR = 'coordinator';
+    case PROGRAM_COORDINATOR = 'program_coordinator';
     case RESOURCE_PERSON = 'resource_person';
     case HEA = 'hea_personnel';
     case EXTERNAL_LECTURER = 'external_lecturer';
@@ -20,7 +20,7 @@ enum UserRole: string
         return match($this) {
             self::STUDENT => 'Student',
             self::ACADEMIC_ADVISOR => 'Academic Advisor',
-            self::COORDINATOR => 'Program Coordinator',
+            self::PROGRAM_COORDINATOR => 'Program Coordinator',
             self::RESOURCE_PERSON => 'Resource Person',
             self::HEA => 'HEA Personnel',
             self::EXTERNAL_LECTURER => 'External Lecturer',
@@ -36,7 +36,7 @@ enum UserRole: string
         return match($this) {
             self::STUDENT => 'STU',
             self::ACADEMIC_ADVISOR => 'AA',
-            self::COORDINATOR => 'PC',
+            self::PROGRAM_COORDINATOR => 'PC',
             self::RESOURCE_PERSON => 'RP',
             self::HEA => 'HEA',
             self::EXTERNAL_LECTURER => 'EXT',
@@ -52,7 +52,7 @@ enum UserRole: string
         return match($this) {
             self::STUDENT => 'info',
             self::ACADEMIC_ADVISOR => 'primary',
-            self::COORDINATOR => 'success',
+            self::PROGRAM_COORDINATOR => 'success',
             self::RESOURCE_PERSON => 'warning',
             self::HEA => 'danger',
             self::EXTERNAL_LECTURER => 'secondary',
@@ -67,7 +67,7 @@ enum UserRole: string
     {
         return in_array($this, [
             self::ACADEMIC_ADVISOR,
-            self::COORDINATOR,
+            self::PROGRAM_COORDINATOR,
             self::RESOURCE_PERSON,
         ]);
     }
@@ -95,7 +95,7 @@ enum UserRole: string
     {
         return [
             self::ACADEMIC_ADVISOR,
-            self::COORDINATOR,
+            self::PROGRAM_COORDINATOR,
             self::RESOURCE_PERSON,
         ];
     }
@@ -115,7 +115,7 @@ enum UserRole: string
     {
         return [
             self::ACADEMIC_ADVISOR,
-            self::COORDINATOR,
+            self::PROGRAM_COORDINATOR,
             self::RESOURCE_PERSON,
             self::HEA,
         ];

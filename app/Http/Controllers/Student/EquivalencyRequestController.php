@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Models\ApplicationSubject;
 use App\Models\Course;
 use App\Models\CourseEquivalency;
 use App\Models\CourseEquivalencyRequest;
+use App\Models\ExemptionApplication;
 use App\Models\Institution;
 use App\Models\ProgramCoordinator;
 use App\Models\Student;
@@ -25,6 +27,19 @@ class EquivalencyRequestController extends Controller
     public function create()
     {
         $student = Auth::user()->student;
+
+        // Check if student has an exemption application
+        $exemptionApplication = ExemptionApplication::where('student_id', $student->id)->first();
+        $hasExemptionApplication = $exemptionApplication !== null;
+
+        // Get courses from student's transcript (if they have an application)
+        $transcriptCourses = collect();
+        if ($hasExemptionApplication) {
+            $transcriptCourses = ApplicationSubject::where('exemption_application_id', $exemptionApplication->id)
+                ->select('course_code', 'course_name', 'credit_hour', 'grade', 'status')
+                ->orderBy('course_code')
+                ->get();
+        }
 
         // Get student's current program information
         $campuses = Campus::orderBy('name')->get();
@@ -60,7 +75,26 @@ class EquivalencyRequestController extends Controller
             ->orderBy('degree_course_code')
             ->get();
 
-        return view('student.equivalency_request.create', compact('student', 'campuses', 'institutions', 'diplomaCourses', 'degreeCourses'));
+        // Load courses from student's program syllabus for validation
+        // This ensures students can only request equivalency for courses in their program
+        $programSyllabusCourses = collect();
+        if ($student->program_code) {
+            $programSyllabusCourses = Course::where('program_code', $student->program_code)
+                ->select('code', 'name')
+                ->orderBy('code')
+                ->get();
+        }
+
+        return view('student.equivalency_request.create', compact(
+            'student',
+            'campuses',
+            'institutions',
+            'diplomaCourses',
+            'degreeCourses',
+            'hasExemptionApplication',
+            'transcriptCourses',
+            'programSyllabusCourses'
+        ));
     }
 
     /**
@@ -95,8 +129,61 @@ class EquivalencyRequestController extends Controller
                     ->withInput();
             }
 
-            // Find the appropriate Program Coordinator for this student's program
+            // Validate: Check if student has a credit exemption application
+            $exemptionApplication = ExemptionApplication::where('student_id', $student->id)->first();
+
+            if (!$exemptionApplication) {
+                Log::warning('Student tried to request equivalency without exemption application', [
+                    'student_id' => $student->id,
+                    'diploma_course_code' => $validated['diploma_course_code']
+                ]);
+
+                return back()
+                    ->withErrors(['diploma_course_code' => 'You must submit a Credit Exemption Application first before requesting course equivalency. Please apply for credit exemption with your transcript.'])
+                    ->withInput();
+            }
+
+            // Validate: Check if diploma course code exists in student's transcript
+            $diplomaCourseCode = strtoupper(trim($validated['diploma_course_code']));
+            $courseInTranscript = ApplicationSubject::where('exemption_application_id', $exemptionApplication->id)
+                ->where(function ($query) use ($diplomaCourseCode) {
+                    $query->where('course_code', $diplomaCourseCode)
+                          ->orWhere('course_code', 'LIKE', "%{$diplomaCourseCode}%");
+                })
+                ->first();
+
+            if (!$courseInTranscript) {
+                Log::warning('Student requested equivalency for course not in transcript', [
+                    'student_id' => $student->id,
+                    'diploma_course_code' => $diplomaCourseCode,
+                    'application_id' => $exemptionApplication->id
+                ]);
+
+                return back()
+                    ->withErrors(['diploma_course_code' => "The course code \"{$diplomaCourseCode}\" was not found in your transcript. You can only request equivalency for courses you have taken during your diploma. Please check your Credit Exemption Application to see which courses are in your transcript."])
+                    ->withInput();
+            }
+
+            // Validate: Check if degree course code exists in student's program syllabus
             $programCode = $student->program_code;
+            $degreeCourseCode = strtoupper(trim($validated['suggested_degree_course_code']));
+            $courseInProgramSyllabus = Course::where('code', $degreeCourseCode)
+                ->where('program_code', $programCode)
+                ->first();
+
+            if (!$courseInProgramSyllabus) {
+                Log::warning('Student requested equivalency for degree course not in their program syllabus', [
+                    'student_id' => $student->id,
+                    'degree_course_code' => $degreeCourseCode,
+                    'program_code' => $programCode
+                ]);
+
+                return back()
+                    ->withErrors(['suggested_degree_course_code' => "The degree course code \"{$degreeCourseCode}\" does not exist in your program syllabus ({$programCode}). You can only request equivalency for courses that are part of your degree program curriculum."])
+                    ->withInput();
+            }
+
+            // Find the appropriate Program Coordinator for this student's program
             $coordinator = ProgramCoordinator::getCoordinatorForProgram($programCode);
 
             if (!$coordinator) {

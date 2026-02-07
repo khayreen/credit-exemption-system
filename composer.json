@@ -15,6 +15,7 @@
         "laravel/ui": "^4.6",
         "maatwebsite/excel": "^3.1",
         "openspout/openspout": "^4.28",
+        "phpoffice/phpword": "^1.4",
         "pragmarx/google2fa-laravel": "^2.3",
         "sendgrid/sendgrid": "^8.1",
         "smalot/pdfparser": "^2.12",

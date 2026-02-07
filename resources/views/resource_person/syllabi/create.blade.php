@@ -1,187 +1,498 @@
 @extends('layouts.app')
 
 @push('styles')
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Tom Select for searchable dropdown -->
 <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
 <style>
-    .ts-wrapper.form-select { padding: 0; height: auto; }
-    .ts-wrapper .ts-control { border: none; border-radius: 0.375rem; min-height: calc(1.5em + 0.75rem + 2px); }
-    .ts-wrapper.focus .ts-control { border-color: #86b7fe; box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25); }
-    .ts-dropdown .option { padding: 8px 12px; }
-    .ts-dropdown .option.active { background-color: #0d6efd; color: white; }
+    :root {
+        --uitm-blue: #1e3a8a;
+        --uitm-blue-light: #3b82f6;
+        --uitm-amber: #f59e0b;
+        --industrial-dark: #0f172a;
+        --industrial-gray: #334155;
+        --industrial-light: #f1f5f9;
+        --success: #059669;
+        --danger: #dc2626;
+        --warning: #ea580c;
+        --info: #0d9488;
+    }
+
+    body {
+        font-family: 'IBM Plex Sans', sans-serif;
+        background-color: var(--industrial-light);
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, var(--uitm-blue) 0%, var(--industrial-dark) 100%);
+        border-radius: 0 0 24px 24px;
+        padding: 2rem 2.5rem;
+        margin: -1.5rem -1.5rem 2rem -1.5rem;
+        color: white;
+    }
+
+    .page-header h2 {
+        font-weight: 700;
+        font-size: 1.75rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .page-header p {
+        color: rgba(255,255,255,0.8);
+        margin: 0;
+    }
+
+    .breadcrumb-industrial {
+        background: transparent;
+        padding: 0;
+        margin-bottom: 1rem;
+    }
+
+    .breadcrumb-industrial a {
+        color: rgba(255,255,255,0.7);
+        text-decoration: none;
+    }
+
+    .breadcrumb-industrial a:hover {
+        color: white;
+    }
+
+    .breadcrumb-industrial .active {
+        color: rgba(255,255,255,0.5);
+    }
+
+    .breadcrumb-industrial .breadcrumb-item + .breadcrumb-item::before {
+        color: rgba(255,255,255,0.5);
+    }
+
+    /* Pre-fill Notice */
+    .prefill-notice {
+        background: rgba(13, 148, 136, 0.1);
+        border: 1px solid rgba(13, 148, 136, 0.2);
+        border-left: 4px solid var(--info);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        color: var(--info);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Form Card */
+    .form-card {
+        background: white;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+        padding: 2rem;
+    }
+
+    .section-title {
+        font-weight: 600;
+        color: var(--industrial-dark);
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.1rem;
+    }
+
+    .section-title i.primary { color: var(--uitm-blue); }
+    .section-title i.danger { color: var(--danger); }
+
+    .form-label {
+        font-weight: 600;
+        color: var(--industrial-dark);
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .form-control, .form-select {
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--uitm-blue);
+        box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+    }
+
+    .form-text {
+        color: var(--industrial-gray);
+        font-size: 0.85rem;
+    }
+
+    /* Tom Select Custom Styles */
+    .ts-wrapper.form-select {
+        padding: 0;
+        height: auto;
+    }
+
+    .ts-wrapper .ts-control {
+        border: none;
+        border-radius: 10px;
+        min-height: calc(1.5em + 1.5rem + 4px);
+        padding: 0.75rem 1rem;
+    }
+
+    .ts-wrapper.focus .ts-control {
+        border-color: var(--uitm-blue);
+        box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+    }
+
+    .ts-dropdown {
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        margin-top: 4px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+
+    .ts-dropdown .option {
+        padding: 0.75rem 1rem;
+    }
+
+    .ts-dropdown .option.active {
+        background-color: var(--uitm-blue);
+        color: white;
+    }
+
+    /* File Preview */
+    .file-preview {
+        background: rgba(13, 148, 136, 0.1);
+        border: 1px solid rgba(13, 148, 136, 0.2);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .file-preview-icon {
+        font-size: 2.5rem;
+        color: var(--danger);
+    }
+
+    .file-preview-info strong {
+        color: var(--industrial-dark);
+    }
+
+    .file-preview-info small {
+        color: var(--industrial-gray);
+    }
+
+    /* Help Sidebar */
+    .help-card {
+        background: var(--industrial-light);
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        padding: 1.5rem;
+    }
+
+    .help-card h5 {
+        color: var(--industrial-dark);
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .help-card h5 i {
+        color: var(--info);
+    }
+
+    .help-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .help-list li {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .help-list li:last-child {
+        border-bottom: none;
+    }
+
+    .help-list li i.success { color: var(--success); }
+    .help-list li i.primary { color: var(--uitm-blue); }
+    .help-list li i.danger { color: var(--danger); }
+    .help-list li i.info { color: var(--info); }
+
+    .help-list li strong {
+        color: var(--industrial-dark);
+    }
+
+    .help-list li span {
+        color: var(--industrial-gray);
+    }
+
+    .sub-help-list {
+        margin-top: 0.5rem;
+        padding-left: 1rem;
+        list-style: disc;
+    }
+
+    .sub-help-list li {
+        padding: 0.25rem 0;
+        border-bottom: none;
+        display: list-item;
+        color: var(--industrial-gray);
+    }
+
+    /* Buttons */
+    .btn-cancel {
+        border: 2px solid #e2e8f0;
+        color: var(--industrial-gray);
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-cancel:hover {
+        background: var(--industrial-light);
+        color: var(--industrial-dark);
+    }
+
+    .btn-upload {
+        background: linear-gradient(135deg, var(--uitm-blue) 0%, var(--uitm-blue-light) 100%);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s ease;
+    }
+
+    .btn-upload:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(30, 58, 138, 0.3);
+        color: white;
+    }
+
+    .btn-back-small {
+        background: var(--industrial-light);
+        border: 2px solid #e2e8f0;
+        color: var(--industrial-gray);
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        margin-top: 0.75rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        transition: all 0.2s ease;
+    }
+
+    .btn-back-small:hover {
+        background: #e2e8f0;
+        color: var(--industrial-dark);
+    }
+
+    @media (max-width: 768px) {
+        .page-header {
+            padding: 1.5rem;
+            margin: -1rem -1rem 1.5rem -1rem;
+            border-radius: 0 0 16px 16px;
+        }
+    }
 </style>
 @endpush
 
 @section('content')
-<div class="container-fluid px-4">
+<div class="container-fluid">
     <!-- Page Header -->
-    <div class="mb-4">
-        <nav aria-label="breadcrumb">
+    <div class="page-header">
+        <nav aria-label="breadcrumb" class="breadcrumb-industrial">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{{ route('resource_person.syllabi.index') }}">Degree Syllabi</a></li>
                 <li class="breadcrumb-item active">Upload New</li>
             </ol>
         </nav>
-        <h2 class="mb-1"><i class="fas fa-upload me-2 text-primary"></i>Upload Degree Course Syllabus</h2>
-        <p class="text-muted mb-0">Add a new UiTM degree course syllabus for equivalency comparison</p>
+        <h2><i class="fas fa-upload me-2"></i>Upload Degree Course Syllabus</h2>
+        <p><i class="fas fa-book-open me-2"></i>Add a new UiTM degree course syllabus for equivalency comparison</p>
     </div>
 
     @php
-        // Ensure prefill is always available
         $prefill = $prefill ?? [];
     @endphp
 
     <!-- Pre-fill Notice -->
     @if(!empty($prefill['course_code']) || !empty($prefill['course_name']))
-        <div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
-            <i class="fas fa-info-circle me-2"></i>
-            <strong>Form pre-filled!</strong> The course information has been auto-filled from the equivalency request. You can edit the values if needed.
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div class="prefill-notice">
+            <i class="fas fa-info-circle"></i>
+            <div>
+                <strong>Form pre-filled!</strong> The course information has been auto-filled from the equivalency request. You can edit the values if needed.
+            </div>
         </div>
     @endif
 
     <!-- Upload Form -->
     <div class="row">
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body p-4">
-                    <form action="{{ route('resource_person.syllabi.store') }}" method="POST" enctype="multipart/form-data">
-                        @csrf
+            <div class="form-card">
+                <form action="{{ route('resource_person.syllabi.store') }}" method="POST" enctype="multipart/form-data">
+                    @csrf
 
-                        <!-- Hidden field for return URL -->
-                        @if(!empty($prefill['return_to']))
-                            <input type="hidden" name="return_to" value="{{ $prefill['return_to'] }}">
-                        @endif
+                    <!-- Hidden field for return URL -->
+                    @if(!empty($prefill['return_to']))
+                        <input type="hidden" name="return_to" value="{{ $prefill['return_to'] }}">
+                    @endif
 
-                        <!-- Course Information -->
-                        <h5 class="mb-3"><i class="fas fa-book me-2 text-primary"></i>Course Information</h5>
+                    <!-- Course Information -->
+                    <h5 class="section-title"><i class="fas fa-book primary"></i>Course Information</h5>
 
-                        <div class="row mb-3">
-                            <div class="col-md-9">
-                                <label for="course_code" class="form-label">Degree Course <span class="text-danger">*</span></label>
-                                <select class="form-select @error('course_code') is-invalid @enderror" id="course_code" name="course_code" required>
-                                    <option value="">-- Select Degree Course --</option>
-                                    @foreach($degreeCourses as $code => $course)
-                                        <option value="{{ $code }}"
-                                                data-name="{{ $course['name'] }}"
-                                                data-credits="{{ $course['credit_hours'] }}"
-                                                {{ old('course_code', $prefill['course_code'] ?? '') == $code ? 'selected' : '' }}>
-                                            {{ $code }} - {{ $course['name'] }}
-                                        </option>
-                                    @endforeach
-                                    <option value="__other__">+ Other (Enter manually)</option>
-                                </select>
-                                <!-- Hidden field for course name (auto-filled from dropdown) -->
-                                <input type="hidden" id="course_name" name="course_name" value="{{ old('course_name', $prefill['course_name'] ?? '') }}">
-                                @error('course_code')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                            <div class="col-md-3">
-                                <label for="credit_hours" class="form-label">Credit Hours <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control @error('credit_hours') is-invalid @enderror" id="credit_hours" name="credit_hours" value="{{ old('credit_hours', $prefill['credit_hours'] ?? 3) }}" min="1" max="10" step="0.5" required>
-                                @error('credit_hours')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
-
-                        <!-- Manual Entry Fields (hidden by default, shown when "Other" selected) -->
-                        <div class="row mb-3 d-none" id="manualEntryFields">
-                            <div class="col-md-4">
-                                <label for="manual_course_code" class="form-label">Course Code <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="manual_course_code" placeholder="e.g., ITT420">
-                                <small class="text-muted">Use uppercase letters</small>
-                            </div>
-                            <div class="col-md-8">
-                                <label for="manual_course_name" class="form-label">Course Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="manual_course_name" placeholder="e.g., System Administration">
-                            </div>
-                        </div>
-
-                        <div class="mb-4">
-                            <label for="description" class="form-label">Course Description <span class="text-muted fw-normal">(Optional)</span></label>
-                            <textarea class="form-control @error('description') is-invalid @enderror" id="description" name="description" rows="3" placeholder="Brief description of the course content...">{{ old('description') }}</textarea>
-                            @error('description')
+                    <div class="row mb-3">
+                        <div class="col-md-9">
+                            <label for="course_code" class="form-label">Degree Course <span class="text-danger">*</span></label>
+                            <select class="form-select @error('course_code') is-invalid @enderror" id="course_code" name="course_code" required>
+                                <option value="">-- Select Degree Course --</option>
+                                @foreach($degreeCourses as $code => $course)
+                                    <option value="{{ $code }}"
+                                            data-name="{{ $course['name'] }}"
+                                            data-credits="{{ $course['credit_hours'] }}"
+                                            {{ old('course_code', $prefill['course_code'] ?? '') == $code ? 'selected' : '' }}>
+                                        {{ $code }} - {{ $course['name'] }}
+                                    </option>
+                                @endforeach
+                                <option value="__other__">+ Other (Enter manually)</option>
+                            </select>
+                            <!-- Hidden field for course name (auto-filled from dropdown) -->
+                            <input type="hidden" id="course_name" name="course_name" value="{{ old('course_name', $prefill['course_name'] ?? '') }}">
+                            @error('course_code')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
-
-                        <hr class="my-4">
-
-                        <!-- Syllabus File -->
-                        <h5 class="mb-3"><i class="fas fa-file-pdf me-2 text-danger"></i>Syllabus Document</h5>
-
-                        <div class="mb-4">
-                            <label for="syllabus_file" class="form-label">Upload Syllabus PDF <span class="text-danger">*</span></label>
-                            <input type="file" class="form-control @error('syllabus_file') is-invalid @enderror" id="syllabus_file" name="syllabus_file" accept=".pdf" required>
-                            @error('syllabus_file')
+                        <div class="col-md-3">
+                            <label for="credit_hours" class="form-label">Credit Hours <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control @error('credit_hours') is-invalid @enderror" id="credit_hours" name="credit_hours" value="{{ old('credit_hours', $prefill['credit_hours'] ?? 3) }}" min="1" max="10" step="0.5" required>
+                            @error('credit_hours')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
-                            <small class="text-muted">
-                                <i class="fas fa-info-circle me-1"></i>
-                                PDF only, maximum 10MB. Include course outline, topics, learning outcomes.
-                            </small>
                         </div>
+                    </div>
 
-                        <!-- File Preview Area -->
-                        <div id="file-preview" class="mb-4 d-none">
-                            <div class="alert alert-info d-flex align-items-center">
-                                <i class="fas fa-file-pdf fa-2x me-3 text-danger"></i>
-                                <div>
-                                    <strong id="file-name"></strong>
-                                    <br><small id="file-size" class="text-muted"></small>
-                                </div>
+                    <!-- Manual Entry Fields (hidden by default, shown when "Other" selected) -->
+                    <div class="row mb-3 d-none" id="manualEntryFields">
+                        <div class="col-md-4">
+                            <label for="manual_course_code" class="form-label">Course Code <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="manual_course_code" placeholder="e.g., ITT420">
+                            <small class="form-text">Use uppercase letters</small>
+                        </div>
+                        <div class="col-md-8">
+                            <label for="manual_course_name" class="form-label">Course Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="manual_course_name" placeholder="e.g., System Administration">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="description" class="form-label">Course Description <span class="text-muted fw-normal">(Optional)</span></label>
+                        <textarea class="form-control @error('description') is-invalid @enderror" id="description" name="description" rows="3" placeholder="Brief description of the course content...">{{ old('description') }}</textarea>
+                        @error('description')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- Syllabus File -->
+                    <h5 class="section-title"><i class="fas fa-file-pdf danger"></i>Syllabus Document</h5>
+
+                    <div class="mb-4">
+                        <label for="syllabus_file" class="form-label">Upload Syllabus PDF <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control @error('syllabus_file') is-invalid @enderror" id="syllabus_file" name="syllabus_file" accept=".pdf" required>
+                        @error('syllabus_file')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                        <small class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            PDF only, maximum 10MB. Include course outline, topics, learning outcomes.
+                        </small>
+                    </div>
+
+                    <!-- File Preview Area -->
+                    <div id="file-preview" class="mb-4 d-none">
+                        <div class="file-preview">
+                            <i class="fas fa-file-pdf file-preview-icon"></i>
+                            <div class="file-preview-info">
+                                <strong id="file-name"></strong>
+                                <br><small id="file-size"></small>
                             </div>
                         </div>
+                    </div>
 
-                        <hr class="my-4">
+                    <hr class="my-4">
 
-                        <!-- Submit Buttons -->
-                        <div class="d-flex justify-content-between">
-                            <a href="{{ route('resource_person.syllabi.index') }}" class="btn btn-outline-secondary">
-                                <i class="fas fa-arrow-left me-2"></i>Cancel
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-upload me-2"></i>Upload Syllabus
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                    <!-- Submit Buttons -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ route('resource_person.syllabi.index') }}" class="btn-cancel">
+                            <i class="fas fa-arrow-left"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn-upload">
+                            <i class="fas fa-upload"></i>Upload Syllabus
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
 
         <!-- Help Sidebar -->
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm bg-light">
-                <div class="card-body">
-                    <h5 class="card-title"><i class="fas fa-question-circle me-2 text-info"></i>Upload Guidelines</h5>
-                    <hr>
-                    <ul class="list-unstyled mb-0">
-                        <li class="mb-3">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            <strong>Select Course:</strong> Choose from existing UiTM degree courses
-                        </li>
-                        <li class="mb-3">
-                            <i class="fas fa-plus-circle text-primary me-2"></i>
-                            <strong>New Course?</strong> Select "Other" to enter course details manually
-                        </li>
-                        <li class="mb-3">
-                            <i class="fas fa-file-pdf text-danger me-2"></i>
-                            <strong>Syllabus PDF:</strong> Should include:
-                            <ul class="mt-2">
+            <div class="help-card">
+                <h5><i class="fas fa-question-circle"></i>Upload Guidelines</h5>
+                <hr>
+                <ul class="help-list">
+                    <li>
+                        <i class="fas fa-check-circle success"></i>
+                        <div>
+                            <strong>Select Course:</strong>
+                            <span>Choose from existing UiTM degree courses</span>
+                        </div>
+                    </li>
+                    <li>
+                        <i class="fas fa-plus-circle primary"></i>
+                        <div>
+                            <strong>New Course?</strong>
+                            <span>Select "Other" to enter course details manually</span>
+                        </div>
+                    </li>
+                    <li>
+                        <i class="fas fa-file-pdf danger"></i>
+                        <div>
+                            <strong>Syllabus PDF:</strong>
+                            <span>Should include:</span>
+                            <ul class="sub-help-list">
                                 <li>Course objectives</li>
                                 <li>Topics covered</li>
                                 <li>Learning outcomes</li>
                                 <li>Assessment breakdown</li>
                             </ul>
-                        </li>
-                        <li class="mb-0">
-                            <i class="fas fa-info-circle text-info me-2"></i>
-                            One syllabus per course - shared across all programs.
-                        </li>
-                    </ul>
-                </div>
+                        </div>
+                    </li>
+                    <li>
+                        <i class="fas fa-info-circle info"></i>
+                        <div>
+                            <span>One syllabus per course - shared across all programs.</span>
+                        </div>
+                    </li>
+                </ul>
             </div>
         </div>
     </div>
@@ -242,8 +553,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const backBtn = document.createElement('button');
             backBtn.type = 'button';
             backBtn.id = 'backToDropdownBtn';
-            backBtn.className = 'btn btn-outline-secondary btn-sm mt-2';
-            backBtn.innerHTML = '<i class="fas fa-arrow-left me-1"></i>Back to course list';
+            backBtn.className = 'btn-back-small';
+            backBtn.innerHTML = '<i class="fas fa-arrow-left"></i>Back to course list';
             backBtn.onclick = function() {
                 location.reload();
             };

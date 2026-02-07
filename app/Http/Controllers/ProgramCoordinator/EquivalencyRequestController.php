@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\ProgramCoordinator;
 
 use App\Http\Controllers\Controller;
+use App\Models\ApplicationSubject;
 use App\Models\CourseEquivalencyRequest;
+use App\Models\ExemptionApplication;
 use App\Models\ProgramCoordinator;
 use App\Models\ResourcePerson;
 use Illuminate\Http\Request;
@@ -31,6 +33,11 @@ class EquivalencyRequestController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // Add validation for each request
+        foreach ($requests as $request) {
+            $request->transcript_validation = $this->validateRequestAgainstTranscript($request);
+        }
+
         // Group requests by diploma_course_code
         $groupedRequests = $requests->groupBy('diploma_course_code');
 
@@ -40,6 +47,12 @@ class EquivalencyRequestController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // Count requests that should be rejected (not in transcript)
+        $notInTranscriptCount = $requests->filter(function ($req) {
+            return isset($req->transcript_validation['status']) &&
+                   $req->transcript_validation['status'] === 'not_in_transcript';
+        })->count();
+
         // Statistics
         $stats = [
             'pending' => $allRequests->where('coordinator_decision', 'pending')->count(),
@@ -47,6 +60,7 @@ class EquivalencyRequestController extends Controller
             'rejected' => $allRequests->where('coordinator_decision', 'not_equivalent')->count(),
             'forwarded' => $allRequests->where('coordinator_decision', 'forward_to_rp')->count(),
             'unique_courses' => $groupedRequests->count(),
+            'not_in_transcript' => $notInTranscriptCount,
         ];
 
         // Program breakdown for filter
@@ -61,12 +75,21 @@ class EquivalencyRequestController extends Controller
             ];
         }
 
+        // Get recent decisions (last 10) for quick reference
+        $recentDecisions = CourseEquivalencyRequest::whereIn('current_program_code', $coordinator->program_codes)
+            ->where('coordinator_decision', '!=', 'pending')
+            ->with(['student.user'])
+            ->orderBy('coordinator_decided_at', 'desc')
+            ->limit(10)
+            ->get();
+
         return view('program_coordinator.equivalency_requests.index', compact(
             'groupedRequests',
             'stats',
             'coordinator',
             'programBreakdown',
-            'requests'
+            'requests',
+            'recentDecisions'
         ));
     }
 
@@ -179,7 +202,89 @@ class EquivalencyRequestController extends Controller
                 ->with('error', 'No requests found for this course.');
         }
 
+        // Add validation for each request
+        foreach ($requests as $request) {
+            $request->transcript_validation = $this->validateRequestAgainstTranscript($request);
+        }
+
         return view('program_coordinator.course_requests', compact('requests', 'diplomaCourseCode'));
+    }
+
+    /**
+     * Validate if the diploma course exists in student's credit exemption application
+     */
+    private function validateRequestAgainstTranscript(CourseEquivalencyRequest $request): array
+    {
+        // Check if student has an exemption application
+        $application = ExemptionApplication::where('student_id', $request->student_id)->first();
+
+        if (!$application) {
+            return [
+                'has_application' => false,
+                'course_found' => null,
+                'subject' => null,
+                'recommendation' => 'warning',
+                'status' => 'no_application',
+                'message' => 'Student has no credit exemption application yet. Cannot verify course in transcript.',
+                'can_forward' => true, // Can still forward for future use
+            ];
+        }
+
+        // Check if diploma course code exists in application subjects
+        $subject = ApplicationSubject::where('exemption_application_id', $application->id)
+            ->where(function ($query) use ($request) {
+                // Match exact course code or partial match (for combined codes)
+                $query->where('course_code', $request->diploma_course_code)
+                      ->orWhere('course_code', 'LIKE', '%' . $request->diploma_course_code . '%');
+            })
+            ->first();
+
+        if (!$subject) {
+            return [
+                'has_application' => true,
+                'course_found' => false,
+                'subject' => null,
+                'recommendation' => 'reject',
+                'status' => 'not_in_transcript',
+                'message' => 'Course NOT found in student\'s transcript. Student never took this course!',
+                'can_forward' => false, // Should not forward
+                'application_id' => $application->id,
+            ];
+        }
+
+        // Course found - determine recommendation based on current status
+        $recommendation = 'forward';
+        $message = 'Course verified in student\'s transcript.';
+
+        if (in_array($subject->status, ['Approved', 'exempted'])) {
+            $recommendation = 'info';
+            $message = 'Course already exempted/approved. New equivalency may not be needed.';
+        } elseif (in_array($subject->status, ['not_found', 'not_eligible_match'])) {
+            $recommendation = 'forward';
+            $message = 'Course in transcript but not exempted. Good candidate for equivalency review.';
+        } elseif ($subject->status === 'Rejected') {
+            $recommendation = 'review';
+            $message = 'Course was previously rejected. Review if new equivalency changes decision.';
+        }
+
+        return [
+            'has_application' => true,
+            'course_found' => true,
+            'subject' => [
+                'id' => $subject->id,
+                'course_code' => $subject->course_code,
+                'course_name' => $subject->course_name,
+                'grade' => $subject->grade,
+                'credit_hour' => $subject->credit_hour,
+                'status' => $subject->status,
+                'exemption_reason' => $subject->exemption_reason,
+            ],
+            'recommendation' => $recommendation,
+            'status' => 'verified',
+            'message' => $message,
+            'can_forward' => true,
+            'application_id' => $application->id,
+        ];
     }
 
     /**
@@ -321,5 +426,281 @@ class EquivalencyRequestController extends Controller
                 ->withErrors(['error' => 'An error occurred while forwarding to Resource Person: ' . $e->getMessage()])
                 ->withInput();
         }
+    }
+
+    /**
+     * Quick reject requests where course is not in student's transcript
+     */
+    public function rejectNotInTranscript(Request $request)
+    {
+        $validated = $request->validate([
+            'request_ids' => 'required|array',
+            'request_ids.*' => 'required|uuid|exists:course_equivalency_requests,id',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $coordinator = Auth::user()->programCoordinator;
+            $rejectedCount = 0;
+            $skippedCount = 0;
+
+            foreach ($validated['request_ids'] as $requestId) {
+                $equivalencyRequest = CourseEquivalencyRequest::findOrFail($requestId);
+
+                // Verify this request is not in transcript
+                $validation = $this->validateRequestAgainstTranscript($equivalencyRequest);
+
+                if ($validation['status'] !== 'not_in_transcript') {
+                    $skippedCount++;
+                    continue;
+                }
+
+                // Reject the request
+                $equivalencyRequest->update([
+                    'coordinator_decision' => 'not_equivalent',
+                    'coordinator_notes' => 'Rejected: Course not found in student\'s credit exemption application/transcript. ' .
+                                          'Student did not take this course.',
+                    'coordinator_decided_at' => now(),
+                    'status' => 'rejected',
+                ]);
+
+                $rejectedCount++;
+
+                Log::info('PC rejected request - not in transcript', [
+                    'coordinator_id' => $coordinator->id,
+                    'request_id' => $requestId,
+                    'student_id' => $equivalencyRequest->student_id,
+                    'diploma_course' => $equivalencyRequest->diploma_course_code,
+                ]);
+
+                // Notify student about rejection
+                $this->notifyStudentOfRejection($equivalencyRequest, 'not_in_transcript');
+            }
+
+            DB::commit();
+
+            $message = "{$rejectedCount} request(s) rejected (course not in transcript).";
+            if ($skippedCount > 0) {
+                $message .= " {$skippedCount} skipped (course found in transcript).";
+            }
+
+            return redirect()
+                ->route('program_coordinator.equivalency_requests.index')
+                ->with('success', $message);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Error rejecting not-in-transcript requests', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()
+                ->withErrors(['error' => 'An error occurred: ' . $e->getMessage()])
+                ->withInput();
+        }
+    }
+
+    /**
+     * Bulk reject all requests that are not in transcript
+     */
+    public function bulkRejectNotInTranscript()
+    {
+        try {
+            DB::beginTransaction();
+
+            $coordinator = Auth::user()->programCoordinator;
+
+            // Get all pending requests
+            $requests = CourseEquivalencyRequest::whereIn('current_program_code', $coordinator->program_codes)
+                ->where('coordinator_decision', 'pending')
+                ->get();
+
+            $rejectedCount = 0;
+
+            foreach ($requests as $equivalencyRequest) {
+                $validation = $this->validateRequestAgainstTranscript($equivalencyRequest);
+
+                if ($validation['status'] !== 'not_in_transcript') {
+                    continue;
+                }
+
+                $equivalencyRequest->update([
+                    'coordinator_decision' => 'not_equivalent',
+                    'coordinator_notes' => 'Bulk rejected: Course not found in student\'s credit exemption application/transcript.',
+                    'coordinator_decided_at' => now(),
+                    'status' => 'rejected',
+                ]);
+
+                $rejectedCount++;
+
+                // Notify student
+                $this->notifyStudentOfRejection($equivalencyRequest, 'not_in_transcript');
+            }
+
+            DB::commit();
+
+            return redirect()
+                ->route('program_coordinator.equivalency_requests.index')
+                ->with('success', "{$rejectedCount} request(s) bulk rejected (course not in transcript).");
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Error in bulk reject not-in-transcript', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors(['error' => 'An error occurred: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Notify student about rejection
+     */
+    private function notifyStudentOfRejection(CourseEquivalencyRequest $request, string $reason): void
+    {
+        try {
+            $student = $request->student;
+
+            if (!$student || !$student->user_id) {
+                return;
+            }
+
+            $title = 'Course Equivalency Request Rejected';
+
+            if ($reason === 'not_in_transcript') {
+                $message = "Your course equivalency request for {$request->diploma_course_code} ({$request->diploma_course_name}) " .
+                          "has been rejected. Reason: This course was not found in your credit exemption application. " .
+                          "Please ensure you have applied for credit exemption and the course is included in your transcript.";
+            } else {
+                $message = "Your course equivalency request for {$request->diploma_course_code} has been rejected. " .
+                          "Please contact your Program Coordinator for more information.";
+            }
+
+            \App\Models\Notification::create([
+                'user_id' => $student->user_id,
+                'type' => 'equivalency_request_rejected',
+                'title' => $title,
+                'message' => $message,
+                'link' => route('student.equivalency.request.index'),
+                'is_read' => false,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to notify student of rejection', [
+                'request_id' => $request->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Display decision history for processed requests
+     */
+    public function history(Request $request)
+    {
+        $coordinator = Auth::user()->programCoordinator;
+
+        if (!$coordinator) {
+            abort(403, 'Program Coordinator profile not found.');
+        }
+
+        // Base query for non-pending requests
+        $query = CourseEquivalencyRequest::whereIn('current_program_code', $coordinator->program_codes)
+            ->where('coordinator_decision', '!=', 'pending')
+            ->with(['student.user']);
+
+        // Filter by status
+        $status = $request->get('status', 'all');
+        if ($status !== 'all') {
+            $statusMap = [
+                'approved' => 'equivalent',
+                'rejected' => 'not_equivalent',
+                'forwarded' => 'forward_to_rp',
+            ];
+            if (isset($statusMap[$status])) {
+                $query->where('coordinator_decision', $statusMap[$status]);
+            }
+        }
+
+        // Search by course code or student name
+        $search = $request->get('search');
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('diploma_course_code', 'LIKE', "%{$search}%")
+                  ->orWhere('diploma_course_name', 'LIKE', "%{$search}%")
+                  ->orWhereHas('student', function ($sq) use ($search) {
+                      $sq->where('matric_no', 'LIKE', "%{$search}%");
+                  })
+                  ->orWhereHas('student.user', function ($sq) use ($search) {
+                      $sq->where('name', 'LIKE', "%{$search}%");
+                  });
+            });
+        }
+
+        // Filter by program
+        $program = $request->get('program');
+        if ($program && in_array($program, $coordinator->program_codes)) {
+            $query->where('current_program_code', $program);
+        }
+
+        // Filter by date range
+        $dateFrom = $request->get('date_from');
+        $dateTo = $request->get('date_to');
+        if ($dateFrom) {
+            $query->whereDate('coordinator_decided_at', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $query->whereDate('coordinator_decided_at', '<=', $dateTo);
+        }
+
+        // Get results with pagination
+        $requests = $query->orderBy('coordinator_decided_at', 'desc')->paginate(20);
+
+        // Statistics for all processed requests
+        $allProcessed = CourseEquivalencyRequest::whereIn('current_program_code', $coordinator->program_codes)
+            ->where('coordinator_decision', '!=', 'pending');
+
+        $stats = [
+            'total' => (clone $allProcessed)->count(),
+            'approved' => (clone $allProcessed)->where('coordinator_decision', 'equivalent')->count(),
+            'rejected' => (clone $allProcessed)->where('coordinator_decision', 'not_equivalent')->count(),
+            'forwarded' => (clone $allProcessed)->where('coordinator_decision', 'forward_to_rp')->count(),
+        ];
+
+        return view('program_coordinator.history', compact(
+            'requests',
+            'stats',
+            'coordinator',
+            'status',
+            'search',
+            'program',
+            'dateFrom',
+            'dateTo'
+        ));
+    }
+
+    /**
+     * Show details of a specific request
+     */
+    public function showRequest($id)
+    {
+        $coordinator = Auth::user()->programCoordinator;
+
+        if (!$coordinator) {
+            abort(403, 'Program Coordinator profile not found.');
+        }
+
+        $request = CourseEquivalencyRequest::whereIn('current_program_code', $coordinator->program_codes)
+            ->with(['student.user'])
+            ->findOrFail($id);
+
+        // Add validation info
+        $request->transcript_validation = $this->validateRequestAgainstTranscript($request);
+
+        return view('program_coordinator.show_request', compact('request'));
     }
 }

@@ -26,7 +26,7 @@ class RegistrationStatusController extends Controller
         ]);
 
         $user = User::where('email', $validated['email'])
-            ->whereIn('requested_role', ['academic_advisor', 'coordinator', 'resource_person'])
+            ->whereIn('requested_role', ['academic_advisor', 'program_coordinator', 'resource_person'])
             ->first();
 
         if (!$user) {

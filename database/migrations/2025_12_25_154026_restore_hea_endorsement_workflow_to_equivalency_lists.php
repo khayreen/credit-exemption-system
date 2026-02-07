@@ -35,7 +35,9 @@ return new class extends Migration
         });
 
         // Restore complete status workflow
-        DB::statement("ALTER TABLE `equivalency_lists` MODIFY COLUMN `status` ENUM('draft', 'submitted', 'under_review', 'endorsed', 'published', 'rejected') NOT NULL DEFAULT 'draft'");
+        if (DB::connection()->getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE `equivalency_lists` MODIFY COLUMN `status` ENUM('draft', 'submitted', 'under_review', 'endorsed', 'published', 'rejected') NOT NULL DEFAULT 'draft'");
+        }
     }
 
     /**
@@ -62,6 +64,8 @@ return new class extends Migration
         });
 
         // Revert to simplified status
-        DB::statement("ALTER TABLE `equivalency_lists` MODIFY COLUMN `status` ENUM('draft', 'published', 'archived') NOT NULL DEFAULT 'draft'");
+        if (DB::connection()->getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE `equivalency_lists` MODIFY COLUMN `status` ENUM('draft', 'published', 'archived') NOT NULL DEFAULT 'draft'");
+        }
     }
 };

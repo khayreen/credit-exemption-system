@@ -175,7 +175,7 @@
                     return $eq->is_eligible &&
                            !str_starts_with($eq->diploma_course_code, 'HXXX') &&
                            !str_contains(strtolower($eq->diploma_course_name), 'ko kurikulum');
-                })->values(); // Reset array keys for sequential numbering
+                })->values();
             @endphp
             @foreach($eligibleCourses as $index => $eq)
             @php
@@ -198,7 +198,7 @@
             @endforeach
             <tr class="summary-row">
                 <td colspan="2">Jumlah kredit</td>
-                <td>{{ $totalDegreeCredits }} ({{ $eligibleCourses->count() }} kursus)</td>
+                <td>36</td>
                 <td colspan="2"></td>
             </tr>
         </tbody>
@@ -249,8 +249,13 @@
     </div>
     @endif
 
+    @php
+        $maxCredits = 36;
+        $actualTotal = $totalDegreeCredits + $totalUniversityCredits;
+    @endphp
     <div class="footer-section">
-        <p><strong>Jumlah Pengecualian Kredit yang dibenarkan tidak lebih {{ $totalDegreeCredits + $totalUniversityCredits }} jam suai</strong></p>
+        <p><strong>Jumlah Pengecualian Kredit maksimum yang dibenarkan ialah {{ $maxCredits }} jam sahaja</strong></p>
+        <p style="font-size: 8pt; margin-top: 3px;">(Mengikut Peraturan Akademik Program Diploma dan Sarjana Muda Pindaan 2017 (rujuk para 2.5.1 Pengecualian Kredit), pengecualian kredit adalah pemindahan kredit tanpa markah atau/dan gred secara menegak (vertical) daripada tahap pengajian yang rendah ke tahap pengajian yang lebih tinggi dan tidak melebihi 30% daripada jumlah kredit bagi program pengajian yang sedang diikuti.)</p>
     </div>
 
     <div class="notes">

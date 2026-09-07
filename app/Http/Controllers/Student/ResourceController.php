@@ -16,8 +16,8 @@ class ResourceController extends Controller
      */
     public function faq()
     {
-        $faqs = FaqItem::where('is_published', true)
-            ->orderBy('order')
+        $faqs = FaqItem::where('is_active', true)
+            ->orderBy('sort_order')
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -31,8 +31,8 @@ class ResourceController extends Controller
      */
     public function help()
     {
-        $articles = HelpArticle::where('is_published', true)
-            ->orderBy('order')
+        $articles = HelpArticle::where('is_active', true)
+            ->orderBy('sort_order')
             ->orderBy('created_at', 'desc')
             ->get();
 

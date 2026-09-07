@@ -11,6 +11,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Honour X-Forwarded-Proto so HTTPS tunnels (ngrok/Cloudflare) generate
+        // https:// asset and route URLs instead of http://. No effect locally.
+        $middleware->trustProxies(at: '*');
+
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
             'admin' => \App\Http\Middleware\CheckAdmin::class,

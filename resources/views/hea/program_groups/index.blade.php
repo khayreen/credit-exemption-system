@@ -400,6 +400,10 @@
         border-radius: 6px;
         font-weight: 600;
         font-size: 0.8rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        white-space: nowrap;
     }
 
     .badge-warning {
@@ -409,6 +413,10 @@
         border-radius: 6px;
         font-weight: 600;
         font-size: 0.8rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        white-space: nowrap;
     }
 
     .badge-secondary {
@@ -418,6 +426,10 @@
         border-radius: 6px;
         font-weight: 600;
         font-size: 0.8rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        white-space: nowrap;
     }
 
     /* Buttons */
@@ -863,11 +875,11 @@
                                                     <span class="badge-secondary">Inactive</span>
                                                 @elseif($assignedUser)
                                                     <span class="badge-success">
-                                                        <i class="fas fa-check me-1"></i>Assigned
+                                                        <i class="fas fa-check"></i> Assigned
                                                     </span>
                                                 @else
                                                     <span class="badge-warning">
-                                                        <i class="fas fa-exclamation-triangle me-1"></i>Unassigned
+                                                        <i class="fas fa-exclamation-triangle"></i> Unassigned
                                                     </span>
                                                 @endif
                                             </td>
@@ -970,9 +982,9 @@
                     </ol>
                     <p><strong>Status Indicators:</strong></p>
                     <ul>
-                        <li><span class="badge-success">Assigned</span> - AA assigned</li>
-                        <li><span class="badge-warning">Unassigned</span> - Needs AA</li>
-                        <li><span class="badge-secondary">Inactive</span> - Group disabled</li>
+                        <li><span class="badge-success" style="margin-right: 0.4rem;">Assigned</span> - AA assigned</li>
+                        <li><span class="badge-warning" style="margin-right: 0.4rem;">Unassigned</span> - Needs AA</li>
+                        <li><span class="badge-secondary" style="margin-right: 0.4rem;">Inactive</span> - Group disabled</li>
                     </ul>
                 </div>
             </div>

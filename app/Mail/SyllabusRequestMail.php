@@ -8,7 +8,6 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Contracts\Queue\ShouldQueue;
 
 class SyllabusRequestMail extends Mailable implements ShouldQueue
 {
@@ -45,7 +44,7 @@ class SyllabusRequestMail extends Mailable implements ShouldQueue
         $this->submissionUrl = $submissionUrl;
         $this->requestNotes = $requestNotes;
         $this->tokenExpiresAt = $tokenExpiresAt;
-        \$this->onQueue('emails');
+        $this->onQueue('emails');
     }
 
     /**

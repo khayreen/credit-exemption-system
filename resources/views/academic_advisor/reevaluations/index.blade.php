@@ -527,16 +527,16 @@
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
             <div>
                 <div class="d-flex align-items-center gap-3 mb-2">
-                    <h1><i class="bi bi-arrow-repeat me-2"></i>Pending Re-evaluations</h1>
+                    <h1><i class="fas fa-sync-alt me-2"></i>Pending Re-evaluations</h1>
                     <span class="header-badge">
-                        <i class="bi bi-exclamation-circle"></i>
+                        <i class="fas fa-exclamation-circle"></i>
                         {{ $stats['total_pending'] }} Pending
                     </span>
                 </div>
                 <p>Review applications affected by new course equivalency mappings</p>
             </div>
             <a href="{{ route('academic_advisor.dashboard') }}" class="btn-back">
-                <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
             </a>
         </div>
     </div>
@@ -545,7 +545,7 @@
     <div class="stats-grid">
         <div class="stat-card pending">
             <div class="stat-icon">
-                <i class="bi bi-clock-history"></i>
+                <i class="fas fa-history"></i>
             </div>
             <div class="stat-value">{{ $stats['total_pending'] }}</div>
             <div class="stat-label">Pending Review</div>
@@ -553,7 +553,7 @@
 
         <div class="stat-card approved">
             <div class="stat-icon">
-                <i class="bi bi-check-circle"></i>
+                <i class="fas fa-check-circle"></i>
             </div>
             <div class="stat-value">{{ $stats['approved_today'] }}</div>
             <div class="stat-label">Approved Today</div>
@@ -561,7 +561,7 @@
 
         <div class="stat-card rejected">
             <div class="stat-icon">
-                <i class="bi bi-x-circle"></i>
+                <i class="fas fa-times-circle"></i>
             </div>
             <div class="stat-value">{{ $stats['rejected_today'] }}</div>
             <div class="stat-label">Rejected Today</div>
@@ -569,7 +569,7 @@
 
         <div class="stat-card expiring">
             <div class="stat-icon">
-                <i class="bi bi-exclamation-triangle"></i>
+                <i class="fas fa-exclamation-triangle"></i>
             </div>
             <div class="stat-value">{{ $stats['expiring_soon'] }}</div>
             <div class="stat-label">Expiring Soon</div>
@@ -579,28 +579,28 @@
     <!-- Flash Messages -->
     @if(session('success'))
         <div class="alert-industrial success">
-            <i class="bi bi-check-circle-fill"></i>
+            <i class="fas fa-check-circle"></i>
             <span>{{ session('success') }}</span>
         </div>
     @endif
 
     @if(session('error'))
         <div class="alert-industrial danger">
-            <i class="bi bi-exclamation-circle-fill"></i>
+            <i class="fas fa-exclamation-circle"></i>
             <span>{{ session('error') }}</span>
         </div>
     @endif
 
     @if(session('warning'))
         <div class="alert-industrial warning">
-            <i class="bi bi-exclamation-triangle-fill"></i>
+            <i class="fas fa-exclamation-triangle"></i>
             <span>{{ session('warning') }}</span>
         </div>
     @endif
 
     @if(session('info'))
         <div class="alert-industrial info">
-            <i class="bi bi-info-circle-fill"></i>
+            <i class="fas fa-info-circle"></i>
             <span>{{ session('info') }}</span>
         </div>
     @endif
@@ -609,7 +609,7 @@
     @if($pendingReevaluations->isEmpty())
         <div class="empty-state">
             <div class="empty-state-icon">
-                <i class="bi bi-inbox"></i>
+                <i class="fas fa-inbox"></i>
             </div>
             <h4>No Pending Re-evaluations</h4>
             <p>All applications are up to date with the latest equivalency mappings.</p>
@@ -628,12 +628,12 @@
                     <div class="d-flex flex-column gap-2">
                         <div class="course-mapping">
                             <span class="course-badge diploma">{{ $diplomaCourse }}</span>
-                            <i class="bi bi-arrow-right-circle-fill mapping-arrow"></i>
+                            <i class="fas fa-arrow-circle-right mapping-arrow"></i>
                             <span class="course-badge degree">{{ $degreeCourse }}</span>
                         </div>
                         <div class="mapping-info">
-                            <span><i class="bi bi-people me-1"></i>{{ $reevaluations->count() }} application(s) may qualify</span>
-                            <span class="match-badge"><i class="bi bi-graph-up me-1"></i>{{ $firstReevaluation->match_percentage }}% Match</span>
+                            <span><i class="fas fa-users me-1"></i>{{ $reevaluations->count() }} application(s) may qualify</span>
+                            <span class="match-badge"><i class="fas fa-chart-line me-1"></i>{{ $firstReevaluation->match_percentage }}% Match</span>
                         </div>
                     </div>
                     <form action="{{ route('academic_advisor.reevaluations.approve_by_equivalency') }}" method="POST" class="d-inline">
@@ -642,7 +642,7 @@
                         <input type="hidden" name="degree_course_code" value="{{ $degreeCourse }}">
                         <button type="submit" class="btn-approve-all"
                                 onclick="return confirm('Approve all {{ $reevaluations->count() }} application(s) for this mapping?')">
-                            <i class="bi bi-check-all"></i>
+                            <i class="fas fa-check-double"></i>
                             Approve All ({{ $reevaluations->count() }})
                         </button>
                     </form>
@@ -670,7 +670,7 @@
                                 @endphp
                                 <tr>
                                     <td>
-                                        <span class="student-name">{{ $student->name ?? 'N/A' }}</span>
+                                        <span class="student-name">{{ $application->student_name ?? ($student->user->name ?? 'N/A') }}</span>
                                     </td>
                                     <td>
                                         <code class="matric-code">{{ $application->matric_no ?? $student->matric_no ?? 'N/A' }}</code>
@@ -688,7 +688,7 @@
                                         @if($reevaluation->expires_at)
                                             @if($reevaluation->expires_at->diffInDays(now()) <= 7)
                                                 <span class="expiry-badge warning">
-                                                    <i class="bi bi-clock me-1"></i>{{ $reevaluation->expires_at->diffForHumans() }}
+                                                    <i class="fas fa-clock me-1"></i>{{ $reevaluation->expires_at->diffForHumans() }}
                                                 </span>
                                             @else
                                                 <small class="text-muted">{{ $reevaluation->expires_at->format('d M Y') }}</small>
@@ -702,19 +702,19 @@
                                             <form action="{{ route('academic_advisor.reevaluations.approve', $reevaluation) }}" method="POST" class="d-inline">
                                                 @csrf
                                                 <button type="submit" class="btn-action approve" title="Approve">
-                                                    <i class="bi bi-check-lg"></i>
+                                                    <i class="fas fa-check"></i>
                                                 </button>
                                             </form>
                                             <form action="{{ route('academic_advisor.reevaluations.reject', $reevaluation) }}" method="POST" class="d-inline">
                                                 @csrf
                                                 <button type="submit" class="btn-action reject" title="Reject"
                                                         onclick="return confirm('Reject this re-evaluation? The student\'s original status will be maintained.')">
-                                                    <i class="bi bi-x-lg"></i>
+                                                    <i class="fas fa-times"></i>
                                                 </button>
                                             </form>
                                             <a href="{{ route('academic_advisor.reevaluations.show', $reevaluation) }}"
                                                class="btn-action view" title="View Details">
-                                                <i class="bi bi-eye"></i>
+                                                <i class="fas fa-eye"></i>
                                             </a>
                                         </div>
                                     </td>
@@ -731,7 +731,7 @@
     @if($recentDecisions->isNotEmpty())
         <div class="decisions-card">
             <div class="decisions-header">
-                <i class="bi bi-clock-history"></i>
+                <i class="fas fa-history"></i>
                 <h5>Recent Decisions (Last 7 Days)</h5>
             </div>
             <div class="table-responsive">
@@ -754,23 +754,23 @@
                             @endphp
                             <tr>
                                 <td>
-                                    <span class="student-name">{{ $student->name ?? 'N/A' }}</span>
+                                    <span class="student-name">{{ $application->student_name ?? ($student->user->name ?? 'N/A') }}</span>
                                 </td>
                                 <td>
                                     <div class="course-mapping" style="gap: 0.5rem;">
                                         <code class="matric-code">{{ $decision->diploma_course_code }}</code>
-                                        <i class="bi bi-arrow-right text-muted"></i>
+                                        <i class="fas fa-arrow-right text-muted"></i>
                                         <code class="matric-code">{{ $decision->degree_course_code }}</code>
                                     </div>
                                 </td>
                                 <td>
                                     @if($decision->status === 'approved')
                                         <span class="status-badge decision-approved">
-                                            <i class="bi bi-check-circle me-1"></i>Approved
+                                            <i class="fas fa-check-circle me-1"></i>Approved
                                         </span>
                                     @else
                                         <span class="status-badge decision-rejected">
-                                            <i class="bi bi-x-circle me-1"></i>Rejected
+                                            <i class="fas fa-times-circle me-1"></i>Rejected
                                         </span>
                                     @endif
                                 </td>

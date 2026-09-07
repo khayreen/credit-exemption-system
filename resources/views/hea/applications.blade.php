@@ -303,23 +303,29 @@
 
     .filter-card .input-group {
         display: flex;
+        flex-wrap: nowrap;
+        position: relative;
     }
 
     .filter-card .input-group .input-icon {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 0 0.75rem;
-        background: var(--industrial-light);
-        border: 1px solid #cbd5e1;
-        border-right: none;
-        border-radius: 8px 0 0 8px;
+        width: 2.5rem;
         color: #64748b;
         font-size: 0.85rem;
+        z-index: 2;
+        pointer-events: none;
     }
 
     .filter-card .input-group .ind-form-control {
-        border-radius: 0 8px 8px 0;
+        padding-left: 2.5rem;
+        border-radius: 8px;
+        width: 100%;
     }
 
     .btn-ind-primary {

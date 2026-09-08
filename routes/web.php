@@ -230,7 +230,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('course-equivalencies/bulk', [App\Http\Controllers\ResourcePerson\ApplicationController::class, 'storeBulkEquivalencies'])->name('course_equivalencies.store_bulk');
         Route::get('api/degree-program-courses', [App\Http\Controllers\ResourcePerson\ApplicationController::class, 'getDegreeProgramCourses'])->name('api.degree_program_courses');
         Route::get('api/existing-equivalencies', [App\Http\Controllers\ResourcePerson\ApplicationController::class, 'getExistingEquivalencies'])->name('api.existing_equivalencies');
-        Route::put('course-equivalencies/{equivalencyId}', [App\Http\Controllers\ResourcePerson\ApplicationController::class, 'updateEquivalency'])->name('course_equivalencies.update');
+        Route::put('course-equivalencies/{equivalencyId}', [App\Http\Controllers\ResourcePerson\ApplicationController::class, 'updateEquivalency'])->name('course_equivalencies.update_equivalency');
         Route::delete('course-equivalencies/{equivalencyId}', [App\Http\Controllers\ResourcePerson\ApplicationController::class, 'deleteEquivalency'])->name('course_equivalencies.delete');
 
         // Course Equivalency Request Routes
